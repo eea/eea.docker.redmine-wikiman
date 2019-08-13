@@ -7,10 +7,10 @@ class Discover(object):
 
 
     def write_page(self, content):
-        server = os.getenv('wiki_server','')
-        apikey = os.getenv('wiki_apikey','')
-        projectName = os.getenv('wiki_project','')
-        pageName = os.getenv('wiki_stacks_page','')
+        server = os.getenv('WIKI_SERVER','')
+        apikey = os.getenv('WIKI_APIKEY','')
+        projectName = os.getenv('WIKI_PROJECT','')
+        pageName = os.getenv('WIKI_STACKS_PAGE','')
         server = Redmine(server, key=apikey, requests={'verify': True})
         server.wiki_page.update(pageName, project_id=projectName, text=content)
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
             dryrun = True
 
 
-    pageTitle = os.getenv('wiki_stackspagetitle', 'Rancher Stacks')
+    pageTitle = os.getenv('WIKI_STACKSPAGETITLE', 'Rancher Stacks')
 
     content = []
     content.append('{{>toc}}\n\n')
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     content.append('Automatically discovered on ' + time.strftime('%d %B %Y') + '. _Do not update this page manually._')
 
     disc = Discover()
-    rancher_configs = os.getenv('rancher_config')
+    rancher_configs = os.getenv('RANCHER_CONFIG')
     for rancher_config in rancher_configs.split():
         rancher_configuration = rancher_config.split(",")
         rancherUrl = rancher_configuration[0]

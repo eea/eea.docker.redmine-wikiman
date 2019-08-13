@@ -12,7 +12,7 @@ class RancherInstances(object):
 
     def __init__(self, servers):
         self.totalAvailable = 0
-        pageTitle = os.getenv('wiki_hostspagetitle', 'Rancher Hosts')
+        pageTitle = os.getenv('WIKI_HOSTSPAGETITLE', 'Rancher Hosts')
 
         self.open_shelf()
         self.content = []
@@ -20,7 +20,7 @@ class RancherInstances(object):
         self.content.append('h1. ' + pageTitle + '\n')
         self.content.append('Automatically discovered on ' + time.strftime('%d %B %Y') + '. _Do not update this page manually._')
 
-        rancher_configs = os.getenv('rancher_config')
+        rancher_configs = os.getenv('RANCHER_CONFIG')
         for rancher_config in rancher_configs.split():
             rancher_configuration = rancher_config.split(",")
             rancherUrl = rancher_configuration[0]
@@ -58,7 +58,7 @@ class RancherInstances(object):
         self.close_shelf()
 
     def open_shelf(self):
-        shelfFile = os.getenv('shelve_file','/tmp/shelve')
+        shelfFile = os.getenv('SHELVE_FILE','/tmp/shelve')
         self.shelfFD = shelve.open(shelfFile, flag='n')
 
     def close_shelf(self):
@@ -86,10 +86,10 @@ class RancherInstances(object):
         self.content.append('|{} |>. {} |>. {} | {} | {} | {} |'.format(name, int(memTotal + 0.5), memAvailable, ", ".join(ips), dockerVersion, operatingSystem))
 
     def write_page(self):
-        server = os.getenv('wiki_server','')
-        apikey = os.getenv('wiki_apikey','')
-        projectName = os.getenv('wiki_project','')
-        pageName = os.getenv('wiki_hosts_page','')
+        server = os.getenv('WIKI_SERVER','')
+        apikey = os.getenv('WIKI_APIKEY','')
+        projectName = os.getenv('WIKI_PROJECT','')
+        pageName = os.getenv('WIKI_HOSTS_PAGE','')
         server = Redmine(server, key=apikey, requests={'verify': True})
         server.wiki_page.update(pageName, project_id=projectName, text="\n".join(self.content))
 

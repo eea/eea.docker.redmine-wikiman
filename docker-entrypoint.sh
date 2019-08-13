@@ -4,12 +4,12 @@ set -e
 
 if [[ "$@" == "run" ]]; then
         echo "Checking mandatory environment variables"
-	if [ -z "$rancher_config" ]; then
+	if [ -z "$RANCHER_CONFIG" ]; then
 		echo "Did not receive rancher configuration!!! Exiting!"
 		exit 1
 	fi
 	flag=""
-	if [ -z "$wiki_server" ] || [ -z "$wiki_apikey" ] || [ -z "$wiki_project" ] || [ -z "$wiki_stacks_page" ] || [ -z "$wiki_hosts_page" ] || [ -z "$wiki_containers_page" ]; then
+	if [ -z "$WIKI_SERVER" ] || [ -z "$WIKI_APIKEY" ] || [ -z "$WIKI_PROJECT" ] || [ -z "$WIKI_STACKS_PAGE" ] || [ -z "$WIKI_HOSTS_PAGE" ] || [ -z "$WIKI_CONTAINERS_PAGE" ]; then
 		echo "Did not receive all Taskman related variables, will run in info mode"
 		flag="-n"
 	fi
