@@ -1,8 +1,10 @@
 import json, time, shelve
-import urllib, urllib2, os, sys, logging
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, os, sys, logging
 import getopt
 
 from redminelib import Redmine
+from urllib.parse import urlparse
+
 
 class RancherInstances(object):
 
@@ -27,17 +29,19 @@ class RancherInstances(object):
             rancherSecretKey = rancher_configuration[2]
             logging.info("Starting " + rancherUrl)
             
+            self.content.append('\nh2. {}\n'.format(urlparse(rancherUrl).netloc.upper()))
 
             envstruct = self.get_operation(rancherApiUrl, rancherAccessKey, rancherSecretKey,  rancherApiUrl + "/projects")
             for project in sorted(envstruct['data'], key=getKey):
                 if project['state'] != 'active': continue
                 environment = project['id']
                 stackUrl =   rancherApiUrl + "/projects/" + environment
-                logging.info("Environment: %s", environment)
+                logging.info("Retrieving %s - %s", environment, project['name'])
                 
                 envURL = rancherUrl + "/env/" + environment
                 envLabel = project['name']
-                self.content.append('\nh2. "{}":{}\n'.format(envLabel, envURL))
+
+                self.content.append('\nh3. "{}":{}\n'.format(envLabel, envURL))
 
 
                 self.content.append('|_{width:14em}. Name |_{width:6em}. Total RAM |_{width:5em}. Available |_{width:9em}. IP |_. Docker |_. OS |')
@@ -91,17 +95,17 @@ class RancherInstances(object):
 
     def write_stdout(self):
         for line in self.content:
-            print line
+            print(line)
 
     def get_operation(self, rancherUrl, rancherAccessKey, rancherSecretKey, url):
         realm = "Enter API access key and secret key as username and password"
 
-        auth_handler = urllib2.HTTPBasicAuthHandler()
+        auth_handler = urllib.request.HTTPBasicAuthHandler()
         auth_handler.add_password(realm=realm, uri=rancherUrl, user=rancherAccessKey, passwd=rancherSecretKey)
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
+        opener = urllib.request.build_opener(auth_handler)
+        urllib.request.install_opener(opener)
         logging.debug("Opening: %s", url)
-        f = urllib2.urlopen(url)
+        f = urllib.request.urlopen(url)
         rawdata = f.read()
         f.close()
         return json.loads(rawdata)
@@ -110,7 +114,7 @@ class RancherInstances(object):
         ipDict = {}
         for net in netList:
             ipDict[net['ipAddress']] = 1
-        return ipDict.keys()
+        return list(ipDict.keys())
 
 def addToShelf(self, instance):
     pass
@@ -127,17 +131,17 @@ def getHostKey(instance):
 if __name__ == '__main__':
     dryrun = False
     environments = None
+
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dvn")
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         sys.exit(2)
     for o, a in opts:
-        if o == "-d":
+        if o == "-v":
             logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
         if o == "-n":
             dryrun = True
-        if o == "-v":
-            logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
     if len(args) > 0:
         environments = args
     obj = RancherInstances(environments)

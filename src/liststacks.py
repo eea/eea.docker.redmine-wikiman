@@ -1,7 +1,7 @@
 import json
-import urllib, urllib2, os, sys, logging, time, getopt
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, os, sys, logging, time, getopt
 from redminelib import Redmine
-
+from urllib.parse import urlparse
 
 class Discover(object):
 
@@ -16,16 +16,16 @@ class Discover(object):
 
     def write_stdout(self, content):
         #pass
-        print content
+        print(content)
 
     def get_operation(self, rancherUrl, rancherAccessKey, rancherSecretKey, url):
         realm = "Enter API access key and secret key as username and password"
 
-        auth_handler = urllib2.HTTPBasicAuthHandler()
+        auth_handler = urllib.request.HTTPBasicAuthHandler()
         auth_handler.add_password(realm=realm, uri=rancherUrl, user=rancherAccessKey, passwd=rancherSecretKey)
-        opener = urllib2.build_opener(auth_handler)
-        urllib2.install_opener(opener)
-        f = urllib2.urlopen(url)
+        opener = urllib.request.build_opener(auth_handler)
+        urllib.request.install_opener(opener)
+        f = urllib.request.urlopen(url)
         rawdata = f.read()
         f.close()
         return json.loads(rawdata)
@@ -40,8 +40,9 @@ if __name__ == '__main__':
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "vn")
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         sys.exit(2)
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
     for o, a in opts:
         if o == "-v":
             logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -58,32 +59,31 @@ if __name__ == '__main__':
 
     disc = Discover()
     rancher_configs = os.getenv('rancher_config')
-    logging.debug("%s", rancher_configs)
     for rancher_config in rancher_configs.split():
-        logging.debug("%s", rancher_config)
         rancher_configuration = rancher_config.split(",")
-        logging.debug("%s", rancher_configuration)
         rancherUrl = rancher_configuration[0]
         rancherApiUrl = rancherUrl + "/v2-beta"
         rancherAccessKey = rancher_configuration[1]
         rancherSecretKey = rancher_configuration[2]
-        
+        logging.info(rancherUrl)
+      
+        content.append('\nh2. {}\n'.format(urlparse(rancherUrl).netloc.upper()))
+
+
         structdata = disc.get_operation( rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects")
         for project in sorted(structdata['data'], key=getKey):
             if project['state'] != 'active': continue
             environment = project['id']
             envURL = rancherUrl + "/env/" + environment
-            logging.debug("Retrieving %s - %s", environment, project['name'])
-            content.append('\nh2. "{}":{}\n'.format(project['name'], envURL))
+            logging.info("Retrieving %s - %s", environment, project['name'])
+            content.append('\nh3. "{}":{}\n'.format(project['name'], envURL))
             description = project.get('description')
-            if description is None: description = u''
+            if description is None: description = ''
             content.append('{}\n'.format(description.encode("utf8")))
             content.append('|_. Name |_. Created |_. Description |_. Tags |')
 
             stackUrl =   rancherApiUrl + "/projects/" + environment 
             structdata = disc.get_operation(rancherApiUrl, rancherAccessKey, rancherSecretKey, stackUrl + "/stacks")
-#           print structdata
-#           sys.exit()
 
             for instance in sorted(structdata['data'], key=getKey):
                 actions = instance['actions']
@@ -98,7 +98,7 @@ if __name__ == '__main__':
                 group = instance.get('group', '')
                 if group is None: group = ''
                 logging.debug("%s", name)
-                content.append('|"{}":{} | {} | {} | {} |'.format(name, link, created, description.encode("utf8"), group))
+                content.append('|"{}":{} | {} | {} | {} |'.format(name, link, created, description, group))
 
     if dryrun:
         disc.write_stdout("\n".join(content))
