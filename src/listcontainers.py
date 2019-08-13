@@ -51,6 +51,8 @@ class Discover(object):
             if imageUuid.startswith("docker:rancher/") and not imageUuid.startswith("docker:rancher/lb-service-haproxy"): continue
             imageUuid = imageUuid[7:]
             containerStruct = self.containers.setdefault(imageUuid, [])
+            containerLink = url.replace('v2-beta/projects', 'env') + "/infra/containers/" + instance['id']
+            instance['containerLink'] = containerLink
             containerStruct.append(instance)
             self.num_containers = self.num_containers + 1
             #print instance
@@ -73,7 +75,7 @@ class Discover(object):
                 memoryLim = container.get('memory', 0)
                 if memoryLim is None: memoryLim = 0
                 memoryLim = memoryLim / 1048576
-                content.append('| {} | {} | {} | {} |>. {} |>. {} |'.format(imageName, contName, stackName, container['state'], memoryRes, memoryLim))
+                content.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], memoryRes, memoryLim))
 #           content.append('\n')
 
 if __name__ == '__main__':
