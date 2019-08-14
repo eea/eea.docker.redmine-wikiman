@@ -1,4 +1,4 @@
-# eea.docker.rancher2redmine
+# Rancher to Redmine wiki exporter
 Exports multiple rancher hosts, stacks and containers information to tables in wiki pages in Redmine. The image is created under the name: eeacms/rancher2redmine
 
 
@@ -21,7 +21,21 @@ Exports multiple rancher hosts, stacks and containers information to tables in w
 
 ### Will save the wiki pages in redmine
 
-
-
      docker run --rm -e RANCHER_CONFIG="RANCHER-URL,RANCHER-ACCESS-KEY,RANCHER-SECRET-KEY RANCHER2-URL,RANCHER2-ACCESS-KEY,RANCHER2-SECRET-KEY" -e WIKI_SERVER="REDMINE_URL" -e WIKI_APIKEY="REDMINE-KEY" -e WIKI_PROJECT=project -e WIKI_HOSTS_PAGE=RancherHosts -e WIKI_STACKS_PAGE=RancherStacks -e WIKI_CONTAINERS_PAGE=RancherContainers eeacms/rancher2redmine
+
+## Scripts
+
+The scripts can be run in python, with the following arguments:
+* -v - debug logging
+* -n - wiki is not uploaded to redmine
+
+For example:
+    python /listcontainers.py -v -n
+    
+## Development
+
+To make the development easier, you can mount the scripts in a volume and run them:
+
+    docker run -v $(pwd)/src:/src -e RANCHER_CONFIG="RANCHER-URL,RANCHER-ACCESS-KEY,RANCHER-SECRET-KEY RANCHER2-URL,RANCHER2-ACCESS-KEY,RANCHER2-SECRET-KEY" -e WIKI_SERVER="REDMINE_URL" -e WIKI_APIKEY="REDMINE-KEY" -e WIKI_PROJECT=project -e WIKI_HOSTS_PAGE=RancherHosts -e WIKI_STACKS_PAGE=RancherStacks -e WIKI_CONTAINERS_PAGE=RancherContainers eeacms/rancher2redmine sh
+    $python /src/listcontainers.py -v
 
