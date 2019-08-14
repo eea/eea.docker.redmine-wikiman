@@ -14,7 +14,7 @@ if [[ "$@" == "run" ]]; then
 		flag="-n"
 	fi
 
-	if [ -z "$DEBUG" ]; then
+	if [[ "$DEBUG" == "Yes" ]]; then
 		flag="${flag} -v"
 	fi
 
