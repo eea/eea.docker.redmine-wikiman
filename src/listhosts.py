@@ -42,7 +42,9 @@ class RancherInstances(object):
                 envLabel = project['name']
 
                 self.content.append('\nh3. "{}":{}\n'.format(envLabel, envURL))
-
+                description = project.get('description')
+                if description is None: description = ''
+                self.content.append('{}\n'.format(description))
 
                 self.content.append('|_{width:14em}. Name |_{width:6em}. Total RAM |_{width:5em}. Available |_{width:9em}. IP |_. Docker |_. OS |')
                 try:

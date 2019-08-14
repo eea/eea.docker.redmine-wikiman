@@ -79,7 +79,7 @@ if __name__ == '__main__':
             content.append('\nh3. "{}":{}\n'.format(project['name'], envURL))
             description = project.get('description')
             if description is None: description = ''
-            content.append('{}\n'.format(description.encode("utf8")))
+            content.append('{}\n'.format(description))
             content.append('|_. Name |_. Created |_. Description |_. Tags |')
 
             stackUrl =   rancherApiUrl + "/projects/" + environment 

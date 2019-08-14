@@ -123,6 +123,10 @@ if __name__ == '__main__':
             logging.info("Retrieving %s - %s", environment, project['name'])
             envLabel = project['name']
             content.append('\nh3. "{}":{}\n'.format(envLabel,envURL))
+            description = project.get('description')
+            if description is None: description = ''
+            content.append('{}\n'.format(description))
+
             content.append('\n')
             disc.load_containers(rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects/"+environment)
             disc.buildgraph(content)
