@@ -105,16 +105,17 @@ class Discover(object):
                 host = self.hosts[container['hostId']]
 
                 envText.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], memoryRes, memoryLim))
-            envText.append('\nTotal    RAM on host: {:.1f} GB'.format( total / 1024))
-            envText.append('\nReserved RAM on host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalReserved / 1024, totalReserved*100/total,(total-totalReserved)/1024 ))
-            envText.append('\nLimit    RAM on host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalLimit / 1024, totalLimit*100/total,(total-totalLimit)/1024 ))
+            envText.append('\nTotal    RAM on host: {:.1f} GiB'.format( total / 1024))
+            envText.append('\nReserved RAM on host: {:.1f} GiB, {:.1f}% used or {:.1f} GiB available'.format( totalReserved / 1024, totalReserved*100/total,(total-totalReserved)/1024 ))
+            envText.append('\nLimit    RAM on host: {:.1f} GiB, {:.1f}% used or {:.1f} GiB available'.format( totalLimit / 1024, totalLimit*100/total,(total-totalLimit)/1024 ))
             envText.append('\n')
             envReserved = envReserved + totalReserved
             envLimit = envLimit + totalLimit
             envTotal = envTotal + total
-        content.append('\nTotal    RAM in environment: {:.1f} GB'.format( envTotal / 1024))
-        content.append('\nReserved RAM in environment: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( envReserved / 1024, envReserved*100/envTotal,(envTotal-envReserved)/1024 ))
-        content.append('\nLimit    RAM in environment: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( envLimit / 1024, envLimit*100/envTotal,(envTotal-envLimit)/1024 ))
+        content.append('\nTotal    RAM in environment: {:.1f} GiB'.format( envTotal / 1024))
+        content.append('\nReserved RAM in environment: {:.1f} GiB, {:.1f}% used or {:.1f} GiB available'.format( envReserved / 1024, envReserved*100/envTotal,(envTotal-envReserved)/1024 ))
+        content.append('\nLimit    RAM in environment: {:.1f} GiB, {:.1f}% used or {:.1f} GiB available'.format( envLimit / 1024, envLimit*100/envTotal,(envTotal-envLimit)/1024 ))
+        content.append('\n')
         content.extend(envText)
 
 

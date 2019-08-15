@@ -12,6 +12,7 @@ class RancherInstances(object):
 
     def __init__(self, servers):
         self.totalAvailable = 0
+        self.total = 0
         pageTitle = os.getenv('WIKI_HOSTSPAGETITLE', 'Rancher Hosts')
 
         self.open_shelf()
@@ -46,17 +47,20 @@ class RancherInstances(object):
                 if description is None: description = ''
                 self.content.append('{}\n'.format(description))
 
-                self.content.append('|_{width:14em}. Name |_{width:6em}. Total RAM |_{width:5em}. Available |_{width:9em}. IP |_. Docker |_. OS |')
+                self.content.append('|_{width:14em}. Name |_{width:14em}. Check_MK |_{width:6em}. Total RAM |_{width:5em}. Used |_{width:5em}. %Used |_{width:5em}. Available |_{width:9em}. IP |_. Docker |_. OS |')
                 try:
                     
                     structdata = self.get_operation(rancherApiUrl, rancherAccessKey, rancherSecretKey, stackUrl + "/hosts")
                     self.totalAvailable = 0
+                    self.total = 0
                     for instance in sorted(structdata['data'], key=getHostKey):
+                        instance['host_url'] = stackUrl + "/hosts/" + instance['id']
+                        instance['check_mk'] = "https://goldeneye.eea.europa.eu/omdeea/check_mk/index.py?start_url=%2Fomdeea%2Fcheck_mk%2Fview.py%3Fview_name%3Dhost%26host%3D" + instance['hostname'].split('.')[0] + "%26site%3Domdeea"
                         self.add_instance(instance)
                         self.shelve_instance(instance, envLabel)
                 except:
                     logging.error("Unable to get hosts for %s", environment)
-                self.content.append('\nAvailable RAM in environment: {:.1f} GB'.format(self.totalAvailable / 1024.0))
+                self.content.append('\nAvailable RAM in environment: {:.1f} GiB from total of {:.1f} GiB'.format(self.totalAvailable / 1024.0, self.total / 1024))
         self.close_shelf()
 
     def open_shelf(self):
@@ -83,9 +87,12 @@ class RancherInstances(object):
         memoryInfo = infoStruct['memoryInfo']
         memTotal = memoryInfo['memTotal']
         memAvailable = memoryInfo.get('memAvailable', 0)
+        memUsed = memTotal - memAvailable
+        memUsedPercentage = memUsed * 100 / memTotal
         self.totalAvailable = self.totalAvailable + int(memAvailable)
+        self.total = self.total + int(memTotal)
+        self.content.append('| "{}":{} | "{}":{} |>. {} |>. {} |>. {:.1f} |>. {} |  {} | {} | {} |'.format(name, instance['host_url'], name.split('.')[0], instance['check_mk'], memTotal, memUsed, memUsedPercentage,  memAvailable, ", ".join(ips), dockerVersion, operatingSystem))
 
-        self.content.append('|{} |>. {} |>. {} | {} | {} | {} |'.format(name, int(memTotal + 0.5), memAvailable, ", ".join(ips), dockerVersion, operatingSystem))
 
     def write_page(self):
         server = os.getenv('WIKI_SERVER','')
