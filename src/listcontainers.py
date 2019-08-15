@@ -57,11 +57,20 @@ class Discover(object):
             self.num_containers = self.num_containers + 1
             #print instance
 
+    def load_hosts(self, rancherUrl, rancherAccessKey, rancherSecretKey, url):
+        self.hosts = {}
+        structdata = self.get_operation(rancherUrl, rancherAccessKey, rancherSecretKey, url + "/hosts")
+        
+        for instance in structdata['data']:
+            self.hosts[instance['id']] = instance['hostname']
+
+
+
     def buildgraph(self, content):
-        content.append('|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |')
+        content.append('|_. Image |_. Container |_. Stack |_. State |_. Host |_. Reservation |_. Limit |')
         for imageName, containers in sorted(self.containers.items()):
             #content.append('h3. {}\n'.format(imageName))
-            for container in sorted(containers, key=itemgetter('name')):
+            for container in sorted(containers, key=itemgetter('hostId')):
 #               if container['imageUuid'].startswith("docker:rancher/"): continue
                 contName = container['name']
                 try:
@@ -75,7 +84,10 @@ class Discover(object):
                 memoryLim = container.get('memory', 0)
                 if memoryLim is None: memoryLim = 0
                 memoryLim = memoryLim / 1048576
-                content.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], memoryRes, memoryLim))
+
+                host = self.hosts[container['hostId']]
+
+                content.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], host,  memoryRes, memoryLim))
 #           content.append('\n')
 
 if __name__ == '__main__':
@@ -128,6 +140,7 @@ if __name__ == '__main__':
             content.append('{}\n'.format(description))
 
             content.append('\n')
+            disc.load_hosts(rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects/"+environment)
             disc.load_containers(rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects/"+environment)
             disc.buildgraph(content)
             content.append('\n')
