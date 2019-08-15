@@ -72,13 +72,18 @@ class Discover(object):
 
 
     def buildgraph(self, content):
+
+        envReserved = 0
+        envLimit = 0
+        envTotal = 0
+        envText = []
         for hostId, containers in sorted(self.containers.items()):
             host = self.hosts[hostId]
             totalReserved = 0
             totalLimit = 0
             total = self.hosts_size[hostId]
-            content.append('h4. {}\n'.format(host))
-            content.append('|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |')
+            envText.append('h4. {}\n'.format(host))
+            envText.append('|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |')
             for container in sorted(containers, key=itemgetter('name')):
                 imageName = container['imageUuid']
 #               if container['imageUuid'].startswith("docker:rancher/"): continue
@@ -97,14 +102,20 @@ class Discover(object):
                 memoryLim = memoryLim / 1048576
                 totalLimit = totalLimit + memoryLim
 
-
                 host = self.hosts[container['hostId']]
 
-                content.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], memoryRes, memoryLim))
-            content.append('\nTotal    RAM in host: {:.1f} GB'.format( total / 1024))
-            content.append('\nReserved RAM in host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalReserved / 1024, totalReserved*100/total,(total-totalReserved)/1024 ))
-            content.append('\nLimit    RAM in host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalLimit / 1024, totalReserved*100/total,(total-totalReserved)/1024 ))
-            content.append('\n')
+                envText.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], memoryRes, memoryLim))
+            envText.append('\nTotal    RAM on host: {:.1f} GB'.format( total / 1024))
+            envText.append('\nReserved RAM on host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalReserved / 1024, totalReserved*100/total,(total-totalReserved)/1024 ))
+            envText.append('\nLimit    RAM on host: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( totalLimit / 1024, totalLimit*100/total,(total-totalLimit)/1024 ))
+            envText.append('\n')
+            envReserved = envReserved + totalReserved
+            envLimit = envLimit + totalLimit
+            envTotal = envTotal + total
+        content.append('\nTotal    RAM in environment: {:.1f} GB'.format( envTotal / 1024))
+        content.append('\nReserved RAM in environment: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( envReserved / 1024, envReserved*100/envTotal,(envTotal-envReserved)/1024 ))
+        content.append('\nLimit    RAM in environment: {:.1f} GB, {:.1f}% used or {:.1f} GB available'.format( envLimit / 1024, envLimit*100/envTotal,(envTotal-envLimit)/1024 ))
+        content.extend(envText)
 
 
 
@@ -156,13 +167,13 @@ if __name__ == '__main__':
             description = project.get('description')
             if description is None: description = ''
             content.append('{}\n'.format(description))
-
+           
             content.append('\n')
             disc.load_hosts(rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects/"+environment)
             disc.load_containers(rancherApiUrl, rancherAccessKey, rancherSecretKey, rancherApiUrl+"/projects/"+environment)
+            content.append('Number of containers: {}\n'.format(disc.num_containers))
             disc.buildgraph(content)
             content.append('\n')
-            content.append('Number of containers: {}\n'.format(disc.num_containers))
     if dryrun:
         disc.write_stdout("\n".join(content))
     else:
