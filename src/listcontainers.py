@@ -70,7 +70,7 @@ class Discover(object):
         content.append('|_. Image |_. Container |_. Stack |_. State |_. Host |_. Reservation |_. Limit |')
         for imageName, containers in sorted(self.containers.items()):
             #content.append('h3. {}\n'.format(imageName))
-            for container in sorted(containers, key=itemgetter('hostId')):
+            for container in sorted(containers, key=itemgetter('name')):
 #               if container['imageUuid'].startswith("docker:rancher/"): continue
                 contName = container['name']
                 try:
@@ -87,7 +87,7 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
-                content.append('| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], host,  memoryRes, memoryLim))
+                content.append('| {} | "{}":{} | {} | {} | {} |>. {} |>. {} |'.format(imageName, contName, container['containerLink'], stackName, container['state'], host,  memoryRes, memoryLim))
 #           content.append('\n')
 
 if __name__ == '__main__':
