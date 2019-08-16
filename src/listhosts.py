@@ -55,7 +55,7 @@ class RancherInstances(object):
                 if description is None: description = ''
                 self.envText.append('{}\n'.format(description))
 
-                self.envText.append('|_{width:14em}. Name |_{width:14em}. Check_MK |_{width:6em}. Total RAM |_{width:5em}. Used |_{width:5em}. %Used |_{width:5em}. Available |_{width:9em}. IP |_. Docker |_. OS |')
+                self.envText.append('|_{width:14em}. Name |_. Check_MK |_. Total RAM |_. Used |_. %Used |_. Available |_{width:9em}. IP |_. Docker |_. OS |')
                 try:
                     structdata = self.get_operation(rancherApiUrl, rancherAccessKey, rancherSecretKey, stackUrl + "/hosts")
                     self.totalAvailable = 0
