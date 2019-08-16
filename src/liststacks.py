@@ -80,7 +80,9 @@ if __name__ == '__main__':
             description = project.get('description')
             if description is None: description = ''
             content.append('{}\n'.format(description))
-            content.append('|_. Name |_. Created |_. Description |_. Tags |')
+            content.append('|_. Name |_. Created |_. State |_. Health |_. Catalog |_. Description |_. Tags |')
+            infraStacks = []
+            userStacks = []
 
             stackUrl =   rancherApiUrl + "/projects/" + environment 
             structdata = disc.get_operation(rancherApiUrl, rancherAccessKey, rancherSecretKey, stackUrl + "/stacks")
@@ -98,7 +100,13 @@ if __name__ == '__main__':
                 group = instance.get('group', '')
                 if group is None: group = ''
                 logging.debug("%s", name)
-                content.append('|"{}":{} | {} | {} | {} |'.format(name, link, created, description, group))
+                stack_line = '|"{}":{} | {} | {} | {} | {} | {} | {} |'.format(name, link, created, instance['state'], instance['healthState'], instance['externalId'], description, group)
+                if (instance['system']):
+                    infraStacks.append(stack_line)
+                else:
+                    userStacks.append(stack_line)
+            content.extend(infraStacks)
+            content.extend(userStacks)
 
     if dryrun:
         disc.write_stdout("\n".join(content))
