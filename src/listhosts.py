@@ -68,19 +68,25 @@ class RancherInstances(object):
                 except:
                     logging.error("Unable to get hosts for %s", environment)
                 self.envText.append('\nAvailable RAM in environment: {:.1f} GiB from a total of {:.1f} GiB'.format(self.totalAvailable / 1024.0, self.total / 1024))
-                self.envText.append('\nUsed RAM {:.1f}%'.format(self.totalAvailable*100/self.total ))
+                self.envText.append('\nUsed RAM {}'.format(self.color_percent(self.totalAvailable*100/self.total )))
                 self.fullAvailable = self.fullAvailable + self.totalAvailable
                 self.fullTotal = self.fullTotal + self.total
             self.fullText.append('\nAvailable RAM: {:.1f} GiB from a total of {:.1f} GiB'.format(self.fullAvailable / 1024.0, self.fullTotal / 1024))
-            self.fullText.append('\nUsed RAM {:.1f}%'.format(self.fullAvailable*100/self.fullTotal ))
+            self.fullText.append('\nUsed RAM {}'.format(self.color_percent(self.fullAvailable*100/self.fullTotal )))
             self.fullText.extend(self.envText)
             self.allAvailable = self.allAvailable + self.fullAvailable
             self.allTotal = self.allTotal + self.fullTotal
         self.content.append('\nAvailable RAM: {:.1f} GiB from a total of {:.1f} GiB'.format(self.allAvailable / 1024.0, self.allTotal / 1024))
-        self.content.append('\nUsed RAM {:.1f}%'.format(self.allAvailable*100/self.allTotal ))
+        self.content.append('\nUsed RAM {}'.format(self.color_percent(self.allAvailable*100/self.allTotal)))
         self.content.extend(self.fullText)
 
         self.close_shelf()
+
+    def color_percent(self, number):
+        text = '{:.1f}&#37;'.format(number)
+        if number > 80:
+            text = '%{background:pink}' + text + '%'
+        return text
 
     def open_shelf(self):
         shelfFile = os.getenv('SHELVE_FILE','/tmp/shelve')
@@ -110,7 +116,7 @@ class RancherInstances(object):
         memUsedPercentage = memUsed * 100 / memTotal
         self.totalAvailable = self.totalAvailable + int(memAvailable)
         self.total = self.total + int(memTotal)
-        self.envText.append('| "{}":{} | "{}":{} |>. {} |>. {} |>. {:.1f} |>. {} |  {} | {} | {} |'.format(name, instance['host_url'], name.split('.')[0], instance['check_mk'], memTotal, memUsed, memUsedPercentage,  memAvailable, ", ".join(ips), dockerVersion, operatingSystem))
+        self.envText.append('| "{}":{} | "{}":{} |>. {} |>. {} |>. {} |>. {} | {} | {} | {} |'.format(name, instance['host_url'], name.split('.')[0], instance['check_mk'], memTotal, memUsed, self.color_percent(memUsedPercentage),  memAvailable, ", ".join(ips), dockerVersion, operatingSystem))
 
 
     def write_page(self):
