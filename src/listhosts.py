@@ -68,16 +68,16 @@ class RancherInstances(object):
                 except:
                     logging.error("Unable to get hosts for %s", environment)
                 self.envText.append('\nAvailable RAM in environment: {:.1f} GiB from a total of {:.1f} GiB'.format(self.totalAvailable / 1024.0, self.total / 1024))
-                self.envText.append('\nUsed RAM {}'.format(self.color_percent(self.totalAvailable*100/self.total )))
+                self.envText.append('\nUsed RAM {}'.format(self.color_percent((self.total-self.totalAvailable)*100/self.total )))
                 self.fullAvailable = self.fullAvailable + self.totalAvailable
                 self.fullTotal = self.fullTotal + self.total
             self.fullText.append('\nAvailable RAM: {:.1f} GiB from a total of {:.1f} GiB'.format(self.fullAvailable / 1024.0, self.fullTotal / 1024))
-            self.fullText.append('\nUsed RAM {}'.format(self.color_percent(self.fullAvailable*100/self.fullTotal )))
+            self.fullText.append('\nUsed RAM {}'.format(self.color_percent((self.fullTotal-self.fullAvailable)*100/self.fullTotal )))
             self.fullText.extend(self.envText)
             self.allAvailable = self.allAvailable + self.fullAvailable
             self.allTotal = self.allTotal + self.fullTotal
         self.content.append('\nAvailable RAM: {:.1f} GiB from a total of {:.1f} GiB'.format(self.allAvailable / 1024.0, self.allTotal / 1024))
-        self.content.append('\nUsed RAM {}'.format(self.color_percent(self.allAvailable*100/self.allTotal)))
+        self.content.append('\nUsed RAM {}'.format(self.color_percent((self.allTotal-self.allAvailable)*100/self.allTotal)))
         self.content.extend(self.fullText)
 
         self.close_shelf()
