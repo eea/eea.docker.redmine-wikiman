@@ -26,6 +26,14 @@ if [[ "$@" == "run" ]]; then
 
 	echo "Running listcontainers.py"
         python /listcontainers.py $flag
+
+        echo "Running addstackinfo.py"
+	python /addstackinfo.py $flag
+
+	echo "Running addimageinfo.py"
+         python /addimageinfo.py $flag
+
+
 else
 	exec  "$@"
 fi

@@ -6,49 +6,82 @@ import re
 import svn.remote
 import sys
 import os
-
+import logging
+import getopt
 
 server = os.getenv('WIKI_SERVER','')
 apikey = os.getenv('WIKI_APIKEY','')
 projectName = os.getenv('WIKI_PROJECT','')
-pageName = os.getenv('WIKI_CONTAINERS_PAGE','')
+pageName = os.getenv('WIKI_PAGE','Applications')
 svnuser = os.getenv('SVN_USER','')
 svnpassword = os.getenv('SVN_PASSWORD','')
 
+
+
+try:
+  opts, args = getopt.getopt(sys.argv[1:], "dvn")
+except getopt.GetoptError as err:
+  sys.exit(2)
+
+dryrun = False
+debug = False
+
+for o, a in opts:
+  if o == "-v":
+    debug = True
+  if o == "-n":
+    dryrun = True
+
+if debug:
+  logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+else:
+  logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
+
+logging.info("START")
+
 server = Redmine(server, key=apikey, requests={'verify': True})
-project = server.project.get(projectName)
 
-list = []
-for page in project.wiki_pages:
-  if ( str(getattr(page, 'parent', None)) == pageName ):
-      list.append(page)
+list1 = []
 
-list2 = []
-for page in project.wiki_pages:
-  for child in list:
-    if ( str(getattr(page, 'parent', None)) == str(child) ):
+try:
+  project = server.project.get(projectName)
+  for page in project.wiki_pages:
+    if ( str(getattr(page, 'parent', None)) == pageName ):
+        list1.append(page)
+  list2 = []
+  for page in project.wiki_pages:
+    for child in list1:
+      if ( str(getattr(page, 'parent', None)) == str(child) ):
         list2.append(page)
-     
-list.extend(list2)
+  list1.extend(list2)
+except:
+  logging.error("There was a problem reading from taskman wiki")
+  logging.error(sys.exc_info())
+  sys.exit(0)
 
 list_pages = []
-for page in list:
+for page in list1:
    if ( getattr(page, 'text', None).find('DeploymentRepoURL') > 0 ):
      list_pages.append(page)
 
 for page in list_pages:
-  print "Starting with " + str(page)
+  logging.info("Starting with " + str(page))
   lines = page.text.splitlines()
   repos = [x for x in lines if 'DeploymentRepoURL:' in x]
   docker_images = {}
   for line in repos:
     url = line.replace('DeploymentRepoURL:','').strip()
     dockerfile = ""
-    print "Deployment url " + url 
+    logging.debug("Deployment url " + url) 
     try:
       if 'https://github.com/' in url:
         api = url.replace('https://github.com/','https://api.github.com/repos/').replace('tree/master', 'contents')
         response = requests.get(api)
+        if response.status_code != 200: 
+          logging.debug(response.json())
+          logging.warning("There was a problem with the github api response")
+          continue
         filter_dirs = [x for x in response.json() if x['type'] == 'dir']
         biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
         response2 = requests.get(api.strip('/')+"/"+biggest)
@@ -58,22 +91,31 @@ for page in list_pages:
       else:
        if 'https://eeasvn.eea.europa.eu/' in url:
           url = line.strip().split(' ')[1]
+          if debug:
+            logging.getLogger().setLevel(logging.INFO)
           r = svn.remote.RemoteClient(url, username=svnuser, password=svnpassword)
+          r.info()
           for x in r.list():
             if str(x).lower() == 'docker-compose.yml':
               dockerfile = r.cat(x)
-      
           if not dockerfile:
             for rel_path, e in r.list_recursive():
               if str(e['name']).lower() == 'docker-compose.yml':
                 dockerfile = r.cat(rel_path+'/'+e['name'])
                 break
+          if debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+            
     except:
-      print "There was a problem accessing the DeploymentRepoURL docker-compose.yml"
+      logging.warning("There was a problem accessing the DeploymentRepoURL docker-compose.yml")
+      logging.error(sys.exc_info())
+      if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     
     if not dockerfile:
       docker_images = {}
-      print "There was a mistake, no docker-compose.yml file found"
+      logging.warning("No docker-compose.yml file found, skipping the page")
       break
     
     lines = dockerfile.splitlines()
@@ -99,7 +141,7 @@ for page in list_pages:
     #print docker_images
  
   if not docker_images:
-    print "No docker images extracted, will continue"
+    logging.debug("No docker images extracted, will continue")
     continue
 
   #text = "\nh2. Source code information\n\n"
@@ -128,22 +170,28 @@ for page in list_pages:
      #  print "-------------------------------"
 
       if new_images_list[0].rstrip() == images_list[0].rstrip(): 
-        print "Nothing to update"
+        logging.debug("Nothing to update")
       else:
         replace_section = "yes"
     else:
       replace_section = "yes"
 
     if replace_section:
-      print "Replaced the source code information text"
+      logging.debug("Replaced the source code information text")
       new_text = page.text.replace(section[0],comment + text)
   else:
     new_text = page.text + "\n\nh2. Source code information" + comment + text
-    print "Added new section"
+    logging.debug("Added new section")
 	 
   if new_text:
-    print "Will save now"
     new_text = new_text.replace('\n<div id="wiki_extentions_header">\n\n{{last_updated_at}} _by_ {{last_updated_by}}\n\n</div>\n\n','')
-    page.text = new_text
-    page.save()
+    if dryrun:
+      logging.info("Changes found, but they won't be saved")
+      logging.debug(new_text)
+    else:
+      logging.info("Saving page")
+      page.text = new_text
+      page.save()
+
+logging.info("DONE")
 
