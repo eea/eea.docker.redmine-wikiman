@@ -35,6 +35,28 @@ The scripts can be run in python, with the following arguments:
 
 For example:
     python /listcontainers.py -v -n
+
+
+### listcontainers.py
+
+Updates a redmine wiki page with the list of current docker containers per rancher environment ( including image, stack, status), calculating memory reservation and limit per host/environment/rancher and comparing it with the real memory values.
+
+### listhosts.py
+
+Updates a redmine wiki page with the list of current hosts  per rancher environment ( including check_mk link, docker version, OS version), calculating available and used memory percentages.
+
+
+### liststacks.py
+
+Updates a redmine wiki page with the list of current rancher stacks per environment ( including date created, state and health, catalog, description and tags ).
+
+### addimageinfo.py
+
+Updates all wiki subpages for a redmine wiki page, searching for "DeploymentRepoURL" url and extracting docker image information ( docker hub link and github link ) and adding and populating "Source code information" section of the wiki with it.
+
+### addstackinfo.py
+
+Updates all wiki subpages for a redmine wiki page, searching for "Service location" link and extracting it from the current rancher stacks list (created by liststacks.py) and adding the stack link in the field "Rancher Stack URL" to it.
     
 ## Development
 
