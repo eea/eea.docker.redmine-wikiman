@@ -53,6 +53,7 @@ class Discover(object):
             imageUuid = imageUuid[7:]
             hostId = instance['hostId']
             if hostId is None: hostId = ''
+            if instance['name'] is None: instance['name'] = '-'
             containerStruct = self.containers.setdefault(hostId, [])
             containerLink = url.replace('v2-beta/projects', 'env') + "/infra/containers/" + instance['id']
             instance['containerLink'] = containerLink
