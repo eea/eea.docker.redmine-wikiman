@@ -75,7 +75,8 @@ class Discover(object):
             imageUuid = imageUuid[7:]
             hostId = instance['hostId']
             if hostId is None:
-                hostId = ''
+                logging.info("Container " + instance.get('name','') + " does not have host, will skip it")
+                continue
             if instance['name'] is None:
                 instance['name'] = '-'
             containerStruct = self.containers.setdefault(hostId, [])
