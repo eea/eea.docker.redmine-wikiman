@@ -109,6 +109,7 @@ for page in list_pages:
                 break
           if debug:
             logging.getLogger().setLevel(logging.DEBUG)
+          dockerfile = dockerfile.decode("utf-8")
 
     except BaseException:
       logging.warning(
