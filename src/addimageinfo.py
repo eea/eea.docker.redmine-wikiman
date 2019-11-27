@@ -15,6 +15,7 @@ projectName = os.getenv('WIKI_PROJECT', '')
 pageName = os.getenv('WIKI_PAGE', 'Applications')
 svnuser = os.getenv('SVN_USER', '')
 svnpassword = os.getenv('SVN_PASSWORD', '')
+github_token = os.getenv('GITHUB_TOKEN','')
 
 
 try:
@@ -38,6 +39,15 @@ else:
 
 
 logging.info("START")
+
+#Github authorization
+authorization_header = {}
+raw_header = {'Accept': 'application/vnd.github.VERSION.raw'}
+if github_token:
+    logging.info("Received GitHub token value, will be using it to read github repos")
+    authorization_header = {'Authorization': 'bearer ' + github_token }
+    raw_header = {'Accept': 'application/vnd.github.VERSION.raw', 'Authorization': 'bearer ' + github_token }
+    
 
 server = Redmine(server, key=apikey, requests={'verify': True})
 
@@ -78,18 +88,17 @@ for page in list_pages:
         api = url.replace('https://github.com/',
                           'https://api.github.com/repos/').replace('tree/master',
                                                                    'contents')
-        response = requests.get(api)
+        response = requests.get(api, headers=authorization_header)
         if response.status_code != 200:
           logging.debug(response.json())
           logging.warning("There was a problem with the github api response")
           continue
         filter_dirs = [x for x in response.json() if x['type'] == 'dir']
         biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
-        response2 = requests.get(api.strip('/') + "/" + biggest)
+        response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header)
         filter_dc = [x for x in response2.json(
         ) if 'docker-compose' in str(x['name']).lower()]
-        response3 = requests.get(str(filter_dc[0]['url']), headers={
-                                 "Accept": "application/vnd.github.VERSION.raw"})
+        response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header)
         dockerfile = response3.text
       else:
         if 'https://eeasvn.eea.europa.eu/' in url:
@@ -124,7 +133,7 @@ for page in list_pages:
       break
 
     lines = dockerfile.splitlines()
-    images = [x for x in lines if 'image: ' in x]
+    images = [x for x in lines if ' image: ' in x]
     for image in images:
       name = image.strip().split(' ')[1].strip('"').strip("'")
       # print name

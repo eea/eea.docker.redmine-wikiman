@@ -15,7 +15,8 @@ The image is created under the name: eeacms/redmine-wikiman
 8. WIKI_PAGE - Redmine wiki with applications
 9. SVN_USER - SVN user to read docker-compose.yml
 10. SVN_PASSWORD - SVN password to read docker-compose.yml
-11. DEBUG - Set to "Yes" to enable debug logging
+11. GITHUB_TOKEN - can be given to avoid API number of requests per IP restrictions
+12. DEBUG - Set to "Yes" to enable debug logging
 
 ## Usage
 
