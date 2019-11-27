@@ -61,7 +61,7 @@ except BaseException:
 
 list_pages = []
 for page in list1:
-  if (getattr(page, 'text', None).find('Service location:') > 0):
+  if (getattr(page, 'text', None).lower().find('service location:') > 0):
     list_pages.append(page)
 
 for page in list_pages:
@@ -84,9 +84,11 @@ for page in list_pages:
       next_line = ''
     else:
       text = text + line + '\n'
-    if 'Service location:' in line:
-      url = line.replace('Service location:',
-                         '').strip().lower().split(' ')[0].strip('/')
+    if 'service location:' in line.lower():
+      if line.strip().lower().index('service location:') > 0:
+        continue
+      url = line.lower().replace('service location:',
+                         '').strip().split(' ')[0].strip('/')
       if (url.find('(') >= 0):
         logging.warning(
             "Could not extract url, check 'Service location' on page " +
