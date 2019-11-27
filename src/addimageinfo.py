@@ -71,16 +71,18 @@ except BaseException:
 
 list_pages = []
 for page in list1:
-  if (getattr(page, 'text', None).find('DeploymentRepoURL') > 0):
+  if (getattr(page, 'text', None).lower().find('deploymentrepourl:') > 0):
     list_pages.append(page)
 
 for page in list_pages:
   logging.info("Starting with " + str(page))
   lines = page.text.splitlines()
-  repos = [x for x in lines if 'DeploymentRepoURL:' in x]
+  repos = [x for x in lines if 'deploymentrepourl:' in x.lower()]
   docker_images = {}
   for line in repos:
-    url = line.replace('DeploymentRepoURL:', '').strip()
+    if line.strip().lower().index('deploymentrepourl:') > 0:
+      continue
+    url = line.lower().replace('deploymentrepourl:', '').strip()
     dockerfile = ""
     logging.debug("Deployment url " + url)
     try:
