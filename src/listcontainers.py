@@ -223,12 +223,17 @@ if __name__ == '__main__':
             '\nh2. {}\n'.format(
                 urlparse(rancherUrl).netloc.upper()))
 
-        envstruct = disc.get_operation(
-            rancherApiUrl,
-            rancherAccessKey,
-            rancherSecretKey,
-            rancherApiUrl +
-            "/projects")
+         try:
+             envstruct = self.get_operation(
+                 rancherApiUrl,
+                 rancherAccessKey,
+                 rancherSecretKey,
+                 rancherApiUrl + "/projects")
+         except BaseException:
+             logging.error("There was a problem reading from Rancher")
+             logging.error(sys.exc_info())
+             continue
+
 
         for project in sorted(envstruct['data'], key=getKey):
 

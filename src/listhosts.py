@@ -54,12 +54,17 @@ class RancherInstances(object):
             self.fullText.append(
                 '\nh2. {}\n'.format(
                     urlparse(rancherUrl).netloc.upper()))
+            try:
+                envstruct = self.get_operation(
+                    rancherApiUrl,
+                    rancherAccessKey,
+                    rancherSecretKey,
+                    rancherApiUrl + "/projects")
+            except BaseException:
+                logging.error("There was a problem reading from Rancher")
+                logging.error(sys.exc_info())
+                continue
 
-            envstruct = self.get_operation(
-                rancherApiUrl,
-                rancherAccessKey,
-                rancherSecretKey,
-                rancherApiUrl + "/projects")
             for project in sorted(envstruct['data'], key=getKey):
                 if project['state'] != 'active':
                     continue

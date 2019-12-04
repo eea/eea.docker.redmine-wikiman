@@ -91,12 +91,18 @@ if __name__ == '__main__':
             '\nh2. {}\n'.format(
                 urlparse(rancherUrl).netloc.upper()))
 
-        structdata = disc.get_operation(
-            rancherApiUrl,
-            rancherAccessKey,
-            rancherSecretKey,
-            rancherApiUrl +
-            "/projects")
+        try:
+            structdata = disc.get_operation(
+                rancherApiUrl,
+                rancherAccessKey,
+                rancherSecretKey,
+                rancherApiUrl +
+                "/projects")
+        except BaseException:
+            logging.error("There was a problem reading from Rancher")
+            logging.error(sys.exc_info())
+            continue
+
         for project in sorted(structdata['data'], key=getKey):
             if project['state'] != 'active':
                 continue

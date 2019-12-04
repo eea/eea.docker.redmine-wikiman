@@ -1,7 +1,7 @@
 FROM python:3-alpine
 LABEL maintainer="EEA: IDM2 A-Team <eea-edw-a-team-alerts@googlegroups.com>"
 
-RUN apk add --no-cache --virtual .run-deps tzdata subversion && \
+RUN apk add --no-cache --virtual .run-deps tzdata subversion nano && \
     pip install python-redmine svn
 
 COPY src/* /
