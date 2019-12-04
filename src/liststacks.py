@@ -90,7 +90,6 @@ if __name__ == '__main__':
         content.append(
             '\nh2. {}\n'.format(
                 urlparse(rancherUrl).netloc.upper()))
-
         try:
             structdata = disc.get_operation(
                 rancherApiUrl,
