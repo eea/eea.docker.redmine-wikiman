@@ -224,7 +224,7 @@ if __name__ == '__main__':
                 urlparse(rancherUrl).netloc.upper()))
 
         try:
-            envstruct = self.get_operation(
+            envstruct = disc.get_operation(
                 rancherApiUrl,
                 rancherAccessKey,
                 rancherSecretKey,
