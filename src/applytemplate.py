@@ -53,7 +53,32 @@ def load_template(redmine):
     if current:
         sections.append(current)
 
-    return sections
+    assert sections[0]["title"] == "Structured fields"
+    section0 = sections.pop(0)
+    structured_fields = []
+    for line in section0["lines"]:
+        line = line.strip("| ")
+        if not line:
+            continue
+
+        (label, desc) = line.split("|")
+        label = label.strip(": ")
+        desc = desc.strip()
+        mandatory = False
+        if label.endswith("*"):
+            mandatory = True
+            label = label.rstrip("* ")
+
+        structured_fields.append({
+            "label": label,
+            "mandatory": mandatory,
+            "desc": desc,
+        })
+
+    return {
+        "structured_fields": structured_fields,
+        "sections": sections,
+    }
 
 
 def main(config):
