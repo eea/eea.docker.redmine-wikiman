@@ -10,6 +10,15 @@ import re
 from redminelib import Redmine
 
 
+def remove_extensions_header(text):
+    header_pattern = (
+        r'<div id="wiki_extentions_header">\s*'
+        r'{{last_updated_at}} _by_ {{last_updated_by}}\s*'
+        r'</div>'
+    )
+    return re.sub(header_pattern, "", text).lstrip()
+
+
 class Taskman:
 
     def __init__(self, url, key):
@@ -17,29 +26,15 @@ class Taskman:
 
     def get_wiki(self, project_id, name):
         page = self.redmine.wiki_page.get(name, project_id=project_id)
-        return page.text
+        return remove_extensions_header(page.text)
 
 
-def parse_template(text):
-    noise_pattern = (
-        r'<div id="wiki_extentions_header">\s*'
-        r'{{last_updated_at}} _by_ {{last_updated_by}}\s*'
-        r'</div>'
-    )
-    text = re.sub(noise_pattern, "", text).lstrip()
-
-    template_marker = (
-        r"\*Copy the template from below:\*\s+"
-        r"[-]+\s+"
-    )
-    (_ignore, template) = re.split(template_marker, text)
-
+def get_sections(text):
     current = None
-    sections = []
-    for line in template.splitlines():
+    for line in text.splitlines():
         if line.startswith("h2."):
             if current:
-                sections.append(current)
+                yield current
 
             m = re.match(
                 r"h2\.\s+(?P<title>[^*]+)\s*(?P<mandatory>\*)?\s*$",
@@ -59,12 +54,11 @@ def parse_template(text):
             current["lines"].append(line)
 
     if current:
-        sections.append(current)
+        yield current
 
-    assert sections[0]["title"] == "Structured fields"
-    section0 = sections.pop(0)
-    structured_fields = []
-    for line in section0["lines"]:
+
+def get_fields_from_section(section_lines):
+    for line in section_lines:
         line = line.strip("| ")
         if not line:
             continue
@@ -77,22 +71,33 @@ def parse_template(text):
             mandatory = True
             label = label.rstrip("* ")
 
-        structured_fields.append({
+        yield {
             "label": label,
             "mandatory": mandatory,
             "desc": desc,
-        })
+        }
 
-    return {
-        "structured_fields": structured_fields,
-        "sections": sections,
-    }
+
+class Template:
+
+    def __init__(self, text):
+        template_marker = (
+            r"\*Copy the template from below:\*\s+"
+            r"[-]+\s+"
+        )
+        (_ignore, template_text) = re.split(template_marker, text)
+
+        self.sections = list(get_sections(template_text))
+
+        assert self.sections[0]["title"] == "Structured fields"
+        section0 = self.sections.pop(0)
+        self.fields = list(get_fields_from_section(section0["lines"]))
 
 
 def main(config):
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
-    template_text = taskman.get_wiki("IT_service_factsheet_template", "netpub")
-    template = parse_template(template_text)
+    template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
+    template = Template(template_text)
     print(template)
 
 
