@@ -150,7 +150,13 @@ class Template:
 
     def apply(self, page_text):
         page = Wikipage(page_text)
+
         new_fields = self._merge_fields(page.intro)
+        new_intro = [""]
+        for label, values in new_fields.items():
+            for value in values:
+                new_intro.append(f"{label}: {value}")
+        new_intro.append("")
 
 
 def main(config):
