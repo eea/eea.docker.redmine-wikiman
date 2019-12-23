@@ -9,6 +9,9 @@ import re
 import sys
 from collections import OrderedDict
 import logging
+import io
+import tempfile
+import subprocess
 
 from redminelib import Redmine
 from more_itertools import peekable
@@ -25,6 +28,15 @@ def remove_extensions_header(text):
         r'</div>'
     )
     return re.sub(header_pattern, "", text).lstrip()
+
+
+def print_diff(text1, text2):
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(f"{tmp}/text1", "w", encoding="utf8") as f:
+            f.write(text1)
+        with open(f"{tmp}/text2", "w", encoding="utf8") as f:
+            f.write(text2)
+        subprocess.run(["diff", "-U3", f"{tmp}/text1", f"{tmp}/text2"])
 
 
 class Taskman:
@@ -69,6 +81,21 @@ class Wikipage:
 
         if current:
             self.sections.append(current)
+
+    def render(self):
+        out = io.StringIO()
+
+        print(f"h1. {self.title}", file=out)
+
+        for line in self.intro:
+            print(line, file=out)
+
+        for section in self.sections:
+            print(f"h2. {section['title']}", file=out)
+            for line in section["lines"]:
+                print(line, file=out)
+
+        return out.getvalue()
 
 
 class Template:
@@ -157,6 +184,9 @@ class Template:
             for value in values:
                 new_intro.append(f"{label}: {value}")
         new_intro.append("")
+        page.intro = new_intro
+
+        print_diff(page_text, page.render())
 
 
 def main(config):
