@@ -6,7 +6,7 @@ https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_templ
 
 import os
 import re
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import logging
 import io
 import tempfile
@@ -51,6 +51,21 @@ class Taskman:
 
     def save_wiki(self, project_id, name, text):
         self.redmine.wiki_page.update(name, project_id=project_id, text=text)
+
+    def wiki_children(self, project_id, name):
+        project = self.redmine.project.get(project_id)
+        children_of = defaultdict(list)
+        for page in project.wiki_pages:
+            parent = getattr(page, "parent", "")
+            if parent:
+                children_of[parent.title].append(page.title)
+
+        def children(title):
+            yield title
+            for c in children_of[title]:
+                yield from children(c)
+
+        yield from children(name)
 
 
 class Wikipage:
@@ -235,26 +250,42 @@ class Template:
         return page.render()
 
 
-def apply_template(template, taskman, page, dry_run):
-    log.debug(f"Processing page {page!r}")
-    orig = taskman.get_wiki("infrastructure", page)
-    new = template.apply(orig)
+class FactsheetUpdater:
 
-    if new != orig:
-        log.info(f"Saving page {page!r}")
-        if dry_run:
-            print_diff(orig, new)
+    def __init__(self, taskman, dry_run):
+        self.taskman = taskman
+        self.dry_run = dry_run
+        template_text = self.taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
+        self.template = Template(template_text)
+
+    def update(self, page):
+        log.debug(f"Processing page {page!r}")
+        orig = self.taskman.get_wiki("infrastructure", page)
+
+        if "product owner:" not in orig.lower():
+            log.debug(f"Page {page!r} is not a factsheet, skipping")
+            return
+
+        new = self.template.apply(orig)
+
+        if new != orig:
+            log.info(f"Saving page {page!r}")
+            if self.dry_run:
+                print_diff(orig, new)
+            else:
+                self.taskman.save_wiki("infrastructure", page, new)
         else:
-            taskman.save_wiki("infrastructure", page, new)
-    else:
-        log.debug(f"No changes for page {page!r}")
+            log.debug(f"No changes for page {page!r}")
+
+    def work(self, start_page):
+        for name in self.taskman.wiki_children('infrastructure', start_page):
+            self.update(name)
 
 
 def main(page, wiki_server, wiki_apikey, dry_run):
     taskman = Taskman(wiki_server, wiki_apikey)
-    template_text = taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
-    template = Template(template_text)
-    apply_template(template, taskman, page, dry_run)
+    updater = FactsheetUpdater(taskman, dry_run)
+    updater.work(page)
 
 
 if __name__ == "__main__":
