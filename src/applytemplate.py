@@ -46,6 +46,9 @@ class Taskman:
         page = self.redmine.wiki_page.get(name, project_id=project_id)
         return remove_extensions_header(page.text)
 
+    def save_wiki(self, project_id, name, text):
+        self.redmine.wiki_page.update(name, project_id=project_id, text=text)
+
 
 class Wikipage:
 
@@ -190,14 +193,26 @@ class Template:
         return page.render()
 
 
-def main(config, page):
-    taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
-    template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
-    template = Template(template_text)
-
+def apply_template(template, taskman, page, dry_run):
+    log.debug(f"Processing page {page!r}")
     orig = taskman.get_wiki("infrastructure", page)
     new = template.apply(orig)
-    print_diff(orig, new)
+
+    if new != orig:
+        log.info(f"Saving page {page!r}")
+        if dry_run:
+            print_diff(orig, new)
+        else:
+            taskman.save_wiki("infrastructure", page, new)
+    else:
+        log.debug(f"No changes for page {page!r}")
+
+
+def main(page, wiki_server, wiki_apikey, dry_run):
+    taskman = Taskman(wiki_server, wiki_apikey)
+    template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
+    template = Template(template_text)
+    apply_template(template, taskman, page, dry_run)
 
 
 if __name__ == "__main__":
@@ -208,10 +223,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-n", "--dry-run", action="store_true")
     parser.add_argument("page")
     options = parser.parse_args()
 
     log_level = logging.DEBUG if options.verbose else logging.INFO
     logging.basicConfig(level=log_level)
 
-    main(config, options.page)
+    config["dry_run"] = options.dry_run
+
+    main(options.page, **config)
