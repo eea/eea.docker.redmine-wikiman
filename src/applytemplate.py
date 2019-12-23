@@ -7,9 +7,15 @@ https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_templ
 import os
 import re
 import sys
+from collections import OrderedDict
+import logging
 
 from redminelib import Redmine
 from more_itertools import peekable
+
+LOG_LEVEL = logging.DEBUG
+log = logging.getLogger(__name__)
+log.setLevel(LOG_LEVEL)
 
 
 def remove_extensions_header(text):
@@ -108,6 +114,33 @@ class Template:
     def apply(self, page_text):
         page = Wikipage(page_text)
 
+        fields = OrderedDict()
+        for line in page.intro:
+            line = line.strip()
+            if not line:
+                continue
+            [label, value] = line.split(":", 1)
+            label = label.strip().capitalize()
+            value = value.strip()
+            fields.setdefault(label, []).append(value)
+
+        new_fields = OrderedDict()
+        for field in self.fields:
+            label = field["label"]
+            try:
+                value = fields.pop(label)
+            except KeyError:
+                if field["mandatory"]:
+                    placeholder = "_%{color:lightgray}" + field["desc"] + "%_"
+                    value = [placeholder]
+                else:
+                    log.debug(f"Skipping non-mandatory field {label}")
+                    continue
+            new_fields[label] = value
+
+        for label, value in fields.items():
+            new_fields[label] = value
+
 
 def main(config):
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
@@ -124,4 +157,5 @@ if __name__ == "__main__":
         "wiki_server": os.getenv("WIKI_SERVER", ""),
         "wiki_apikey": os.getenv("WIKI_APIKEY", ""),
     }
+    logging.basicConfig(level=LOG_LEVEL)
     main(config)
