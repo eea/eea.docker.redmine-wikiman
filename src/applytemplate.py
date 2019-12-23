@@ -6,8 +6,10 @@ https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_templ
 
 import os
 import re
+import sys
 
 from redminelib import Redmine
+from more_itertools import peekable
 
 
 def remove_extensions_header(text):
@@ -29,32 +31,38 @@ class Taskman:
         return remove_extensions_header(page.text)
 
 
-def get_sections(text):
-    current = None
-    for line in text.splitlines():
-        if line.startswith("h2."):
-            if current:
-                yield current
+class Wikipage:
 
-            m = re.match(
-                r"h2\.\s+(?P<title>[^*]+)\s*(?P<mandatory>\*)?\s*$",
-                line,
-            )
-            current = {
-                "title": m.group("title"),
-                "mandatory": bool(m.group("mandatory")),
-                "lines": [],
-            }
+    def __init__(self, text):
+        lines = peekable(text.splitlines())
 
-            continue
+        line0 = next(lines)
+        line0match = re.match(r"h1\. (?P<title>.*)$", line0)
+        assert line0match is not None, "Wikipage must start with h1"
+        self.title = line0match.group("title")
 
-        else:
-            if not current:
-                raise RuntimeError("Template must begin with `h2.`")
-            current["lines"].append(line)
+        self.intro = []
+        while lines and not lines.peek().startswith("h2. "):
+            self.intro.append(next(lines))
 
-    if current:
-        yield current
+        self.sections = []
+        current = None
+        for line in lines:
+            heading = re.match(r"h2\.\s+(?P<title>.*)$", line)
+            if heading:
+                if current:
+                    self.sections.append(current)
+
+                current = {
+                    "title": heading.group("title").strip(),
+                    "lines": [],
+                }
+
+            else:
+                current["lines"].append(line)
+
+        if current:
+            self.sections.append(current)
 
 
 def get_fields_from_section(section_lines):
@@ -81,24 +89,34 @@ def get_fields_from_section(section_lines):
 class Template:
 
     def __init__(self, text):
-        template_marker = (
-            r"\*Copy the template from below:\*\s+"
-            r"[-]+\s+"
-        )
-        (_ignore, template_text) = re.split(template_marker, text)
+        wikipage = Wikipage(text)
 
-        self.sections = list(get_sections(template_text))
-
-        assert self.sections[0]["title"] == "Structured fields"
-        section0 = self.sections.pop(0)
+        assert wikipage.sections[0]["title"] == "Structured fields"
+        section0 = wikipage.sections[0]
         self.fields = list(get_fields_from_section(section0["lines"]))
+
+        self.sections = []
+        for section in wikipage.sections[1:]:
+            title = section["title"]
+            if title.endswith("*"):
+                section["mandatory"] = True
+                section["title"] = title.rstrip("*").strip()
+            else:
+                section["mandatory"] = False
+            self.sections.append(section)
+
+    def apply(self, page_text):
+        page = Wikipage(page_text)
 
 
 def main(config):
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
     template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
     template = Template(template_text)
-    print(template)
+
+    [page] = sys.argv[1:]
+    orig = taskman.get_wiki("infrastructure", page)
+    template.apply(orig)
 
 
 if __name__ == "__main__":
