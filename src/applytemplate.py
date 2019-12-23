@@ -18,6 +18,9 @@ from more_itertools import peekable
 
 log = logging.getLogger(__name__)
 
+TEMPLATE_PROJECT = "netpub"
+TEMPLATE_NAME = "IT_service_factsheet_template"
+
 
 def remove_extensions_header(text):
     header_pattern = (
@@ -134,6 +137,10 @@ class Template:
     def _map_sections(self, sections):
         for section in sections:
             title = section["title"]
+
+            link_hash = title.rstrip("*").replace(" ", "-")
+            link = f"[[{TEMPLATE_PROJECT}:{TEMPLATE_NAME}#{link_hash}]]"
+
             if title.endswith("*"):
                 mandatory = True
                 title = title.rstrip("*").strip()
@@ -143,7 +150,11 @@ class Template:
             yield {
                 "title": title,
                 "mandatory": mandatory,
-                "lines": section["lines"],
+                "lines": [
+                    "",
+                    "_%{color:lightgray}" + f"ToDo: {link}" + "%_",
+                    "",
+                ],
             }
 
     def _merge_fields(self, intro_lines):
@@ -170,7 +181,7 @@ class Template:
                     placeholder = "_%{color:lightgray}" + field["desc"] + "%_"
                     value = [placeholder]
                 else:
-                    log.debug(f"Skipping non-mandatory field {label}")
+                    log.debug(f"Skipping optional field {label!r}")
                     continue
             new_fields[label] = value
 
@@ -178,6 +189,35 @@ class Template:
             new_fields[original_case[label]] = value
 
         return new_fields
+
+    def _merge_sections(self, original_sections):
+        old_sections = OrderedDict()
+        for section in original_sections:
+            old_sections[section["title"].lower()] = section
+
+        new_sections = []
+        for section_template in self.sections:
+            title = section_template["title"]
+            try:
+                section = old_sections.pop(title.lower())
+            except KeyError:
+                if section_template["mandatory"]:
+                    section = {
+                        "title": title,
+                        "lines": section_template["lines"],
+                    }
+                else:
+                    log.debug(f"Skipping optional section {title!r}")
+                    continue
+            else:
+                section["title"] = title
+
+            new_sections.append(section)
+
+        for section in old_sections.values():
+            new_sections.append(section)
+
+        return new_sections
 
     def apply(self, page_text):
         page = Wikipage(page_text)
@@ -189,6 +229,8 @@ class Template:
                 new_intro.append(f"{label}: {value}")
         new_intro.append("")
         page.intro = new_intro
+
+        page.sections = self._merge_sections(page.sections)
 
         return page.render()
 
@@ -210,7 +252,7 @@ def apply_template(template, taskman, page, dry_run):
 
 def main(page, wiki_server, wiki_apikey, dry_run):
     taskman = Taskman(wiki_server, wiki_apikey)
-    template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
+    template_text = taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
     template = Template(template_text)
     apply_template(template, taskman, page, dry_run)
 
