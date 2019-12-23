@@ -6,19 +6,17 @@ https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_templ
 
 import os
 import re
-import sys
 from collections import OrderedDict
 import logging
 import io
 import tempfile
 import subprocess
+import argparse
 
 from redminelib import Redmine
 from more_itertools import peekable
 
-LOG_LEVEL = logging.DEBUG
 log = logging.getLogger(__name__)
-log.setLevel(LOG_LEVEL)
 
 
 def remove_extensions_header(text):
@@ -189,17 +187,17 @@ class Template:
         new_intro.append("")
         page.intro = new_intro
 
-        print_diff(page_text, page.render())
+        return page.render()
 
 
-def main(config):
+def main(config, page):
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
     template_text = taskman.get_wiki("netpub", "IT_service_factsheet_template")
     template = Template(template_text)
 
-    [page] = sys.argv[1:]
     orig = taskman.get_wiki("infrastructure", page)
-    template.apply(orig)
+    new = template.apply(orig)
+    print_diff(orig, new)
 
 
 if __name__ == "__main__":
@@ -207,5 +205,13 @@ if __name__ == "__main__":
         "wiki_server": os.getenv("WIKI_SERVER", ""),
         "wiki_apikey": os.getenv("WIKI_APIKEY", ""),
     }
-    logging.basicConfig(level=LOG_LEVEL)
-    main(config)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("page")
+    options = parser.parse_args()
+
+    log_level = logging.DEBUG if options.verbose else logging.INFO
+    logging.basicConfig(level=log_level)
+
+    main(config, options.page)
