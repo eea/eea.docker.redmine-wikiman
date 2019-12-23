@@ -146,21 +146,24 @@ class Template:
             }
 
     def _merge_fields(self, intro_lines):
+        original_case = {}
         fields = OrderedDict()
+
         for line in intro_lines:
             line = line.strip()
             if not line:
                 continue
             [label, value] = line.split(":", 1)
-            label = label.strip().capitalize()
+            label = label.strip()
             value = value.strip()
-            fields.setdefault(label, []).append(value)
+            fields.setdefault(label.lower(), []).append(value)
+            original_case[label.lower()] = label
 
         new_fields = OrderedDict()
         for field in self.fields:
             label = field["label"]
             try:
-                value = fields.pop(label)
+                value = fields.pop(label.lower())
             except KeyError:
                 if field["mandatory"]:
                     placeholder = "_%{color:lightgray}" + field["desc"] + "%_"
@@ -171,7 +174,7 @@ class Template:
             new_fields[label] = value
 
         for label, value in fields.items():
-            new_fields[label] = value
+            new_fields[original_case[label]] = value
 
         return new_fields
 
