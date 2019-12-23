@@ -81,15 +81,7 @@ class Template:
 
         self.fields = list(self._parse_fields(section0["lines"]))
 
-        self.sections = []
-        for section in wikipage.sections[1:]:
-            title = section["title"]
-            if title.endswith("*"):
-                section["mandatory"] = True
-                section["title"] = title.rstrip("*").strip()
-            else:
-                section["mandatory"] = False
-            self.sections.append(section)
+        self.sections = list(self._map_sections(wikipage.sections[1:]))
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -111,11 +103,24 @@ class Template:
                 "desc": desc,
             }
 
-    def apply(self, page_text):
-        page = Wikipage(page_text)
+    def _map_sections(self, sections):
+        for section in sections:
+            title = section["title"]
+            if title.endswith("*"):
+                mandatory = True
+                title = title.rstrip("*").strip()
+            else:
+                mandatory = False
 
+            yield {
+                "title": title,
+                "mandatory": mandatory,
+                "lines": section["lines"],
+            }
+
+    def _merge_fields(self, intro_lines):
         fields = OrderedDict()
-        for line in page.intro:
+        for line in intro_lines:
             line = line.strip()
             if not line:
                 continue
@@ -140,6 +145,12 @@ class Template:
 
         for label, value in fields.items():
             new_fields[label] = value
+
+        return new_fields
+
+    def apply(self, page_text):
+        page = Wikipage(page_text)
+        new_fields = self._merge_fields(page.intro)
 
 
 def main(config):
