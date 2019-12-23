@@ -71,27 +71,6 @@ class Wikipage:
             self.sections.append(current)
 
 
-def get_fields_from_section(section_lines):
-    for line in section_lines:
-        line = line.strip("| ")
-        if not line:
-            continue
-
-        (label, desc) = line.split("|")
-        label = label.strip(": ")
-        desc = desc.strip()
-        mandatory = False
-        if label.endswith("*"):
-            mandatory = True
-            label = label.rstrip("* ")
-
-        yield {
-            "label": label,
-            "mandatory": mandatory,
-            "desc": desc,
-        }
-
-
 class Template:
 
     def __init__(self, text):
@@ -99,7 +78,8 @@ class Template:
 
         assert wikipage.sections[0]["title"] == "Structured fields"
         section0 = wikipage.sections[0]
-        self.fields = list(get_fields_from_section(section0["lines"]))
+
+        self.fields = list(self._parse_fields(section0["lines"]))
 
         self.sections = []
         for section in wikipage.sections[1:]:
@@ -110,6 +90,26 @@ class Template:
             else:
                 section["mandatory"] = False
             self.sections.append(section)
+
+    def _parse_fields(self, intro_lines):
+        for line in intro_lines:
+            line = line.strip("| ")
+            if not line:
+                continue
+
+            (label, desc) = line.split("|")
+            label = label.strip(": ")
+            desc = desc.strip()
+            mandatory = False
+            if label.endswith("*"):
+                mandatory = True
+                label = label.rstrip("* ")
+
+            yield {
+                "label": label,
+                "mandatory": mandatory,
+                "desc": desc,
+            }
 
     def apply(self, page_text):
         page = Wikipage(page_text)
