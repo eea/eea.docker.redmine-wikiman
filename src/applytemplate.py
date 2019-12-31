@@ -20,10 +20,15 @@ from more_itertools import peekable
 
 log = logging.getLogger(__name__)
 
-FACTSHEET_PROJECT = "infrastructure"
-TEMPLATE_PROJECT = "netpub"
-TEMPLATE_NAME = "IT_service_factsheet_template"
-TODOLIST_NAME = "IT_service_factsheet_ToDo_list"
+config = dict(
+    factsheet_project=os.getenv("FACTSHEET_PROJECT", "infrastructure"),
+    template_project=os.getenv("TEMPLATE_PROJECT", "netpub"),
+    template_name=os.getenv("TEMPLATE_NAME", "IT_service_factsheet_template"),
+    todolist_name=os.getenv("TODOLIST_NAME", "IT_service_factsheet_ToDo_list"),
+    wiki_server=os.getenv("WIKI_SERVER", ""),
+    wiki_apikey=os.getenv("WIKI_APIKEY", ""),
+)
+
 TODOLIST_DEFAULT_TEXT = """\
 h1. IT service factsheet ToDo list
 
@@ -128,8 +133,10 @@ class Wikipage:
 
 class Template:
 
-    def __init__(self, text):
+    def __init__(self, text, template_project, template_name):
         wikipage = Wikipage(text)
+        self.template_project = template_project
+        self.template_name = template_name
 
         assert wikipage.sections[0]["title"] == "Structured fields"
         section0 = wikipage.sections[0]
@@ -173,7 +180,9 @@ class Template:
             title = section["title"]
 
             link_hash = title.rstrip("*").replace(" ", "-")
-            link = f"[[{TEMPLATE_PROJECT}:{TEMPLATE_NAME}#{link_hash}]]"
+            prj = self.template_project
+            tmpl = self.template_name
+            link = f"[[{prj}:{tmpl}#{link_hash}]]"
 
             if title.endswith("*"):
                 mandatory = True
@@ -274,26 +283,35 @@ class Template:
 
 class FactsheetUpdater:
 
-    def __init__(self, taskman, dry_run):
+    def __init__(self, taskman, dry_run, factsheet_project, template_project,
+                 template_name, todolist_name):
         self.taskman = taskman
         self.dry_run = dry_run
-        template_text = self.taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
-        self.template = Template(template_text)
+        template_text = self.taskman.get_wiki(template_project, template_name)
+        self.template = Template(
+            template_text,
+            template_project,
+            template_name,
+        )
         self.todo_map = defaultdict(dict)
+        self.factsheet_project = factsheet_project
+        self.template_project = template_project
+        self.template_name = template_name
+        self.todolist_name = todolist_name
 
     def save_page(self, project, page, orig, new):
         if new != orig:
-            log.info(f"Saving page {page!r}")
+            log.info(f"Saving page {project!r}:{page!r}")
             if self.dry_run:
                 print_diff(orig, new)
             else:
                 self.taskman.save_wiki(project, page, new)
         else:
-            log.debug(f"No changes for page {page!r}")
+            log.debug(f"No changes for page {project!r}:{page!r}")
 
     def update(self, page):
         log.debug(f"Processing page {page!r}")
-        orig = self.taskman.get_wiki(FACTSHEET_PROJECT, page)
+        orig = self.taskman.get_wiki(self.factsheet_project, page)
 
         owner_match = re.search(r"Product Owner:\s*(.*)", orig, re.IGNORECASE)
         if not owner_match:
@@ -302,18 +320,22 @@ class FactsheetUpdater:
 
         (new, todo_list) = self.template.apply(orig)
 
-        self.save_page(FACTSHEET_PROJECT, page, orig, new)
+        self.save_page(self.factsheet_project, page, orig, new)
 
         owner = owner_match.group(1).strip()
         self.todo_map[owner][page] = ', '.join(todo_list) or OK_TEXT
 
     def recursive_update(self, start_page):
-        for name in self.taskman.wiki_children(FACTSHEET_PROJECT, start_page):
+        prj = self.factsheet_project
+        for name in self.taskman.wiki_children(prj, start_page):
             self.update(name)
 
     def save_todo_list(self):
         try:
-            orig = self.taskman.get_wiki(TEMPLATE_PROJECT, TODOLIST_NAME)
+            orig = self.taskman.get_wiki(
+                self.template_project,
+                self.todolist_name,
+            )
         except ResourceNotFoundError:
             orig = TODOLIST_DEFAULT_TEXT
 
@@ -329,7 +351,7 @@ class FactsheetUpdater:
                     line,
                 )
                 if m:
-                    assert m.group("project") == FACTSHEET_PROJECT
+                    assert m.group("project") == self.factsheet_project
                     merged_todos[owner][m.group("page")] = m.group("summary")
 
         for owner, page_map in self.todo_map.items():
@@ -340,7 +362,8 @@ class FactsheetUpdater:
         for owner, page_map in sorted(merged_todos.items()):
             lines = [""]
             for page, summary in sorted(page_map.items()):
-                link = f"[[{FACTSHEET_PROJECT}:{page}]]"
+                prj = self.factsheet_project
+                link = f"[[{prj}:{page}]]"
                 lines.append(f"* {link}: {summary}")
             lines.append("")
 
@@ -350,21 +373,26 @@ class FactsheetUpdater:
             })
 
         new = todo_page.render()
-        self.save_page(TEMPLATE_PROJECT, TODOLIST_NAME, orig, new)
+        self.save_page(self.template_project, self.todolist_name, orig, new)
 
 
-def main(page, wiki_server, wiki_apikey, dry_run):
-    taskman = Taskman(wiki_server, wiki_apikey)
-    updater = FactsheetUpdater(taskman, dry_run)
+def main(page, config):
+    taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
+    updater = FactsheetUpdater(
+        taskman=taskman,
+        dry_run=config["dry_run"],
+        factsheet_project=config["factsheet_project"],
+        template_project=config["template_project"],
+        template_name=config["template_name"],
+        todolist_name=config["todolist_name"],
+    )
     updater.recursive_update(page)
     updater.save_todo_list()
 
 
 if __name__ == "__main__":
-    config = {
-        "wiki_server": os.getenv("WIKI_SERVER", ""),
-        "wiki_apikey": os.getenv("WIKI_APIKEY", ""),
-    }
+    assert config["wiki_server"], "Please set WIKI_SERVER env var"
+    assert config["wiki_apikey"], "Please set WIKI_APIKEY env var"
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -377,4 +405,4 @@ if __name__ == "__main__":
 
     config["dry_run"] = options.dry_run
 
-    main(options.page, **config)
+    main(options.page, config)
