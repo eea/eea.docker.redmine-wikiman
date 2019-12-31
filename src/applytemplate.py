@@ -48,9 +48,9 @@ def remove_extensions_header(text):
 def print_diff(text1, text2):
     with tempfile.TemporaryDirectory() as tmp:
         with open(f"{tmp}/text1", "w", encoding="utf8") as f:
-            f.write(text1)
+            f.write(text1.replace("\r\n", "\n"))
         with open(f"{tmp}/text2", "w", encoding="utf8") as f:
-            f.write(text2)
+            f.write(text2.replace("\r\n", "\n"))
         subprocess.run(["diff", "-U3", f"{tmp}/text1", f"{tmp}/text2"])
 
 
