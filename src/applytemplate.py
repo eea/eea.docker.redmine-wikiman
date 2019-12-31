@@ -149,6 +149,12 @@ class Template:
                 "desc": desc,
             }
 
+    _begin_todo = "_%{color:lightgray}ToDo: "
+    _end_todo = "%_"
+
+    def _todo(self, text):
+        return self._begin_todo + text + self._end_todo
+
     def _map_sections(self, sections):
         for section in sections:
             title = section["title"]
@@ -165,11 +171,7 @@ class Template:
             yield {
                 "title": title,
                 "mandatory": mandatory,
-                "lines": [
-                    "",
-                    "_%{color:lightgray}" + f"ToDo: {link}" + "%_",
-                    "",
-                ],
+                "lines": ["", self._todo(link), ""],
             }
 
     def _merge_fields(self, intro_lines):
@@ -193,7 +195,7 @@ class Template:
                 value = fields.pop(label.lower())
             except KeyError:
                 if field["mandatory"]:
-                    placeholder = "_%{color:lightgray}" + field["desc"] + "%_"
+                    placeholder = self._todo(field["desc"])
                     value = [placeholder]
                 else:
                     log.debug(f"Skipping optional field {label!r}")
