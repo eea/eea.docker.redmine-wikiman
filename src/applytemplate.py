@@ -155,6 +155,10 @@ class Template:
     def _todo(self, text):
         return self._begin_todo + text + self._end_todo
 
+    def _is_todo(self, text):
+        t = text.strip()
+        return (t.startswith(self._begin_todo) and t.endswith(self._end_todo))
+
     def _map_sections(self, sections):
         for section in sections:
             title = section["title"]
@@ -241,15 +245,22 @@ class Template:
 
         new_fields = self._merge_fields(page.intro)
         new_intro = [""]
+        todo_list = []
         for label, values in new_fields.items():
             for value in values:
                 new_intro.append(f"{label}: {value}")
+                if self._is_todo(value):
+                    todo_list.append(f'Field "{label}"')
         new_intro.append("")
         page.intro = new_intro
 
         page.sections = self._merge_sections(page.sections)
+        for section in page.sections:
+            content = "\n".join(section["lines"])
+            if self._is_todo(content):
+                todo_list.append(f"Section \"{section['title']}\"")
 
-        return page.render()
+        return (page.render(), todo_list)
 
 
 class FactsheetUpdater:
@@ -259,16 +270,18 @@ class FactsheetUpdater:
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
         self.template = Template(template_text)
+        self.todo_map = defaultdict(list)
 
     def update(self, page):
         log.debug(f"Processing page {page!r}")
         orig = self.taskman.get_wiki("infrastructure", page)
 
-        if "product owner:" not in orig.lower():
+        owner_match = re.search(r"Product Owner:\s*(.*)", orig, re.IGNORECASE)
+        if not owner_match:
             log.debug(f"Page {page!r} is not a factsheet, skipping")
             return
 
-        new = self.template.apply(orig)
+        (new, todo_list) = self.template.apply(orig)
 
         if new != orig:
             log.info(f"Saving page {page!r}")
@@ -279,15 +292,27 @@ class FactsheetUpdater:
         else:
             log.debug(f"No changes for page {page!r}")
 
-    def work(self, start_page):
+        if todo_list:
+            owner = owner_match.group(1).strip()
+            self.todo_map[owner].append({
+                "page": page,
+                "todo_list": todo_list,
+            })
+
+    def recursive_update(self, start_page):
         for name in self.taskman.wiki_children('infrastructure', start_page):
             self.update(name)
+
+    def save_todo_list(self):
+        from pprint import pprint
+        pprint(self.todo_map)
 
 
 def main(page, wiki_server, wiki_apikey, dry_run):
     taskman = Taskman(wiki_server, wiki_apikey)
     updater = FactsheetUpdater(taskman, dry_run)
-    updater.work(page)
+    updater.recursive_update(page)
+    updater.save_todo_list()
 
 
 if __name__ == "__main__":
