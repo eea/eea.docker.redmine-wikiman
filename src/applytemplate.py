@@ -1,3 +1,4 @@
+# encoding: utf8
 """
 Apply the factsheet template to wiki pages
 
@@ -27,6 +28,7 @@ TODOLIST_DEFAULT_TEXT = """\
 h1. IT service factsheet ToDo list
 
 """
+OK_TEXT = "&#x1F44D;"
 
 
 def remove_extensions_header(text):
@@ -277,7 +279,7 @@ class FactsheetUpdater:
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(TEMPLATE_PROJECT, TEMPLATE_NAME)
         self.template = Template(template_text)
-        self.todo_map = defaultdict(list)
+        self.todo_map = defaultdict(dict)
 
     def save_page(self, project, page, orig, new):
         if new != orig:
@@ -302,12 +304,8 @@ class FactsheetUpdater:
 
         self.save_page(FACTSHEET_PROJECT, page, orig, new)
 
-        if todo_list:
-            owner = owner_match.group(1).strip()
-            self.todo_map[owner].append({
-                "page": page,
-                "todo_list": todo_list,
-            })
+        owner = owner_match.group(1).strip()
+        self.todo_map[owner][page] = ', '.join(todo_list) or OK_TEXT
 
     def recursive_update(self, start_page):
         for name in self.taskman.wiki_children(FACTSHEET_PROJECT, start_page):
@@ -321,12 +319,28 @@ class FactsheetUpdater:
 
         todo_page = Wikipage(orig)
 
+        merged_todos = defaultdict(dict)
+        for section in todo_page.sections:
+            owner = section["title"]
+            for line in section["lines"]:
+                m = re.match(
+                    r"^\* \[\[(?P<project>\w+):(?P<page>[^]]*)\]\]: "
+                    r"(?P<summary>.*)",
+                    line,
+                )
+                if m:
+                    assert m.group("project") == FACTSHEET_PROJECT
+                    merged_todos[owner][m.group("page")] = m.group("summary")
+
+        for owner, page_map in self.todo_map.items():
+            for page, summary in page_map.items():
+                merged_todos[owner][page] = summary
+
         todo_page.sections = []
-        for owner, todo_pages in self.todo_map.items():
+        for owner, page_map in sorted(merged_todos.items()):
             lines = [""]
-            for p in todo_pages:
-                link = f"[[{FACTSHEET_PROJECT}:{p['page']}]]"
-                summary = ', '.join(p['todo_list'])
+            for page, summary in sorted(page_map.items()):
+                link = f"[[{FACTSHEET_PROJECT}:{page}]]"
                 lines.append(f"* {link}: {summary}")
             lines.append("")
 
