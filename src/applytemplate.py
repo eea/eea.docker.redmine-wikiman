@@ -200,11 +200,20 @@ class Template:
         original_case = {}
         fields = OrderedDict()
 
+        extra_lines = []
+        fields_finished = False
         for line in intro_lines:
-            line = line.strip()
-            if not line:
+            if line.strip() and ':' not in line:
+                fields_finished = True
+
+            if fields_finished:
+                extra_lines.append(line)
                 continue
-            [label, value] = line.split(":", 1)
+
+            if not line.strip():
+                continue
+
+            [label, value] = line.strip().split(":", 1)
             label = label.strip()
             value = value.strip()
             fields.setdefault(label.lower(), []).append(value)
@@ -227,7 +236,7 @@ class Template:
         for label, value in fields.items():
             new_fields[original_case[label]] = value
 
-        return new_fields
+        return (new_fields, extra_lines)
 
     def _merge_sections(self, original_sections):
         old_sections = OrderedDict()
@@ -261,7 +270,7 @@ class Template:
     def apply(self, page_text):
         page = Wikipage(page_text)
 
-        new_fields = self._merge_fields(page.intro)
+        (new_fields, extra_lines) = self._merge_fields(page.intro)
         new_intro = [""]
         todo_list = []
         for label, values in new_fields.items():
@@ -270,6 +279,10 @@ class Template:
                 if self._is_todo(value):
                     todo_list.append(f'Field "{label}"')
         new_intro.append("")
+        if extra_lines:
+            new_intro += extra_lines
+            if new_intro[-1] != "":
+                new_intro.append("")
         page.intro = new_intro
 
         page.sections = self._merge_sections(page.sections)
