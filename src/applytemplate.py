@@ -115,6 +115,10 @@ class Wikipage:
         if current:
             self.sections.append(current)
 
+        for section in self.sections:
+            if not section["lines"] or section["lines"][-1] != "":
+                section["lines"].append("")
+
     def render(self):
         out = io.StringIO()
 
