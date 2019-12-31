@@ -14,6 +14,7 @@ import subprocess
 import argparse
 
 from redminelib import Redmine
+from redminelib.exceptions import ResourceNotFoundError
 from more_itertools import peekable
 
 log = logging.getLogger(__name__)
@@ -21,6 +22,11 @@ log = logging.getLogger(__name__)
 FACTSHEET_PROJECT = "infrastructure"
 TEMPLATE_PROJECT = "netpub"
 TEMPLATE_NAME = "IT_service_factsheet_template"
+TODOLIST_NAME = "IT_service_factsheet_ToDo_list"
+TODOLIST_DEFAULT_TEXT = """\
+h1. IT service factsheet ToDo list
+
+"""
 
 
 def remove_extensions_header(text):
@@ -308,8 +314,29 @@ class FactsheetUpdater:
             self.update(name)
 
     def save_todo_list(self):
-        from pprint import pprint
-        pprint(self.todo_map)
+        try:
+            orig = self.taskman.get_wiki(TEMPLATE_PROJECT, TODOLIST_NAME)
+        except ResourceNotFoundError:
+            orig = TODOLIST_DEFAULT_TEXT
+
+        todo_page = Wikipage(orig)
+
+        todo_page.sections = []
+        for owner, todo_pages in self.todo_map.items():
+            lines = [""]
+            for p in todo_pages:
+                link = f"[[{FACTSHEET_PROJECT}:{p['page']}]]"
+                summary = ', '.join(p['todo_list'])
+                lines.append(f"* {link}: {summary}")
+            lines.append("")
+
+            todo_page.sections.append({
+                "title": owner,
+                "lines": lines,
+            })
+
+        new = todo_page.render()
+        self.save_page(TEMPLATE_PROJECT, TODOLIST_NAME, orig, new)
 
 
 def main(page, wiki_server, wiki_apikey, dry_run):
