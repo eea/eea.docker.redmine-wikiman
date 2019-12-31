@@ -18,6 +18,7 @@ from more_itertools import peekable
 
 log = logging.getLogger(__name__)
 
+FACTSHEET_PROJECT = "infrastructure"
 TEMPLATE_PROJECT = "netpub"
 TEMPLATE_NAME = "IT_service_factsheet_template"
 
@@ -272,9 +273,19 @@ class FactsheetUpdater:
         self.template = Template(template_text)
         self.todo_map = defaultdict(list)
 
+    def save_page(self, project, page, orig, new):
+        if new != orig:
+            log.info(f"Saving page {page!r}")
+            if self.dry_run:
+                print_diff(orig, new)
+            else:
+                self.taskman.save_wiki(project, page, new)
+        else:
+            log.debug(f"No changes for page {page!r}")
+
     def update(self, page):
         log.debug(f"Processing page {page!r}")
-        orig = self.taskman.get_wiki("infrastructure", page)
+        orig = self.taskman.get_wiki(FACTSHEET_PROJECT, page)
 
         owner_match = re.search(r"Product Owner:\s*(.*)", orig, re.IGNORECASE)
         if not owner_match:
@@ -283,14 +294,7 @@ class FactsheetUpdater:
 
         (new, todo_list) = self.template.apply(orig)
 
-        if new != orig:
-            log.info(f"Saving page {page!r}")
-            if self.dry_run:
-                print_diff(orig, new)
-            else:
-                self.taskman.save_wiki("infrastructure", page, new)
-        else:
-            log.debug(f"No changes for page {page!r}")
+        self.save_page(FACTSHEET_PROJECT, page, orig, new)
 
         if todo_list:
             owner = owner_match.group(1).strip()
@@ -300,7 +304,7 @@ class FactsheetUpdater:
             })
 
     def recursive_update(self, start_page):
-        for name in self.taskman.wiki_children('infrastructure', start_page):
+        for name in self.taskman.wiki_children(FACTSHEET_PROJECT, start_page):
             self.update(name)
 
     def save_todo_list(self):
