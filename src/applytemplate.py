@@ -13,6 +13,7 @@ import io
 import tempfile
 import subprocess
 import argparse
+from datetime import datetime
 
 from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError
@@ -400,7 +401,7 @@ class FactsheetUpdater:
         for name in self.taskman.wiki_children(prj, start_page):
             self.update(name)
 
-    def save_todo_list(self):
+    def save_todo_list(self, start_page, start_time):
         try:
             orig = self.taskman.get_wiki(
                 self.template_project,
@@ -411,8 +412,15 @@ class FactsheetUpdater:
 
         todo_page = Wikipage(orig)
 
-        if TOC_CODE not in "\n".join(todo_page.intro):
-            todo_page.intro[0:0] = ["", TOC_CODE]
+        when = start_time.strftime("%Y-%m-%d %H:%M")
+        link = f"[[{self.factsheet_project}:{start_page}]]"
+        todo_page.intro = [
+            "",
+            TOC_CODE,
+            "",
+            f"Updated by wikiman at {when}, applied on {link}",
+            "",
+        ]
 
         merged_todos = defaultdict(dict)
         for section in todo_page.sections:
@@ -452,6 +460,7 @@ class FactsheetUpdater:
 
 
 def main(page, config):
+    start_time = datetime.now()
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
     updater = FactsheetUpdater(
         taskman=taskman,
@@ -462,7 +471,7 @@ def main(page, config):
         todolist_name=config["todolist_name"],
     )
     updater.recursive_update(page)
-    updater.save_todo_list()
+    updater.save_todo_list(page, start_time)
 
 
 if __name__ == "__main__":
