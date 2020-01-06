@@ -348,6 +348,7 @@ class FactsheetUpdater:
             template_name,
         )
         self.todo_map = defaultdict(dict)
+        self.seen_pages = set()
         self.factsheet_project = factsheet_project
         self.template_project = template_project
         self.template_name = template_name
@@ -384,6 +385,7 @@ class FactsheetUpdater:
                 owner = value
 
         self.todo_map[owner][page] = ', '.join(todo_list) or OK_TEXT
+        self.seen_pages.add(page)
 
     def recursive_update(self, start_page):
         prj = self.factsheet_project
@@ -412,7 +414,9 @@ class FactsheetUpdater:
                 )
                 if m:
                     assert m.group("project") == self.factsheet_project
-                    merged_todos[owner][m.group("page")] = m.group("summary")
+                    page = m.group("page")
+                    if page not in self.seen_pages:
+                        merged_todos[owner][page] = m.group("summary")
 
         for owner, page_map in self.todo_map.items():
             for page, summary in page_map.items():
