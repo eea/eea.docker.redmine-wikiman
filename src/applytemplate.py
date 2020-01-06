@@ -186,15 +186,15 @@ class Template:
                 "desc": desc,
             }
 
-    _begin_todo = "_%{color:lightgray}ToDo: "
+    _begin_todo = "_%{color:red}ToDo:% %{color:gray}"
     _end_todo = "%_"
 
     def _todo(self, text):
         return self._begin_todo + text + self._end_todo
 
     def _is_todo(self, text):
-        t = text.strip()
-        return (t.startswith(self._begin_todo) and t.endswith(self._end_todo))
+        m = re.match(r"^_%{color:[^}]+}ToDo:.*%_$", text.strip())
+        return m is not None
 
     def _map_section(self, section):
         title = section["title"]
@@ -202,7 +202,7 @@ class Template:
         link_hash = title.rstrip("*").replace(" ", "-")
         prj = self.template_project
         tmpl = self.template_name
-        link = f"[[{prj}:{tmpl}#{link_hash}]]"
+        link = f"Refer to [[{prj}:{tmpl}#{link_hash}]]"
 
         if title.endswith("*"):
             mandatory = True
@@ -275,7 +275,8 @@ class Template:
     def _merge_sections(self, template_sections, original_sections):
         old_sections = OrderedDict()
         for section in original_sections:
-            old_sections[section["title"].lower()] = section
+            if not self._is_todo("\n".join(section["lines"])):
+                old_sections[section["title"].lower()] = section
 
         new_sections = []
         for section_template in template_sections:
