@@ -230,11 +230,13 @@ class Template:
                 value = fields.pop(label.lower())
             except KeyError:
                 if field["mandatory"]:
-                    placeholder = self._todo(field["desc"])
-                    value = [placeholder]
+                    value = [self._todo(field["desc"])]
                 else:
                     log.debug(f"Skipping optional field {label!r}")
                     continue
+            else:
+                if all(self._is_todo(i) for i in value):
+                    value = [self._todo(field["desc"])]
             new_fields[label] = value
 
         for label, value in fields.items():
