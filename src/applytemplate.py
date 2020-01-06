@@ -34,6 +34,7 @@ h1. IT service factsheet ToDo list
 
 """
 OK_TEXT = "&#x1F44D;"
+TOC_CODE = "{{>toc}}"
 
 
 def remove_extensions_header(text):
@@ -231,6 +232,9 @@ class Template:
         extra_lines = []
         fields_finished = False
         for line in intro_lines:
+            if line.strip() == TOC_CODE:
+                continue
+
             if line.strip() and ':' not in line:
                 fields_finished = True
 
@@ -319,6 +323,9 @@ class Template:
                 new_intro.append("")
         page.intro = new_intro
 
+        if TOC_CODE not in "\n".join(page.intro):
+            page.intro[0:0] = ["", TOC_CODE]
+
         page.sections = self._merge_sections(self.sections, page.sections)
         for section in page.sections:
             content = "\n".join(section["lines"])
@@ -402,6 +409,9 @@ class FactsheetUpdater:
             orig = TODOLIST_DEFAULT_TEXT
 
         todo_page = Wikipage(orig)
+
+        if TOC_CODE not in "\n".join(todo_page.intro):
+            todo_page.intro[0:0] = ["", TOC_CODE]
 
         merged_todos = defaultdict(dict)
         for section in todo_page.sections:
