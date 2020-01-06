@@ -85,16 +85,19 @@ class Taskman:
 class Wikipage:
 
     def __init__(self, text):
-        lines = peekable(text.splitlines())
+        lines = iter(text.splitlines())
 
         line0 = next(lines)
         line0match = re.match(r"h1\. (?P<title>.*)$", line0)
         assert line0match is not None, "Wikipage must start with h1"
         self.title = line0match.group("title")
 
-        self.intro, self.sections = self._split_subsections(lines, "h2. ")
+        self.intro, self.sections = self._split_headings(lines, "h2. ")
+        for s in self.sections:
+            s["lines"], s["h3"] = self._split_headings(s["lines"], "h3. ")
 
-    def _split_subsections(self, lines, hprefix):
+    def _split_headings(self, lines, hprefix):
+        lines = peekable(lines)
         intro = []
         while lines and not lines.peek().startswith(hprefix):
             intro.append(next(lines))
@@ -136,6 +139,11 @@ class Wikipage:
             for line in section["lines"]:
                 print(line, file=out)
 
+            for h3 in section.get("h3", []):
+                print(f"h3. {h3['title']}", file=out)
+                for line in h3["lines"]:
+                    print(line, file=out)
+
         return out.getvalue()
 
 
@@ -151,7 +159,11 @@ class Template:
 
         self.fields = list(self._parse_fields(section0["lines"]))
 
-        self.sections = list(self._map_sections(wikipage.sections[1:]))
+        self.sections = []
+        for s in wikipage.sections[1:]:
+            mapped_s = self._map_section(s)
+            mapped_s["h3"] = [self._map_section(h3) for h3 in s["h3"]]
+            self.sections.append(mapped_s)
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -183,26 +195,25 @@ class Template:
         t = text.strip()
         return (t.startswith(self._begin_todo) and t.endswith(self._end_todo))
 
-    def _map_sections(self, sections):
-        for section in sections:
-            title = section["title"]
+    def _map_section(self, section):
+        title = section["title"]
 
-            link_hash = title.rstrip("*").replace(" ", "-")
-            prj = self.template_project
-            tmpl = self.template_name
-            link = f"[[{prj}:{tmpl}#{link_hash}]]"
+        link_hash = title.rstrip("*").replace(" ", "-")
+        prj = self.template_project
+        tmpl = self.template_name
+        link = f"[[{prj}:{tmpl}#{link_hash}]]"
 
-            if title.endswith("*"):
-                mandatory = True
-                title = title.rstrip("*").strip()
-            else:
-                mandatory = False
+        if title.endswith("*"):
+            mandatory = True
+            title = title.rstrip("*").strip()
+        else:
+            mandatory = False
 
-            yield {
-                "title": title,
-                "mandatory": mandatory,
-                "lines": ["", self._todo(link), ""],
-            }
+        return {
+            "title": title,
+            "mandatory": mandatory,
+            "lines": ["", self._todo(link), ""],
+        }
 
     def _merge_fields(self, intro_lines):
         original_case = {}
@@ -248,13 +259,13 @@ class Template:
 
         return (new_fields, extra_lines)
 
-    def _merge_sections(self, original_sections):
+    def _merge_sections(self, template_sections, original_sections):
         old_sections = OrderedDict()
         for section in original_sections:
             old_sections[section["title"].lower()] = section
 
         new_sections = []
-        for section_template in self.sections:
+        for section_template in template_sections:
             title = section_template["title"]
             try:
                 section = old_sections.pop(title.lower())
@@ -295,11 +306,18 @@ class Template:
                 new_intro.append("")
         page.intro = new_intro
 
-        page.sections = self._merge_sections(page.sections)
+        page.sections = self._merge_sections(self.sections, page.sections)
         for section in page.sections:
             content = "\n".join(section["lines"])
             if self._is_todo(content):
                 todo_list.append(f"Section \"{section['title']}\"")
+
+            h3_template = []
+            for s in self.sections:
+                if s["title"] == section["title"]:
+                    h3_template = s["h3"]
+            section_h3 = section.get("h3", [])
+            section["h3"] = self._merge_sections(h3_template, section_h3)
 
         return (page.render(), todo_list)
 
