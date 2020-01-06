@@ -40,6 +40,9 @@ if [[ "$@" == "run" ]]; then
         	python /addimageinfo.py $flag
         fi
 
+		echo "Running applytemplate.py"
+		python /applytemplate.py $flag $WIKI_PAGE
+
 else
 	exec  "$@"
 fi
