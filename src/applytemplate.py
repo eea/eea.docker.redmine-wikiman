@@ -367,8 +367,8 @@ class FactsheetUpdater:
         log.debug(f"Processing page {page!r}")
         orig = self.taskman.get_wiki(self.factsheet_project, page)
 
-        owner_match = re.search(r"Product Owner:\s*(.*)", orig, re.IGNORECASE)
-        if not owner_match:
+        product_owner_match = re.search(r"Product owner:\s*(.*)", orig, re.I)
+        if not product_owner_match:
             log.debug(f"Page {page!r} is not a factsheet, skipping")
             return
 
@@ -376,7 +376,13 @@ class FactsheetUpdater:
 
         self.save_page(self.factsheet_project, page, orig, new)
 
-        owner = owner_match.group(1).strip()
+        owner = "Unspecified"
+        system_owner_match = re.search(r"System owner:\s*(.*)", orig, re.I)
+        if system_owner_match:
+            value = system_owner_match.group(1).strip().strip('[]')
+            if not self.template._is_todo(value):
+                owner = value
+
         self.todo_map[owner][page] = ', '.join(todo_list) or OK_TEXT
 
     def recursive_update(self, start_page):
