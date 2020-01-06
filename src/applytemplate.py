@@ -209,8 +209,17 @@ class Template:
         else:
             mandatory = False
 
+        for line in section["lines"]:
+            alt = re.match(r"\*alternate titles\*\s*:(.*)$", line.lower())
+            if alt:
+                alt_titles = [a.strip() for a in alt.group(1).split(";")]
+                break
+        else:
+            alt_titles = []
+
         return {
             "title": title,
+            "alt_titles": alt_titles,
             "mandatory": mandatory,
             "lines": ["", self._todo(link), ""],
         }
@@ -267,9 +276,15 @@ class Template:
         new_sections = []
         for section_template in template_sections:
             title = section_template["title"]
-            try:
-                section = old_sections.pop(title.lower())
-            except KeyError:
+            search_titles = [title.lower()] + section_template["alt_titles"]
+
+            for s in search_titles:
+                if s in old_sections:
+                    section = old_sections.pop(s)
+                    section["title"] = title
+                    break
+
+            else:
                 if section_template["mandatory"]:
                     section = {
                         "title": title,
@@ -278,8 +293,6 @@ class Template:
                 else:
                     log.debug(f"Skipping optional section {title!r}")
                     continue
-            else:
-                section["title"] = title
 
             new_sections.append(section)
 
