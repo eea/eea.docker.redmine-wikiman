@@ -58,7 +58,13 @@ Updates all wiki subpages for a redmine wiki page, searching for "DeploymentRepo
 ### addstackinfo.py
 
 Updates all wiki subpages for a redmine wiki page, searching for "Service location" link and extracting it from the current rancher stacks list (created by liststacks.py) and adding the stack link in the field "Rancher Stack URL" to it.
-    
+
+### applytemplate.py
+
+Updates all factsheet wiki subpages to match the factsheet template. It adds missing mandatory fields and sections, reorders the existing ones, and generates a report grouped by product owner.
+
+The script can detect alternate section titles and normalize them to match the title in the template. This is especially useful when changing a title in the template. Specify them as `*Alternate titles* : title one; title two` (a list delimited by `;`).
+
 ## Development
 
 To make the development easier, you can mount the scripts in a volume and run them:
