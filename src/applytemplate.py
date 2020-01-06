@@ -92,20 +92,22 @@ class Wikipage:
         assert line0match is not None, "Wikipage must start with h1"
         self.title = line0match.group("title")
 
-        self.intro = []
-        while lines and not lines.peek().startswith("h2. "):
-            self.intro.append(next(lines))
+        self.intro, self.sections = self._split_subsections(lines, "h2. ")
 
-        self.sections = []
+    def _split_subsections(self, lines, hprefix):
+        intro = []
+        while lines and not lines.peek().startswith(hprefix):
+            intro.append(next(lines))
+
+        sections = []
         current = None
         for line in lines:
-            heading = re.match(r"h2\.\s+(?P<title>.*)$", line)
-            if heading:
+            if line.startswith(hprefix):
                 if current:
-                    self.sections.append(current)
+                    sections.append(current)
 
                 current = {
-                    "title": heading.group("title").strip(),
+                    "title": line[len(hprefix):].strip(),
                     "lines": [],
                 }
 
@@ -113,11 +115,13 @@ class Wikipage:
                 current["lines"].append(line)
 
         if current:
-            self.sections.append(current)
+            sections.append(current)
 
-        for section in self.sections:
+        for section in sections:
             if not section["lines"] or section["lines"][-1] != "":
                 section["lines"].append("")
+
+        return intro, sections
 
     def render(self):
         out = io.StringIO()
