@@ -169,12 +169,12 @@ class Template:
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
-            line = line.strip("| ")
+            line = line.strip("| \xa0")
             if not line:
                 continue
 
             (label, desc) = line.split("|")
-            label = label.strip(": ")
+            label = label.strip(": \xa0")
             desc = desc.strip()
             mandatory = False
             if label.endswith("*"):
