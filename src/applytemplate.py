@@ -56,6 +56,14 @@ def print_diff(text1, text2):
         subprocess.run(["diff", "-U3", f"{tmp}/text1", f"{tmp}/text2"])
 
 
+def escape_html(text):
+    return text.replace("]", "&#x5d;")
+
+
+def unescape_html(text):
+    return text.replace("&#x5d;", "]")
+
+
 class Taskman:
 
     def __init__(self, url, key):
@@ -433,7 +441,7 @@ class FactsheetUpdater:
                 )
                 if m:
                     assert m.group("project") == self.factsheet_project
-                    page = m.group("page")
+                    page = unescape_html(m.group("page"))
                     if page not in self.seen_pages:
                         merged_todos[owner][page] = m.group("summary")
 
@@ -446,7 +454,7 @@ class FactsheetUpdater:
             lines = [""]
             for page, summary in sorted(page_map.items()):
                 prj = self.factsheet_project
-                link = f"[[{prj}:{page}]]"
+                link = f"[[{prj}:{escape_html(page)}]]"
                 lines.append(f"* {link}: {summary}")
             lines.append("")
 
