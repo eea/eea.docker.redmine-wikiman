@@ -101,6 +101,22 @@ def get_docker_images(urls):
     return docker_images
 
 
+def generate_images_text(docker_images):
+    # text = "\nh2. Source code information\n\n"
+    text = "\n\n??This section of the wiki was generated automatically from the DeploymentRepoURL on " + \
+        datetime.date.today().strftime("%Y-%m-%d") + \
+        ", please don't edit it manually.??\n\n"
+
+    # print sorted(docker_images)
+    for name in sorted(docker_images):
+      text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
+      if docker_images[name][0]:
+        text = text + ' | "Source code":' + docker_images[name][0]
+      text = text + "\n"
+    text = text + "\n"
+    return text
+
+
 def main():
     try:
       opts, args = getopt.getopt(sys.argv[1:], "dvn")
@@ -166,18 +182,8 @@ def main():
         logging.debug("No docker images extracted, will continue")
         continue
 
-      # text = "\nh2. Source code information\n\n"
-      comment = "\n\n??This section of the wiki was generated automatically from the DeploymentRepoURL on " + \
-          datetime.date.today().strftime("%Y-%m-%d") + \
-          ", please don't edit it manually.??\n\n"
-      text = ""
-      # print sorted(docker_images)
-      for name in sorted(docker_images):
-        text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
-        if docker_images[name][0]:
-          text = text + ' | "Source code":' + docker_images[name][0]
-        text = text + "\n"
-      text = text + "\n"
+      text = generate_images_text(docker_images)
+
       new_text = ""
       pagetext = page.text + "h2. Temp\n"
       section = re.findall(
@@ -192,7 +198,7 @@ def main():
           # print "-------------------------------"
           #  print images_list[0]
           new_images_list = re.findall(
-              r'(?<=\*).+?(?=$)', comment + text, re.DOTALL)
+              r'(?<=\*).+?(?=$)', text, re.DOTALL)
         # print "-------------------------------"
         #  print new_images_list[0]
         #  print "-------------------------------"
@@ -206,9 +212,9 @@ def main():
 
         if replace_section:
           logging.debug("Replaced the source code information text")
-          new_text = page.text.replace(section[0], comment + text)
+          new_text = page.text.replace(section[0], text)
       else:
-        new_text = page.text + "\n\nh2. Source code information" + comment + text
+        new_text = page.text + "\n\nh2. Source code information" + text
         logging.debug("Added new section")
 
       if new_text:
