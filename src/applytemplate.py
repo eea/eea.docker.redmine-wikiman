@@ -13,7 +13,7 @@ import io
 import tempfile
 import subprocess
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 
 from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError
@@ -73,7 +73,7 @@ def get_deployment_info(urls):
         return
 
     text = addimageinfo.generate_images_text(docker_images)
-    return text.splitlines()
+    return text
 
 
 class Taskman:
@@ -327,6 +327,40 @@ class Template:
 
         return new_sections
 
+    def _add_image_info(self, page, urls):
+        today = date.today().strftime("%Y-%m-%d")
+        comment = (
+            f"??This section of the wiki was generated automatically "
+            f"from the DeploymentRepoURL on {today}, "
+            f"please don't edit it manually.??"
+        )
+
+        if self._is_todo(urls[0]):
+            return
+
+        section_map = {s["title"]: s for s in page.sections}
+        source_code_section = section_map.get("Components and source code")
+        if source_code_section is None:
+            return
+
+        deployment_info = get_deployment_info(urls)
+        if deployment_info is None:
+            return
+
+        marker = "please don't edit it manually.??"
+        old = "\n".join(source_code_section["lines"]).strip()
+        if marker in old:
+            if old.split(marker)[1].strip() == deployment_info.strip():
+                return
+
+        source_code_section["lines"] = ["", comment, ""]
+        source_code_section["lines"] += deployment_info.splitlines()
+        source_code_section["lines"] += [""]
+
+        old_section = section_map.get("Source code information")
+        if old_section is not None:
+            page.sections.remove(old_section)
+
     def apply(self, page_text):
         page = Wikipage(page_text)
 
@@ -361,17 +395,7 @@ class Template:
             section_h3 = section.get("h3", [])
             section["h3"] = self._merge_sections(h3_template, section_h3)
 
-        if not self._is_todo(new_fields["DeploymentRepoURL"][0]):
-            section_map = {s["title"]: s for s in page.sections}
-            source_code_section = section_map.get("Components and source code")
-            if source_code_section is not None:
-                urls = new_fields["DeploymentRepoURL"]
-                deployment_info = get_deployment_info(urls)
-                if deployment_info is not None:
-                    source_code_section["lines"] = deployment_info
-                    old_section = section_map.get("Source code information")
-                    if old_section is not None:
-                        page.sections.remove(old_section)
+        self._add_image_info(page, new_fields["DeploymentRepoURL"])
 
         return (page.render(), todo_list)
 

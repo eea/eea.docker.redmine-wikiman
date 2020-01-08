@@ -95,11 +95,7 @@ def get_docker_images(urls):
 
 
 def generate_images_text(docker_images):
-    # text = "\nh2. Source code information\n\n"
-    text = "\n\n??This section of the wiki was generated automatically from the DeploymentRepoURL on " + \
-        datetime.date.today().strftime("%Y-%m-%d") + \
-        ", please don't edit it manually.??\n\n"
-
+    text = ""
     # print sorted(docker_images)
     for name in sorted(docker_images):
       text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
