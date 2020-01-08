@@ -17,6 +17,51 @@ svnpassword = os.getenv('SVN_PASSWORD', '')
 github_token = os.getenv('GITHUB_TOKEN', '')
 
 
+# Github authorization
+authorization_header = {}
+raw_header = {'Accept': 'application/vnd.github.VERSION.raw'}
+if github_token:
+    logging.info("Received GitHub token value, will be using it to read github repos")
+    authorization_header = {'Authorization': 'bearer ' + github_token}
+    raw_header = {'Accept': 'application/vnd.github.VERSION.raw', 'Authorization': 'bearer ' + github_token}
+
+
+def get_dockerfile(url):
+    logging.debug("Deployment url " + url)
+    try:
+      if 'https://github.com/' in url:
+        api = url.replace('https://github.com/',
+                          'https://api.github.com/repos/').replace('tree/master',
+                                                                   'contents')
+        response = requests.get(api, headers=authorization_header)
+        if response.status_code != 200:
+          logging.debug(response.json())
+          logging.warning("There was a problem with the github api response")
+          return
+        filter_dirs = [x for x in response.json() if x['type'] == 'dir']
+        biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
+        response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header)
+        filter_dc = [x for x in response2.json(
+        ) if 'docker-compose' in str(x['name']).lower()]
+        response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header)
+        return response3.text
+
+      if 'https://eeasvn.eea.europa.eu/' in url:
+        r = svn.remote.RemoteClient(url, username=svnuser, password=svnpassword)
+        r.info()
+        for x in r.list():
+          if str(x).lower() == 'docker-compose.yml':
+            return r.cat(x).decode('utf-8')
+        for rel_path, e in r.list_recursive():
+          if str(e['name']).lower() == 'docker-compose.yml':
+            return r.cat(rel_path + '/' + e['name']).decode('utf-8')
+
+    except BaseException:
+      logging.warning(
+        "There was a problem accessing the DeploymentRepoURL docker-compose.yml")
+      logging.error(sys.exc_info())
+
+
 def main():
     try:
       opts, args = getopt.getopt(sys.argv[1:], "dvn")
@@ -39,14 +84,6 @@ def main():
 
 
     logging.info("START")
-
-    # Github authorization
-    authorization_header = {}
-    raw_header = {'Accept': 'application/vnd.github.VERSION.raw'}
-    if github_token:
-        logging.info("Received GitHub token value, will be using it to read github repos")
-        authorization_header = {'Authorization': 'bearer ' + github_token}
-        raw_header = {'Accept': 'application/vnd.github.VERSION.raw', 'Authorization': 'bearer ' + github_token}
 
 
     server = Redmine(wiki_server, key=wiki_apikey, requests={'verify': True})
@@ -83,51 +120,8 @@ def main():
         if line.strip().lower().index('deploymentrepourl:') > 0:
           continue
         url = line.lower().replace('deploymentrepourl:', '').strip()
-        dockerfile = ""
-        logging.debug("Deployment url " + url)
-        try:
-          if 'https://github.com/' in url:
-            api = url.replace('https://github.com/',
-                              'https://api.github.com/repos/').replace('tree/master',
-                                                                       'contents')
-            response = requests.get(api, headers=authorization_header)
-            if response.status_code != 200:
-              logging.debug(response.json())
-              logging.warning("There was a problem with the github api response")
-              continue
-            filter_dirs = [x for x in response.json() if x['type'] == 'dir']
-            biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
-            response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header)
-            filter_dc = [x for x in response2.json(
-            ) if 'docker-compose' in str(x['name']).lower()]
-            response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header)
-            dockerfile = response3.text
-          else:
-            if 'https://eeasvn.eea.europa.eu/' in url:
-              url = line.strip().split(' ')[1]
-              if debug:
-                logging.getLogger().setLevel(logging.INFO)
-              r = svn.remote.RemoteClient(
-                  url, username=svnuser, password=svnpassword)
-              r.info()
-              for x in r.list():
-                if str(x).lower() == 'docker-compose.yml':
-                  dockerfile = r.cat(x)
-              if not dockerfile:
-                for rel_path, e in r.list_recursive():
-                  if str(e['name']).lower() == 'docker-compose.yml':
-                    dockerfile = r.cat(rel_path + '/' + e['name'])
-                    break
-              if debug:
-                logging.getLogger().setLevel(logging.DEBUG)
-              dockerfile = dockerfile.decode("utf-8")
 
-        except BaseException:
-          logging.warning(
-            "There was a problem accessing the DeploymentRepoURL docker-compose.yml")
-          logging.error(sys.exc_info())
-          if debug:
-            logging.getLogger().setLevel(logging.DEBUG)
+        dockerfile = get_dockerfile(url)
 
         if not dockerfile:
           docker_images = {}
