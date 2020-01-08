@@ -38,6 +38,7 @@ if [[ "$@" == "run" ]]; then
 
 		echo "Running applytemplate.py"
 		python /applytemplate.py $flag $WIKI_PAGE
+	fi
 
 else
 	exec  "$@"
