@@ -233,4 +233,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    logging.warn("addimageinfo.py is called from applytemplate.py")
+    # main()

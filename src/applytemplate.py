@@ -19,6 +19,8 @@ from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError
 from more_itertools import peekable
 
+import addimageinfo
+
 log = logging.getLogger(__name__)
 
 config = dict(
@@ -62,6 +64,16 @@ def escape_html(text):
 
 def unescape_html(text):
     return text.replace("&#x5d;", "]")
+
+
+def get_deployment_info(urls):
+    docker_images = addimageinfo.get_docker_images(urls)
+    if not docker_images:
+        log.debug("No docker images extracted, will continue")
+        return
+
+    text = addimageinfo.generate_images_text(docker_images)
+    return text.splitlines()
 
 
 class Taskman:
@@ -348,6 +360,18 @@ class Template:
                     h3_template = s["h3"]
             section_h3 = section.get("h3", [])
             section["h3"] = self._merge_sections(h3_template, section_h3)
+
+        if not self._is_todo(new_fields["DeploymentRepoURL"][0]):
+            section_map = {s["title"]: s for s in page.sections}
+            source_code_section = section_map.get("Components and source code")
+            if source_code_section is not None:
+                urls = new_fields["DeploymentRepoURL"]
+                deployment_info = get_deployment_info(urls)
+                if deployment_info is not None:
+                    source_code_section["lines"] = deployment_info
+                    old_section = section_map.get("Source code information")
+                    if old_section is not None:
+                        page.sections.remove(old_section)
 
         return (page.render(), todo_list)
 
