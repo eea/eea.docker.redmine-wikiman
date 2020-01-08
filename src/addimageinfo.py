@@ -62,6 +62,45 @@ def get_dockerfile(url):
       logging.error(sys.exc_info())
 
 
+def get_docker_images(urls):
+    docker_images = {}
+    for url in urls:
+      dockerfile = get_dockerfile(url)
+
+      if not dockerfile:
+        logging.warning("No docker-compose.yml file found, skipping the page")
+        return {}
+        break
+
+      lines = dockerfile.splitlines()
+      images = [x for x in lines if ' image: ' in x]
+      for image in images:
+        name = image.strip().split(' ')[1].strip('"').strip("'")
+        # print name
+        if name not in docker_images:
+          docker_image = name.split(':')[0]
+          response4 = requests.get(
+              "https://hub.docker.com/api/build/v1/source/?image=" +
+              docker_image)
+          github_url = ''
+          dockerhub_url = ''
+          if docker_image.find('/') > 0:
+            dockerhub_url = 'https://hub.docker.com/r/' + docker_image
+            # print dockerhub_url
+            if response4.status_code == 200 and response4.json().get('objects'):
+              github_url = 'https://github.com/' + \
+                response4.json()['objects'][0]['owner'] + '/' + \
+                  response4.json()['objects'][0]['repository']
+              # print github_url
+          else:
+            dockerhub_url = 'https://hub.docker.com/r/_/' + docker_image
+            # print dockerhub_url
+          docker_images[name] = [github_url, dockerhub_url]
+      # print docker_images
+
+    return docker_images
+
+
 def main():
     try:
       opts, args = getopt.getopt(sys.argv[1:], "dvn")
@@ -115,44 +154,13 @@ def main():
       logging.info("Starting with " + str(page))
       lines = page.text.splitlines()
       repos = [x for x in lines if 'deploymentrepourl:' in x.lower()]
-      docker_images = {}
+      urls = []
       for line in repos:
         if line.strip().lower().index('deploymentrepourl:') > 0:
           continue
-        url = line.lower().replace('deploymentrepourl:', '').strip()
+        urls.append(line.lower().replace('deploymentrepourl:', '').strip())
 
-        dockerfile = get_dockerfile(url)
-
-        if not dockerfile:
-          docker_images = {}
-          logging.warning("No docker-compose.yml file found, skipping the page")
-          break
-
-        lines = dockerfile.splitlines()
-        images = [x for x in lines if ' image: ' in x]
-        for image in images:
-          name = image.strip().split(' ')[1].strip('"').strip("'")
-          # print name
-          if name not in docker_images:
-            docker_image = name.split(':')[0]
-            response4 = requests.get(
-                "https://hub.docker.com/api/build/v1/source/?image=" +
-                docker_image)
-            github_url = ''
-            dockerhub_url = ''
-            if docker_image.find('/') > 0:
-              dockerhub_url = 'https://hub.docker.com/r/' + docker_image
-              # print dockerhub_url
-              if response4.status_code == 200 and response4.json().get('objects'):
-                github_url = 'https://github.com/' + \
-                  response4.json()['objects'][0]['owner'] + '/' + \
-                    response4.json()['objects'][0]['repository']
-                # print github_url
-            else:
-              dockerhub_url = 'https://hub.docker.com/r/_/' + docker_image
-              # print dockerhub_url
-            docker_images[name] = [github_url, dockerhub_url]
-        # print docker_images
+      docker_images = get_docker_images(urls)
 
       if not docker_images:
         logging.debug("No docker images extracted, will continue")
