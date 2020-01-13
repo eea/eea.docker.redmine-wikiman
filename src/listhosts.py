@@ -30,6 +30,8 @@ class RancherInstances(object):
         self.envText = []
         self.fullText = []
         pageTitle = os.getenv('WIKI_HOSTSPAGETITLE', 'Rancher Hosts')
+        self.projectName = os.getenv('WIKI_PROJECT', '')
+        self.pageName = os.getenv('WIKI_HOSTS_PAGE', '')
 
         self.open_shelf()
         self.content = []
@@ -186,21 +188,30 @@ class RancherInstances(object):
                 dockerVersion,
                 operatingSystem))
 
-    def write_page(self):
+    def _redmine(self):
         server = os.getenv('WIKI_SERVER', '')
         apikey = os.getenv('WIKI_APIKEY', '')
-        projectName = os.getenv('WIKI_PROJECT', '')
-        pageName = os.getenv('WIKI_HOSTS_PAGE', '')
-        server = Redmine(server, key=apikey, requests={'verify': True})
+        return Redmine(server, key=apikey, requests={'verify': True})
+
+    def write_page(self):
+        server = self._redmine()
         server.wiki_page.update(
-            pageName,
-            project_id=projectName,
+            self.pageName,
+            project_id=self.projectName,
             text="\n".join(
                 self.content))
 
     def write_stdout(self):
         for line in self.content:
             print(line)
+
+    def has_changed(self):
+        server = self._redmine()
+        page = server.wiki_page.get(self.pageName, project_id=self.projectName)
+        old = page.text
+        marker = '_Do not update this page manually._'
+        new = "\n".join(self.content)
+        return old.split(marker)[1] != new.split(marker)[1]
 
     def get_operation(self, rancherUrl, rancherAccessKey,
                       rancherSecretKey, url):
@@ -260,8 +271,11 @@ if __name__ == '__main__':
     if len(args) > 0:
         environments = args
     obj = RancherInstances(environments)
-    if dryrun == True:
-        obj.write_stdout()
+    if obj.has_changed():
+        if dryrun == True:
+            obj.write_stdout()
+        else:
+            obj.write_page()
     else:
-        obj.write_page()
+        logging.info("Content is the same, not saving")
     logging.info("Done")
