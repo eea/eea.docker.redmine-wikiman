@@ -28,18 +28,32 @@ class Discover(object):
         self.containers = {}
         self.hosts = {}
         self.hosts_size = {}
+        self.projectName = os.getenv('WIKI_PROJECT', '')
+        self.pageName = os.getenv('WIKI_CONTAINERS_PAGE', '')
 
-    def write_page(self, content):
+    def _redmine(self):
         server = os.getenv('WIKI_SERVER', '')
         apikey = os.getenv('WIKI_APIKEY', '')
-        projectName = os.getenv('WIKI_PROJECT', '')
-        pageName = os.getenv('WIKI_CONTAINERS_PAGE', '')
-        server = Redmine(server, key=apikey, requests={'verify': True})
-        server.wiki_page.update(pageName, project_id=projectName, text=content)
+        return Redmine(server, key=apikey, requests={'verify': True})
+
+    def write_page(self, content):
+        server = self._redmine()
+        server.wiki_page.update(
+            self.pageName,
+            project_id=self.projectName,
+            text=content,
+        )
 
     def write_stdout(self, content):
         # pass
         print(content)
+
+    def has_changed(self, new):
+        server = self._redmine()
+        page = server.wiki_page.get(self.pageName, project_id=self.projectName)
+        old = page.text
+        marker = '_Do not update this page manually._'
+        return old.split(marker)[1] != new.split(marker)[1]
 
     def get_operation(self, rancherUrl, rancherAccessKey,
                       rancherSecretKey, url):
@@ -269,8 +283,15 @@ if __name__ == '__main__':
                     disc.num_containers))
             disc.buildgraph(content)
             content.append('\n')
-    if dryrun:
-        disc.write_stdout("\n".join(content))
+
+    new_content = "\n".join(content)
+
+    if not disc.has_changed(new_content):
+        logging.info("Content is the same, not saving")
+
     else:
-        disc.write_page("\n".join(content))
-    #print "Done"
+        if dryrun:
+            disc.write_stdout(new_content)
+        else:
+            disc.write_page(new_content)
+        #print "Done"
