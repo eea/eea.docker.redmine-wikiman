@@ -421,13 +421,13 @@ class FactsheetUpdater:
 
     def save_page(self, project, page, orig, new):
         if new != orig:
-            log.info(f"Saving page {project!r}:{page!r}")
+            log.info(f"Saving page {project}:{page}")
             if self.dry_run:
                 print_diff(orig, new)
             else:
                 self.taskman.save_wiki(project, page, new)
         else:
-            log.debug(f"No changes for page {project!r}:{page!r}")
+            log.info(f"No changes for page {project}:{page}")
 
     def update(self, page):
         log.debug(f"Processing page {page!r}")
@@ -526,8 +526,10 @@ def main(page, config):
         template_name=config["template_name"],
         todolist_name=config["todolist_name"],
     )
+    log.info("Starting at %s" % page)
     updater.recursive_update(page)
     updater.save_todo_list(page, start_time)
+    log.info("Done")
 
 
 if __name__ == "__main__":
