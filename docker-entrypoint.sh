@@ -13,7 +13,9 @@ if [[ "$@" == "run" ]]; then
 	if [[ "$DEBUG" == "Yes" ]]; then
 		flag="${flag} -v"
 	fi
-      
+
+	python /wait_for_redmine.py
+
 	if [ -n "$RANCHER_CONFIG" ]; then
 
 		echo "Received RANCHER_CONFIG value, will run rancher related scripts"
