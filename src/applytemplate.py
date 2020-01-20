@@ -176,13 +176,13 @@ class Template:
         self.template_project = template_project
         self.template_name = template_name
 
-        assert wikipage.sections[0]["title"] == "Structured fields"
-        section0 = wikipage.sections[0]
+        assert wikipage.sections[1]["title"] == "Structured fields"
+        section0 = wikipage.sections[1]
 
         self.fields = list(self._parse_fields(section0["lines"]))
 
         self.sections = []
-        for s in wikipage.sections[1:]:
+        for s in wikipage.sections[2:]:
             mapped_s = self._map_section(s)
             mapped_s["h3"] = [self._map_section(h3) for h3 in s["h3"]]
             self.sections.append(mapped_s)
