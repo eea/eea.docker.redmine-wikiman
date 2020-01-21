@@ -325,6 +325,11 @@ class Template:
 
         new_stacks = []
         for location in new_fields['Service location']:
+            if not location.strip():
+                continue
+            if '(' in location:
+                log.warning("Could not extract url, check 'Service location'")
+                continue
             url = location.strip().split()[0].strip('/')
             new_stacks.extend(self.stack_finder.find(url))
 
@@ -472,12 +477,12 @@ class FactsheetUpdater:
             log.info(f"No changes for page {project}:{page}")
 
     def update(self, page):
-        log.debug(f"Processing page {page!r}")
+        log.info(f"Processing page {page}")
         orig = self.taskman.get_wiki(self.factsheet_project, page)
 
         product_owner_match = re.search(r"Product owner:\s*(.*)", orig, re.I)
         if not product_owner_match:
-            log.debug(f"Page {page!r} is not a factsheet, skipping")
+            log.info(f"Page {page} is not a factsheet, skipping")
             return
 
         (new, todo_list) = self.template.apply(orig)
@@ -587,6 +592,7 @@ if __name__ == "__main__":
 
     log_level = logging.DEBUG if options.verbose else logging.INFO
     logging.basicConfig(level=log_level)
+    log.setLevel(log_level)
 
     config["dry_run"] = options.dry_run
 
