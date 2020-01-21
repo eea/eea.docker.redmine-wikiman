@@ -327,10 +327,10 @@ class Template:
         for location in new_fields['Service location']:
             if not location.strip():
                 continue
-            if '(' in location:
+            url = location.strip().split()[0].strip('/')
+            if '(' in url:
                 log.warning("Could not extract url, check 'Service location'")
                 continue
-            url = location.strip().split()[0].strip('/')
             new_stacks.extend(self.stack_finder.find(url))
 
         if new_stacks:
