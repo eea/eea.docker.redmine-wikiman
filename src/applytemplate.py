@@ -30,6 +30,7 @@ config = dict(
     todolist_name=os.getenv("TODOLIST_NAME", "IT_service_factsheet_ToDo_list"),
     wiki_server=os.getenv("WIKI_SERVER", ""),
     wiki_apikey=os.getenv("WIKI_APIKEY", ""),
+    stackwiki=os.getenv("WIKI_STACKS_PAGE", "Rancher_stacks"),
 )
 
 TODOLIST_DEFAULT_TEXT = """\
@@ -104,6 +105,35 @@ class Taskman:
         yield from children(name)
 
 
+class StackFinder:
+
+    def __init__(self, stack_wiki_text):
+        self.stacks = stack_wiki_text.splitlines()
+
+    def find(self, url):
+        stack = ""
+        url_no_protocol = url.replace('http://', '').replace('https://', '')
+        regex = re.compile(
+            r' (https?://)?{}/?[^a-z/]'.format(url_no_protocol.replace('.', r'\.')),
+            re.IGNORECASE,
+        )
+        stack = list(filter(regex.search, self.stacks))
+        if not stack:
+            stack_name = (
+                url_no_protocol
+                .replace('.europa.eu', '')
+                .replace('.', '-')
+            )
+            stack = [
+                x for x in self.stacks
+                if '|"' + stack_name + '":' in x.lower()
+            ]
+
+        regex = re.compile(r'^\|(".+?":.+?) \|.*$')
+        rv = [regex.match(str(st)).group(1) for st in stack]
+        return rv
+
+
 class Wikipage:
 
     def __init__(self, text):
@@ -171,7 +201,7 @@ class Wikipage:
 
 class Template:
 
-    def __init__(self, text, template_project, template_name):
+    def __init__(self, text, template_project, template_name, stack_wiki_text):
         wikipage = Wikipage(text)
         self.template_project = template_project
         self.template_name = template_name
@@ -186,6 +216,8 @@ class Template:
             mapped_s = self._map_section(s)
             mapped_s["h3"] = [self._map_section(h3) for h3 in s["h3"]]
             self.sections.append(mapped_s)
+
+        self.stack_finder = StackFinder(stack_wiki_text)
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -290,6 +322,14 @@ class Template:
 
         for label, value in fields.items():
             new_fields[original_case[label]] = value
+
+        new_stacks = []
+        for location in new_fields['Service location']:
+            url = location.strip().split()[0].strip('/')
+            new_stacks.extend(self.stack_finder.find(url))
+
+        if new_stacks:
+            new_fields['Rancher Stack URL'] = new_stacks
 
         return (new_fields, extra_lines)
 
@@ -403,14 +443,16 @@ class Template:
 class FactsheetUpdater:
 
     def __init__(self, taskman, dry_run, factsheet_project, template_project,
-                 template_name, todolist_name):
+                 template_name, todolist_name, stackwiki):
         self.taskman = taskman
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(template_project, template_name)
+        stack_wiki_text = self.taskman.get_wiki(factsheet_project, stackwiki)
         self.template = Template(
             template_text,
             template_project,
             template_name,
+            stack_wiki_text,
         )
         self.todo_map = defaultdict(dict)
         self.seen_pages = set()
@@ -525,6 +567,7 @@ def main(page, config):
         template_project=config["template_project"],
         template_name=config["template_name"],
         todolist_name=config["todolist_name"],
+        stackwiki=config["stackwiki"],
     )
     log.info("Starting at %s" % page)
     updater.recursive_update(page)

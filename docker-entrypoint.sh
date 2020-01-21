@@ -35,9 +35,6 @@ if [[ "$@" == "run" ]]; then
                 
 		echo "Received redmine related information, will run wiki enrichment scripts"
 
-		echo "Running addstackinfo.py"
-		python /addstackinfo.py $flag
-
 		echo "Running applytemplate.py"
 		python /applytemplate.py $flag $WIKI_PAGE
 	fi
