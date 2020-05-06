@@ -151,12 +151,9 @@ def generate_images_text(docker_images):
     # print sorted(docker_images)
     for name in sorted(docker_images):
       text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
-      print(name)
-      update_status = check_image_status(name)
-      print(update_status)
-      print('-'*100)
       if docker_images[name][0]:
         text = text + ' | "Source code":' + docker_images[name][0]
+      text = text + ' | ' + check_image_status(name)
       text = text + "\n"
     text = text + "\n"
     return text
