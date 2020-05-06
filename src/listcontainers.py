@@ -10,8 +10,6 @@ import sys
 import logging
 import time
 import getopt
-import requests
-from natsort import natsorted
 from operator import itemgetter, attrgetter, methodcaller
 from urllib.parse import urlparse
 

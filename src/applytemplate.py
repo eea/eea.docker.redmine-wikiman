@@ -392,6 +392,7 @@ class Template:
         if deployment_info is None:
             return
 
+        upgrade_available = "upgrade" in deployment_info.lower()
         marker = "please don't edit it manually.??"
         old = "\n".join(source_code_section["lines"]).strip()
         if marker in old:
@@ -405,6 +406,8 @@ class Template:
         old_section = section_map.get("Source code information")
         if old_section is not None:
             page.sections.remove(old_section)
+
+        return upgrade_available
 
     def apply(self, page_text):
         page = Wikipage(page_text)
@@ -428,10 +431,13 @@ class Template:
             page.intro[0:0] = ["", TOC_CODE]
 
         page.sections = self._merge_sections(self.sections, page.sections)
+        todo_components_and_source = False
         for section in page.sections:
             content = "\n".join(section["lines"])
             if self._is_todo(content):
                 todo_list.append(f"Section \"{section['title']}\"")
+                if section['title'] == "Components and source code":
+                    todo_components_and_source = True
 
             h3_template = []
             for s in self.sections:
@@ -440,7 +446,9 @@ class Template:
             section_h3 = section.get("h3", [])
             section["h3"] = self._merge_sections(h3_template, section_h3)
 
-        self._add_image_info(page, new_fields["DeploymentRepoURL"])
+        upgrade_available = self._add_image_info(page, new_fields["DeploymentRepoURL"])
+        if upgrade_available and not todo_components_and_source:
+            todo_list.append("Section \"Components and source code\"")
 
         return (page.render(), todo_list)
 
