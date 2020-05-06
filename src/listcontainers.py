@@ -10,11 +10,14 @@ import sys
 import logging
 import time
 import getopt
+import requests
+from natsort import natsorted
 from operator import itemgetter, attrgetter, methodcaller
 from urllib.parse import urlparse
 
 from redminelib import Redmine
 
+import addimageinfo
 
 def getKey(instance):
     """ Return the key to sort on """
@@ -129,7 +132,7 @@ class Discover(object):
             total = self.hosts_size[hostId]
             envText.append('h4. {}\n'.format(host))
             envText.append(
-                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |')
+                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |_. Update |')
             for container in sorted(containers, key=itemgetter('name')):
                 imageName = container['imageUuid']
 # if container['imageUuid'].startswith("docker:rancher/"): continue
@@ -152,15 +155,18 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
+                update_status = addimageinfo.check_image_status(imageName[7:])
+
                 envText.append(
-                    '| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(
+                    '| {} | "{}":{} | {} | {} |>. {} |>. {} |>. {} |'.format(
                         imageName,
                         contName,
                         container['containerLink'],
                         stackName,
                         container['state'],
                         memoryRes,
-                        memoryLim))
+                        memoryLim,
+                        update_status))
             envText.append(
                 '\nTotal    RAM on host: {:.1f} GiB'.format(
                     total / 1024))

@@ -4,6 +4,8 @@ import svn.remote
 import sys
 import os
 import logging
+from natsort import natsorted
+import json
 
 svnuser = os.getenv('SVN_USER', '')
 svnpassword = os.getenv('SVN_PASSWORD', '')
@@ -93,12 +95,66 @@ def get_docker_images(urls):
 
     return docker_images
 
+def check_image_status(image_name):
+    index_url = "https://index.docker.io"
+    auth_url = "https://auth.docker.io"
+
+    if ':' not in image_name:
+        return 'No image version provided'
+
+    image, curr_version = image_name.split(':')
+    if '/' not in image:
+        # Check for docker base images
+        image = f"library/{image}"
+    if image.startswith("docker.io/"):
+        image.replace("docker.io/","")
+
+    payload = {
+        "service": "registry.docker.io",
+        "scope": f"repository:{image}:pull"
+    }
+
+    r = requests.get(auth_url + '/token', params=payload)
+    if not r.status_code == 200:
+        logging.info(f"Could not fetch docker hub token for {image_name}.")
+        return "Could not fetch last version"
+
+    token = r.json()['token']
+
+    # Fetch versions
+    h = {'Authorization': f"Bearer {token}"}
+    r = requests.get(f"{index_url}/v2/{image}/tags/list", headers=h)
+    try:
+        versions = r.json()['tags']
+    except (json.decoder.JSONDecodeError, KeyError):
+        logging.info(f"Could not fetch last version for {image_name}.")
+        return "Could not fetch last version"
+
+    versions = [v for v in versions if any(char.isdigit() for char in v)]
+    if not versions:
+        return "Image is not tagged"
+    last_version = natsorted(versions)[-1]
+
+    if last_version == curr_version:
+        return "We are on the last version"
+    else:
+        curr_major = curr_version.split('.')[0]
+        last_major = last_version.split('.')[0]
+
+        if curr_major == last_major:
+            return f"Minor upgrade to {last_version}"
+        else:
+            return f"MAJOR UPGRADE to {last_version}"
 
 def generate_images_text(docker_images):
     text = ""
     # print sorted(docker_images)
     for name in sorted(docker_images):
       text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
+      print(name)
+      update_status = check_image_status(name)
+      print(update_status)
+      print('-'*100)
       if docker_images[name][0]:
         text = text + ' | "Source code":' + docker_images[name][0]
       text = text + "\n"
