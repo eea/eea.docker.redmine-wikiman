@@ -152,7 +152,7 @@ def get_image_last_version(image_name):
 def check_image_status(image_name):
     if ':' not in image_name or image_name.split(':')[1] == 'latest':
         # "latest" tag or no tag means no upgrade available
-        return "We are on the last version"
+        return "Up to date"
 
     success, last_version = get_image_last_version(image_name)
     if not success:
@@ -160,7 +160,7 @@ def check_image_status(image_name):
 
     image, curr_version = image_name.split(':')
     if last_version == curr_version:
-        return "We are on the last version"
+        return "Up to date"
     else:
         curr_major = curr_version.split('.')[0]
         last_major = last_version.split('.')[0]
