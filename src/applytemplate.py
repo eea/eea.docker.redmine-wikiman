@@ -448,7 +448,7 @@ class Template:
 
         upgrade_available = self._add_image_info(page, new_fields["DeploymentRepoURL"])
         if upgrade_available and not todo_components_and_source:
-            todo_list.append("Section \"Components and source code\"")
+            todo_list.append("Section \"Components and source code\" **(upgrade available)**")
 
         return (page.render(), todo_list)
 
