@@ -130,7 +130,7 @@ class Discover(object):
             total = self.hosts_size[hostId]
             envText.append('h4. {}\n'.format(host))
             envText.append(
-                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |_. Update |')
+                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |_. Upgrade |')
             for container in sorted(containers, key=itemgetter('name')):
                 imageName = container['imageUuid']
 # if container['imageUuid'].startswith("docker:rancher/"): continue

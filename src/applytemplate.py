@@ -397,7 +397,7 @@ class Template:
         old = "\n".join(source_code_section["lines"]).strip()
         if marker in old:
             if old.split(marker)[1].strip() == deployment_info.strip():
-                return
+                return upgrade_available
 
         source_code_section["lines"] = ["", comment, ""]
         source_code_section["lines"] += deployment_info.splitlines()

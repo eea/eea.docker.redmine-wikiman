@@ -6,6 +6,7 @@ import os
 import logging
 from natsort import natsorted
 import json
+import re
 
 svnuser = os.getenv('SVN_USER', '')
 svnpassword = os.getenv('SVN_PASSWORD', '')
@@ -95,14 +96,15 @@ def get_docker_images(urls):
 
     return docker_images
 
-def check_image_status(image_name):
+def get_image_last_version(image_name):
     index_url = "https://index.docker.io"
     auth_url = "https://auth.docker.io"
 
-    if ':' not in image_name:
-        return 'No image version provided'
+    image = image_name
+    if ':' in image_name:
+        # Check if image was provided with version
+        image = image_name.split(':')[0]
 
-    image, curr_version = image_name.split(':')
     if '/' not in image:
         # Check for docker base images
         image = f"library/{image}"
@@ -117,7 +119,7 @@ def check_image_status(image_name):
     r = requests.get(auth_url + '/token', params=payload)
     if not r.status_code == 200:
         logging.info(f"Could not fetch docker hub token for {image_name}.")
-        return "Could not fetch last version"
+        return False, "Could not fetch last version"
 
     token = r.json()['token']
 
@@ -128,13 +130,35 @@ def check_image_status(image_name):
         versions = r.json()['tags']
     except (json.decoder.JSONDecodeError, KeyError):
         logging.info(f"Could not fetch last version for {image_name}.")
-        return "Could not fetch last version"
+        return False, "Could not check for upgrade"
 
+    """
+        Filter the versions to contain at least a digit and be a stable version.
+        - we don not accept alpha/beta images
+        - we force the version to start with digit/"v" e.g: redis:rc-alpine3.11 is not valid
+        - we force the version to contain a '.' e.g.: redis:32bit-stretch is not valid
+        - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4 
+    """
     versions = [v for v in versions if any(char.isdigit() for char in v)]
+    versions = [v for v in versions if "beta" not in v and "alpha" not in v and "." in v]
+    versions = [v for v in versions if re.match(r"^v?[\d.]*", v).group(0)]
     if not versions:
-        return "Image is not tagged"
-    last_version = natsorted(versions)[-1]
+        return False, "No image tags - can't find upgrade"
 
+    last_version = natsorted(versions)[-1]
+    return True, last_version
+
+
+def check_image_status(image_name):
+    if ':' not in image_name or image_name.split(':')[1] == 'latest':
+        # "latest" tag or no tag means no upgrade available
+        return "We are on the last version"
+
+    success, last_version = get_image_last_version(image_name)
+    if not success:
+        return last_version
+
+    image, curr_version = image_name.split(':')
     if last_version == curr_version:
         return "We are on the last version"
     else:
@@ -142,9 +166,9 @@ def check_image_status(image_name):
         last_major = last_version.split('.')[0]
 
         if curr_major == last_major:
-            return f"Minor upgrade to {last_version}"
+            return f"Minor upgrade to {image}:{last_version}"
         else:
-            return f"MAJOR UPGRADE to {last_version}"
+            return f"MAJOR UPGRADE to {image}:{last_version}"
 
 def generate_images_text(docker_images):
     text = ""
