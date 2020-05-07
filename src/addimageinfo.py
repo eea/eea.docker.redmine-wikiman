@@ -96,6 +96,36 @@ def get_docker_images(urls):
 
     return docker_images
 
+def get_image_flavour(image_name):
+    if '-' not in image_name:
+        return None
+
+    image_pieces = image_name.split('-')
+    flavour = ""
+    for piece in image_pieces[::-1]:
+        if piece.isalpha():
+            flavour = piece + '-' + flavour
+    return flavour
+
+def filter_potential_image_updates(image_name, versions):
+    """
+        Filter the versions to contain at least a digit and be a stable version.
+        - we don not accept alpha/beta images
+        - we force the version to start with digit/"v" e.g: redis:rc-alpine3.11 is not valid
+        - we force the version to contain a '.' e.g.: redis:32bit-stretch is not valid
+        - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
+    """
+
+    versions = [v for v in versions if any(char.isdigit() for char in v)]
+    versions = [v for v in versions if "beta" not in v and "alpha" not in v and "." in v]
+    versions = [v for v in versions if re.match(r"^v?[\d.]*", v).group(0)]
+
+    image_tag = image_name.split(':')[1]
+    image_flavour = get_image_flavour(image_tag)
+    versions = [v for v in versions if get_image_flavour(v) == image_flavour]
+
+    return versions
+
 def get_image_last_version(image_name):
     index_url = "https://index.docker.io"
     auth_url = "https://auth.docker.io"
@@ -132,20 +162,11 @@ def get_image_last_version(image_name):
         logging.info(f"Could not fetch last version for {image_name}.")
         return False, "Could not check for upgrade"
 
-    """
-        Filter the versions to contain at least a digit and be a stable version.
-        - we don not accept alpha/beta images
-        - we force the version to start with digit/"v" e.g: redis:rc-alpine3.11 is not valid
-        - we force the version to contain a '.' e.g.: redis:32bit-stretch is not valid
-        - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4 
-    """
-    versions = [v for v in versions if any(char.isdigit() for char in v)]
-    versions = [v for v in versions if "beta" not in v and "alpha" not in v and "." in v]
-    versions = [v for v in versions if re.match(r"^v?[\d.]*", v).group(0)]
-    if not versions:
+    potential_updates = filter_potential_image_updates(image_name, versions)
+    if not potential_updates:
         return False, "No image tags - can't find upgrade"
 
-    last_version = natsorted(versions)[-1]
+    last_version = natsorted(potential_updates)[-1]
     return True, last_version
 
 
