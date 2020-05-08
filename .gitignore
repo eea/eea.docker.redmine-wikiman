@@ -1,1 +1,9 @@
 *.pyc
+
+# Environments
+venv/
+env/
+.venv/
+.env/
+.env
+.envrc
