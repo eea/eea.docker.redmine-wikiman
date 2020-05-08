@@ -1,4 +1,5 @@
 # Redmine wiki manager
+
 Improves redmine wikis adding Rancher, GitHub and DockerHub links.
 The image is created under the name: eeacms/redmine-wikiman
 
