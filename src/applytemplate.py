@@ -73,8 +73,8 @@ def get_deployment_info(urls):
         log.debug("No docker images extracted, will continue")
         return
 
-    text = addimageinfo.generate_images_text(docker_images)
-    return text
+    update_needed, text = addimageinfo.generate_images_text(docker_images)
+    return update_needed, text
 
 
 class Taskman:
@@ -392,22 +392,22 @@ class Template:
         if deployment_info is None:
             return
 
-        upgrade_available = "upgrade" in deployment_info.lower()
+        update_needed, text = deployment_info
         marker = "please don't edit it manually.??"
         old = "\n".join(source_code_section["lines"]).strip()
         if marker in old:
-            if old.split(marker)[1].strip() == deployment_info.strip():
-                return upgrade_available
+            if old.split(marker)[1].strip() == text.strip():
+                return update_needed
 
         source_code_section["lines"] = ["", comment, ""]
-        source_code_section["lines"] += deployment_info.splitlines()
+        source_code_section["lines"] += text.splitlines()
         source_code_section["lines"] += [""]
 
         old_section = section_map.get("Source code information")
         if old_section is not None:
             page.sections.remove(old_section)
 
-        return upgrade_available
+        return update_needed
 
     def apply(self, page_text):
         page = Wikipage(page_text)
@@ -446,8 +446,8 @@ class Template:
             section_h3 = section.get("h3", [])
             section["h3"] = self._merge_sections(h3_template, section_h3)
 
-        upgrade_available = self._add_image_info(page, new_fields["DeploymentRepoURL"])
-        if upgrade_available and not todo_components_and_source:
+        update_needed = self._add_image_info(page, new_fields["DeploymentRepoURL"])
+        if update_needed and not todo_components_and_source:
             todo_list.append("Section \"Components and source code\" **(upgrade available)**")
 
         return (page.render(), todo_list)

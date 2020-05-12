@@ -123,6 +123,7 @@ class Discover(object):
         envLimit = 0
         envTotal = 0
         envText = []
+        login_token = addimageinfo.get_dockerhub_login_token()
         for hostId, containers in sorted(self.containers.items()):
             host = self.hosts[hostId]
             totalReserved = 0
@@ -153,7 +154,7 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
-                update_status = addimageinfo.check_image_status(imageName[7:])
+                update_status, update_msg = addimageinfo.check_image_status(imageName[7:], login_token)
 
                 envText.append(
                     '| {} | "{}":{} | {} | {} |>. {} |>. {} |>. {} |'.format(
@@ -164,7 +165,7 @@ class Discover(object):
                         container['state'],
                         memoryRes,
                         memoryLim,
-                        update_status))
+                        update_msg))
             envText.append(
                 '\nTotal    RAM on host: {:.1f} GiB'.format(
                     total / 1024))
