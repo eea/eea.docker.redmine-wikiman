@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from redminelib import Redmine
 
-import addimageinfo
+from image_checker import ImageChecker
 
 def getKey(instance):
     """ Return the key to sort on """
@@ -123,7 +123,7 @@ class Discover(object):
         envLimit = 0
         envTotal = 0
         envText = []
-        login_token = addimageinfo.get_dockerhub_login_token()
+        image_checker = ImageChecker()
         for hostId, containers in sorted(self.containers.items()):
             host = self.hosts[hostId]
             totalReserved = 0
@@ -154,7 +154,7 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
-                update_status, update_msg = addimageinfo.check_image_status(imageName[7:], login_token)
+                update_status, update_msg = image_checker.check_image_and_base_status(imageName[7:])
 
                 envText.append(
                     '| {} | "{}":{} | {} | {} |>. {} |>. {} |>. {} |'.format(
