@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from redminelib import Redmine
 
+from image_checker import ImageChecker
 
 def getKey(instance):
     """ Return the key to sort on """
@@ -23,13 +24,14 @@ def getKey(instance):
 
 class Discover(object):
 
-    def __init__(self):
+    def __init__(self, image_checker):
         self.num_containers = 0
         self.containers = {}
         self.hosts = {}
         self.hosts_size = {}
         self.projectName = os.getenv('WIKI_PROJECT', '')
         self.pageName = os.getenv('WIKI_CONTAINERS_PAGE', '')
+        self.image_checker = image_checker
 
     def _redmine(self):
         server = os.getenv('WIKI_SERVER', '')
@@ -129,7 +131,7 @@ class Discover(object):
             total = self.hosts_size[hostId]
             envText.append('h4. {}\n'.format(host))
             envText.append(
-                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |')
+                '|_. Image |_. Container |_. Stack |_. State |_. Reservation |_. Limit |_. Upgrade |')
             for container in sorted(containers, key=itemgetter('name')):
                 imageName = container['imageUuid']
 # if container['imageUuid'].startswith("docker:rancher/"): continue
@@ -152,15 +154,18 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
+                update_status, update_msg = self.image_checker.check_image_and_base_status(imageName[7:])
+
                 envText.append(
-                    '| {} | "{}":{} | {} | {} |>. {} |>. {} |'.format(
+                    '| {} | "{}":{} | {} | {} |>. {} |>. {} |>. {} |'.format(
                         imageName,
                         contName,
                         container['containerLink'],
                         stackName,
                         container['state'],
                         memoryRes,
-                        memoryLim))
+                        memoryLim,
+                        update_msg))
             envText.append(
                 '\nTotal    RAM on host: {:.1f} GiB'.format(
                     total / 1024))
@@ -194,22 +199,7 @@ class Discover(object):
         content.append('\n')
         content.extend(envText)
 
-
-if __name__ == '__main__':
-    dryrun = False
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "vn")
-    except getopt.GetoptError as err:
-        sys.exit(2)
-    for o, a in opts:
-        if o == "-v":
-            logging.basicConfig(
-                format='%(levelname)s:%(message)s',
-                level=logging.DEBUG)
-        if o == "-n":
-            dryrun = True
-
+def main(image_checker, dry_run):
     pageTitle = os.getenv('WIKI_CONTAINERSPAGETITLE', 'Rancher Containers')
 
     content = []
@@ -220,7 +210,7 @@ if __name__ == '__main__':
         time.strftime('%d %B %Y') +
         '. _Do not update this page manually._')
 
-    disc = Discover()
+    disc = Discover(image_checker)
     rancher_configs = os.getenv('RANCHER_CONFIG')
 
     for rancher_config in rancher_configs.split():
@@ -290,8 +280,25 @@ if __name__ == '__main__':
         logging.info("Content is the same, not saving")
 
     else:
-        if dryrun:
+        if dry_run:
             disc.write_stdout(new_content)
         else:
             disc.write_page(new_content)
-        #print "Done"
+
+if __name__ == '__main__':
+    dryrun = False
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "vn")
+    except getopt.GetoptError as err:
+        sys.exit(2)
+    for o, a in opts:
+        if o == "-v":
+            logging.basicConfig(
+                format='%(levelname)s:%(message)s',
+                level=logging.DEBUG)
+        if o == "-n":
+            dryrun = True
+
+    image_checker = ImageChecker()
+    main(image_checker, dryrun)

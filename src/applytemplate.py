@@ -20,6 +20,7 @@ from redminelib.exceptions import ResourceNotFoundError
 from more_itertools import peekable
 
 import addimageinfo
+from image_checker import ImageChecker
 
 log = logging.getLogger(__name__)
 
@@ -67,14 +68,14 @@ def unescape_html(text):
     return text.replace("&#x5d;", "]")
 
 
-def get_deployment_info(urls):
+def get_deployment_info(urls, image_checker):
     docker_images = addimageinfo.get_docker_images(urls)
     if not docker_images:
         log.debug("No docker images extracted, will continue")
         return
 
-    text = addimageinfo.generate_images_text(docker_images)
-    return text
+    update_needed, text = addimageinfo.generate_images_text(docker_images, image_checker)
+    return update_needed, text
 
 
 class Taskman:
@@ -201,10 +202,11 @@ class Wikipage:
 
 class Template:
 
-    def __init__(self, text, template_project, template_name, stack_wiki_text):
+    def __init__(self, text, template_project, template_name, stack_wiki_text, image_checker):
         wikipage = Wikipage(text)
         self.template_project = template_project
         self.template_name = template_name
+        self.image_checker = image_checker
 
         assert wikipage.sections[1]["title"] == "Structured fields"
         section0 = wikipage.sections[1]
@@ -388,23 +390,26 @@ class Template:
         if source_code_section is None:
             return
 
-        deployment_info = get_deployment_info(urls)
+        deployment_info = get_deployment_info(urls, self.image_checker)
         if deployment_info is None:
             return
 
+        update_needed, text = deployment_info
         marker = "please don't edit it manually.??"
         old = "\n".join(source_code_section["lines"]).strip()
         if marker in old:
-            if old.split(marker)[1].strip() == deployment_info.strip():
-                return
+            if old.split(marker)[1].strip() == text.strip():
+                return update_needed
 
         source_code_section["lines"] = ["", comment, ""]
-        source_code_section["lines"] += deployment_info.splitlines()
+        source_code_section["lines"] += text.splitlines()
         source_code_section["lines"] += [""]
 
         old_section = section_map.get("Source code information")
         if old_section is not None:
             page.sections.remove(old_section)
+
+        return update_needed
 
     def apply(self, page_text):
         page = Wikipage(page_text)
@@ -428,10 +433,13 @@ class Template:
             page.intro[0:0] = ["", TOC_CODE]
 
         page.sections = self._merge_sections(self.sections, page.sections)
+        todo_components_and_source = False
         for section in page.sections:
             content = "\n".join(section["lines"])
             if self._is_todo(content):
                 todo_list.append(f"Section \"{section['title']}\"")
+                if section['title'] == "Components and source code":
+                    todo_components_and_source = True
 
             h3_template = []
             for s in self.sections:
@@ -440,7 +448,9 @@ class Template:
             section_h3 = section.get("h3", [])
             section["h3"] = self._merge_sections(h3_template, section_h3)
 
-        self._add_image_info(page, new_fields["DeploymentRepoURL"])
+        update_needed = self._add_image_info(page, new_fields["DeploymentRepoURL"])
+        if update_needed and not todo_components_and_source:
+            todo_list.append("Section \"Components and source code\" **(upgrade available)**")
 
         return (page.render(), todo_list)
 
@@ -448,7 +458,7 @@ class Template:
 class FactsheetUpdater:
 
     def __init__(self, taskman, dry_run, factsheet_project, template_project,
-                 template_name, todolist_name, stackwiki):
+                 template_name, todolist_name, stackwiki, image_checker):
         self.taskman = taskman
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(template_project, template_name)
@@ -458,6 +468,7 @@ class FactsheetUpdater:
             template_project,
             template_name,
             stack_wiki_text,
+            image_checker,
         )
         self.todo_map = defaultdict(dict)
         self.seen_pages = set()
@@ -562,7 +573,7 @@ class FactsheetUpdater:
         self.save_page(self.template_project, self.todolist_name, orig, new)
 
 
-def main(page, config):
+def main(page, config, image_checker):
     start_time = datetime.now()
     taskman = Taskman(config["wiki_server"], config["wiki_apikey"])
     updater = FactsheetUpdater(
@@ -573,6 +584,7 @@ def main(page, config):
         template_name=config["template_name"],
         todolist_name=config["todolist_name"],
         stackwiki=config["stackwiki"],
+        image_checker=image_checker,
     )
     log.info("Starting at %s" % page)
     updater.recursive_update(page)
@@ -596,4 +608,5 @@ if __name__ == "__main__":
 
     config["dry_run"] = options.dry_run
 
-    main(options.page, config)
+    image_checker = ImageChecker()
+    main(options.page, config, image_checker)

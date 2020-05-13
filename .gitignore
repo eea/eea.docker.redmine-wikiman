@@ -1,1 +1,5 @@
 *.pyc
+
+# Environments
+venv/
+.envrc

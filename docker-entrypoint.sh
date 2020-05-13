@@ -16,30 +16,14 @@ if [[ "$@" == "run" ]]; then
 
 	python /wait_for_redmine.py
 
-	if [ -n "$RANCHER_CONFIG" ]; then
+  if [ -n "$WIKI_SERVER" ] && [ -n "$WIKI_APIKEY" ] && [ -n "$WIKI_PROJECT" ] && [ -n "$WIKI_PAGE" ] && [ -n "$RANCHER_CONFIG"]; then
+    echo "Received RANCHER_CONFIG and WIKI related variables"
 
-		echo "Received RANCHER_CONFIG value, will run rancher related scripts"
-
-		echo "Running listhosts.py"
-		python /listhosts.py $flag
-
-        	echo "Running liststacks.py"
-        	python /liststacks.py $flag
-
-		echo "Running listcontainers.py"
-        	python /listcontainers.py $flag
-
-	fi
-
-	if [ -n "$WIKI_SERVER" ] && [ -n "$WIKI_APIKEY" ] && [ -n "$WIKI_PROJECT" ] && [ -n "$WIKI_PAGE" ]; then
-                
-		echo "Received redmine related information, will run wiki enrichment scripts"
-
-		echo "Running applytemplate.py"
-		python /applytemplate.py $flag $WIKI_PAGE
-	fi
+    flag="${flag} -p ${$WIKI_PAGE}"
+    python /run_all.py $flag
+  fi
 
 else
-	exec  "$@"
+  exec  "$@"
 fi
 

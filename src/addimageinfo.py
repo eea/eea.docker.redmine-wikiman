@@ -94,13 +94,16 @@ def get_docker_images(urls):
     return docker_images
 
 
-def generate_images_text(docker_images):
+def generate_images_text(docker_images, image_checker):
     text = ""
-    # print sorted(docker_images)
+    update_section = False
     for name in sorted(docker_images):
-      text = text + '* *"' + name + '":' + docker_images[name][1] + '*'
-      if docker_images[name][0]:
-        text = text + ' | "Source code":' + docker_images[name][0]
-      text = text + "\n"
+        text = text + '* *"' + name + '":' + docker_images[name][1] + "*"
+        if docker_images[name][0]:
+            text = text + ' | "Source code":' + docker_images[name][0]
+        update_needed, update_msg = image_checker.check_image_and_base_status(name)
+        update_section |= update_needed
+        text = text + " | " + update_msg + "\n"
+
     text = text + "\n"
-    return text
+    return update_section, text
