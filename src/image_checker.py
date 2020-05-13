@@ -260,7 +260,7 @@ class ImageChecker:
         base_status, base_msg = False, ""
         for base_image in base_images:
             status, msg = False, ""
-            if "/" in base_image and base_image.split('/')[0] == 'eeacms':
+            if not image.startswith('eeacms/'):
                 recursive_resp = self.check_base_image(base_image)
                 if recursive_resp:
                     status, msg = recursive_resp

@@ -24,13 +24,14 @@ def getKey(instance):
 
 class Discover(object):
 
-    def __init__(self):
+    def __init__(self, image_checker):
         self.num_containers = 0
         self.containers = {}
         self.hosts = {}
         self.hosts_size = {}
         self.projectName = os.getenv('WIKI_PROJECT', '')
         self.pageName = os.getenv('WIKI_CONTAINERS_PAGE', '')
+        self.image_checker = image_checker
 
     def _redmine(self):
         server = os.getenv('WIKI_SERVER', '')
@@ -123,7 +124,6 @@ class Discover(object):
         envLimit = 0
         envTotal = 0
         envText = []
-        image_checker = ImageChecker()
         for hostId, containers in sorted(self.containers.items()):
             host = self.hosts[hostId]
             totalReserved = 0
@@ -154,7 +154,7 @@ class Discover(object):
 
                 host = self.hosts[container['hostId']]
 
-                update_status, update_msg = image_checker.check_image_and_base_status(imageName[7:])
+                update_status, update_msg = self.image_checker.check_image_and_base_status(imageName[7:])
 
                 envText.append(
                     '| {} | "{}":{} | {} | {} |>. {} |>. {} |>. {} |'.format(
@@ -225,7 +225,8 @@ if __name__ == '__main__':
         time.strftime('%d %B %Y') +
         '. _Do not update this page manually._')
 
-    disc = Discover()
+    image_checker = ImageChecker()
+    disc = Discover(image_checker)
     rancher_configs = os.getenv('RANCHER_CONFIG')
 
     for rancher_config in rancher_configs.split():
