@@ -18,6 +18,8 @@ The image is created under the name: eeacms/redmine-wikiman
 10. SVN_PASSWORD - SVN password to read docker-compose.yml
 11. GITHUB_TOKEN - can be given to avoid API number of requests per IP restrictions
 12. DEBUG - Set to "Yes" to enable debug logging
+13. DOCKERHUB_USER - user used to interogate image builds on dockerhub
+14. DOCKERHUB_PASS - password for the previously defined user
 
 ## Usage
 
@@ -27,7 +29,7 @@ The image is created under the name: eeacms/redmine-wikiman
 
 ### Will save the wiki pages in redmine
 
-     docker run --rm -e RANCHER_CONFIG="RANCHER-URL,RANCHER-ACCESS-KEY,RANCHER-SECRET-KEY RANCHER2-URL,RANCHER2-ACCESS-KEY,RANCHER2-SECRET-KEY" -e WIKI_SERVER="REDMINE_URL" -e WIKI_APIKEY="REDMINE-KEY" -e WIKI_PROJECT=project -e WIKI_HOSTS_PAGE=RancherHosts -e WIKI_STACKS_PAGE=RancherStacks -e WIKI_CONTAINERS_PAGE=RancherContainers eeacms/redmine-wikiman
+     docker run --rm -e RANCHER_CONFIG="RANCHER-URL,RANCHER-ACCESS-KEY,RANCHER-SECRET-KEY RANCHER2-URL,RANCHER2-ACCESS-KEY,RANCHER2-SECRET-KEY" -e WIKI_SERVER="REDMINE_URL" -e WIKI_APIKEY="REDMINE-KEY" -e WIKI_PROJECT=project -e WIKI_HOSTS_PAGE=RancherHosts -e WIKI_STACKS_PAGE=RancherStacks -e WIKI_CONTAINERS_PAGE=RancherContainers -e DOCKERHUB_USER=user -e DOCKERHUB_PASS=password eeacms/redmine-wikiman
 
 ## Scripts
 
