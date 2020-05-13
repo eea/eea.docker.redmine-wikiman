@@ -199,22 +199,7 @@ class Discover(object):
         content.append('\n')
         content.extend(envText)
 
-
-if __name__ == '__main__':
-    dryrun = False
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "vn")
-    except getopt.GetoptError as err:
-        sys.exit(2)
-    for o, a in opts:
-        if o == "-v":
-            logging.basicConfig(
-                format='%(levelname)s:%(message)s',
-                level=logging.DEBUG)
-        if o == "-n":
-            dryrun = True
-
+def main(image_checker, dry_run):
     pageTitle = os.getenv('WIKI_CONTAINERSPAGETITLE', 'Rancher Containers')
 
     content = []
@@ -225,7 +210,6 @@ if __name__ == '__main__':
         time.strftime('%d %B %Y') +
         '. _Do not update this page manually._')
 
-    image_checker = ImageChecker()
     disc = Discover(image_checker)
     rancher_configs = os.getenv('RANCHER_CONFIG')
 
@@ -296,8 +280,25 @@ if __name__ == '__main__':
         logging.info("Content is the same, not saving")
 
     else:
-        if dryrun:
+        if dry_run:
             disc.write_stdout(new_content)
         else:
             disc.write_page(new_content)
-        #print "Done"
+
+if __name__ == '__main__':
+    dryrun = False
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "vn")
+    except getopt.GetoptError as err:
+        sys.exit(2)
+    for o, a in opts:
+        if o == "-v":
+            logging.basicConfig(
+                format='%(levelname)s:%(message)s',
+                level=logging.DEBUG)
+        if o == "-n":
+            dryrun = True
+
+    image_checker = ImageChecker()
+    main(image_checker, dryrun)

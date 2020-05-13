@@ -21,9 +21,9 @@ if [[ "$@" == "run" ]]; then
 
     flag="${flag} -p ${$WIKI_PAGE}"
     python /run_all.py $flag
-	fi
+  fi
 
 else
-	exec  "$@"
+  exec  "$@"
 fi
 

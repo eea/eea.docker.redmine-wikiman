@@ -5,9 +5,9 @@ import time
 import getopt
 from urllib.parse import urlparse
 
-from applytemplate import main
+import applytemplate
+import listcontainers
 from listhosts import RancherInstances
-from listcontainers import Discover, getKey
 from image_checker import ImageChecker
 
 log = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def run_apply_template(page, image_checker, dry_run):
     assert config["wiki_server"], "Please set WIKI_SERVER env var"
     assert config["wiki_apikey"], "Please set WIKI_APIKEY env var"
 
-    main(page, config, image_checker)
+    applytemplate.main(page, config, image_checker)
 
 
 def run_list_hosts(dry_run, environments):
@@ -44,91 +44,7 @@ def run_list_hosts(dry_run, environments):
     logging.info("Done list hosts")
 
 def run_list_containers(image_checker, dry_run):
-    pageTitle = os.getenv('WIKI_CONTAINERSPAGETITLE', 'Rancher Containers')
-
-    content = []
-    content.append('{{>toc}}\n\n')
-    content.append('h1. ' + pageTitle + '\n\n')
-    content.append(
-        'Automatically discovered on ' +
-        time.strftime('%d %B %Y') +
-        '. _Do not update this page manually._')
-
-    disc = Discover(image_checker)
-    rancher_configs = os.getenv('RANCHER_CONFIG')
-
-    for rancher_config in rancher_configs.split():
-
-        rancher_configuration = rancher_config.split(",")
-
-        rancherUrl = rancher_configuration[0]
-        logging.info(rancherUrl)
-        rancherApiUrl = rancherUrl + "/v2-beta"
-        rancherAccessKey = rancher_configuration[1]
-        rancherSecretKey = rancher_configuration[2]
-
-        content.append(
-            '\nh2. {}\n'.format(
-                urlparse(rancherUrl).netloc.upper()))
-
-        try:
-            envstruct = disc.get_operation(
-                rancherApiUrl,
-                rancherAccessKey,
-                rancherSecretKey,
-                rancherApiUrl + "/projects")
-        except BaseException:
-            logging.error("There was a problem reading from Rancher")
-            logging.error(sys.exc_info())
-            continue
-
-
-        for project in sorted(envstruct['data'], key=getKey):
-
-            if project['state'] != 'active':
-                continue
-            environment = project['id']
-            envURL = rancherUrl + "/env/" + environment
-            logging.info("Retrieving %s - %s", environment, project['name'])
-            envLabel = project['name']
-            content.append('\nh3. "{}":{}\n'.format(envLabel, envURL))
-            description = project.get('description')
-            if description is None:
-                description = ''
-            content.append('{}\n'.format(description))
-
-            content.append('\n')
-            disc.load_hosts(
-                rancherApiUrl,
-                rancherAccessKey,
-                rancherSecretKey,
-                rancherApiUrl +
-                "/projects/" +
-                environment)
-            disc.load_containers(
-                rancherApiUrl,
-                rancherAccessKey,
-                rancherSecretKey,
-                rancherApiUrl +
-                "/projects/" +
-                environment)
-            content.append(
-                'Number of containers: {}\n'.format(
-                    disc.num_containers))
-            disc.buildgraph(content)
-            content.append('\n')
-
-    new_content = "\n".join(content)
-
-    if not disc.has_changed(new_content):
-        logging.info("Content is the same, not saving")
-
-    else:
-        if dry_run:
-            disc.write_stdout(new_content)
-        else:
-            disc.write_page(new_content)
-
+    listcontainers.main(image_checker, dry_run)
 
 if __name__ == "__main__":
     dry_run = False

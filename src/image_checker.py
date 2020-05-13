@@ -194,7 +194,7 @@ class ImageChecker:
         if not self.dockerhub_token:
             return
 
-        if "/" not in image or not image.startswith("eeacms/"):
+        if image.startswith("eeacms/"):
             # Already a base image or not owned
             return
 
