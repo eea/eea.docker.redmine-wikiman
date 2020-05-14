@@ -204,7 +204,6 @@ class ImageChecker:
         if ":" not in image or image.split(":")[1] == "latest":
             return
 
-        print(image)
         image_name, version = image.split(":")
         repo, image_name = image_name.split("/")
 
