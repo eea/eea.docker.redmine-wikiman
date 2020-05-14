@@ -16,10 +16,10 @@ if [[ "$@" == "run" ]]; then
 
 	python /wait_for_redmine.py
 
-  if [ -n "$WIKI_SERVER" ] && [ -n "$WIKI_APIKEY" ] && [ -n "$WIKI_PROJECT" ] && [ -n "$WIKI_PAGE" ] && [ -n "$RANCHER_CONFIG"]; then
+  if [ -n "$WIKI_SERVER" ] && [ -n "$WIKI_APIKEY" ] && [ -n "$WIKI_PROJECT" ] && [ -n "$WIKI_PAGE" ] && [ -n "$RANCHER_CONFIG" ]; then
     echo "Received RANCHER_CONFIG and WIKI related variables"
 
-    flag="${flag} -p ${$WIKI_PAGE}"
+    flag="${flag} -p ${WIKI_PAGE}"
     python /run_all.py $flag
   fi
 

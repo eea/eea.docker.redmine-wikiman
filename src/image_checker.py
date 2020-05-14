@@ -194,13 +194,17 @@ class ImageChecker:
         if not self.dockerhub_token:
             return
 
-        if image.startswith("eeacms/"):
+        if image.startswith("docker.io/"):
+            image = image.replace("docker.io/", "")
+
+        if not image.startswith("eeacms/"):
             # Already a base image or not owned
             return
 
         if ":" not in image or image.split(":")[1] == "latest":
             return
 
+        print(image)
         image_name, version = image.split(":")
         repo, image_name = image_name.split("/")
 
