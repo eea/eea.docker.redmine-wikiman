@@ -234,10 +234,7 @@ def main(image_checker, dry_run):
                 rancherSecretKey,
                 rancherApiUrl + "/projects")
         except BaseException:
-            logging.error("There was a problem reading from Rancher")
-            logging.error(sys.exc_info())
-            continue
-
+            raise RuntimeError("There was a problem reading from Rancher")
 
         for project in sorted(envstruct['data'], key=getKey):
 

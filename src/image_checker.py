@@ -194,7 +194,10 @@ class ImageChecker:
         if not self.dockerhub_token:
             return
 
-        if image.startswith("eeacms/"):
+        if image.startswith("docker.io/"):
+            image = image.replace("docker.io/", "")
+
+        if not image.startswith("eeacms/"):
             # Already a base image or not owned
             return
 
