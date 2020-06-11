@@ -112,6 +112,12 @@ class ImageChecker:
         # Fetch versions
         h = {"Authorization": f"Bearer {token}"}
         r = requests.get(f"{index_url}/v2/{image}/tags/list", headers=h)
+        if r.status_code == 401:
+            logging.error(f"{image}: access denied when looking for tags list")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}access denied when looking for tags list%",
+            )
         try:
             versions = r.json()["tags"]
         except (json.decoder.JSONDecodeError, KeyError):
@@ -238,6 +244,12 @@ class ImageChecker:
 
         # Get build details
         r = requests.get(f"https://hub.docker.com{version_uri}", headers=h)
+        if r.status_code == 401:
+            logging.error(f"{image}: access denied when looking for base image build details")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}access denied when looking for base image build details%",
+            )
         try:
             dockerfile = r.json()["dockerfile"]
         except (json.decoder.JSONDecodeError, KeyError):
