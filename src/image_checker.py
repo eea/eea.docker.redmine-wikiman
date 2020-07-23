@@ -3,9 +3,7 @@ import re
 import json
 import logging
 import requests
-import semantic_version
 from natsort import natsorted
-from packaging.version import parse, Version
 
 class ImageChecker:
     def __init__(self):
@@ -55,9 +53,15 @@ class ImageChecker:
             We are considering a semantic version any concatenation of no more
             than 3 1,2,3-digit numbers separated by a '.' , linked by '-' to
             none ore many alphanumeric or other 1,2,3-digit numbers '.' separated.
+
+            - we don not accept alpha/beta images
+            - we force the version to start with digit/"v" e.g: redis:rc-alpine3.11 is not valid
+            - we force the version to contain a numerical orderd string e.g.: redis:32bit-stretch is not valid
+            - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
         """
         digit_pattern = re.compile("^v?\d{1,3}$")
         word_pattern = re.compile("^[a-zA-Z0-9]+$")
+        develop_tags = ["beta", "alpha", "rc", "RC"]
 
         version_pieces = version.split('-')
         actual_version = version_pieces[0]
@@ -69,13 +73,20 @@ class ImageChecker:
 
         for piece in flavour:
             for element in piece.split('.'):
-                if not re.match(digit_pattern, element) and not re.match(word_pattern, element):
-                    return True
+                if not re.match(digit_pattern, element):
+                    if not re.match(word_pattern, element) or element in develop_tags:
+                        return True
 
         return False
 
 
     def check_non_semantic_version(self, image, version):
+        """
+            Non semantic images will be checked by a separate logic.
+            We will get the full details on every tag that was created at some point
+            and return the most recent one.
+        """
+
         tags_details_url = f"https://hub.docker.com/v2/repositories/{image}/tags/"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
         r = requests.get(tags_details_url, headers=h)
@@ -116,26 +127,6 @@ class ImageChecker:
         )
 
     def filter_potential_image_updates(self, image_name, versions):
-        """
-            Filter the versions to contain at least a digit and be a stable version.
-            - we don not accept alpha/beta images
-            - we force the version to start with digit/"v" e.g: redis:rc-alpine3.11 is not valid
-            - we force the version to contain a '.' e.g.: redis:32bit-stretch is not valid
-            - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
-        """
-
-        '''
-        versions = [v for v in versions if any(char.isdigit() for char in v)]
-        versions = [
-            v
-            for v in versions
-            if "beta" not in v and "alpha" not in v and "RC" not in v and "." in v
-        ]
-        if "v" in image_name:
-            versions = [v for v in versions if re.match(r"^v?[\d.]*", v).group(0)]
-        else:
-            versions = [v for v in versions if re.match(r"^[\d.]*", v).group(0)]
-        '''
         versions = [v for v in versions if not self.non_semantic_version(v)]
 
         image_tag = image_name.split(":")[1]
@@ -384,7 +375,6 @@ class ImageChecker:
         return base_status, base_msg
 
     def check_image_and_base_status(self, image_name):
-        logging.info(f"AAA: {image_name}")
         image_status, image_msg = self.check_image_status(image_name)
 
         if "/" in image_name:
