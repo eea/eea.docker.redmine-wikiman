@@ -331,7 +331,7 @@ class Template:
                 continue
             url = location.strip().split()[0].strip('/')
             if '(' in url:
-                log.warning("Could not extract url, check 'Service location'")
+                log.warning(f"Could not extract url from {url}, check 'Service location'")
                 continue
             new_stacks.extend(self.stack_finder.find(url))
 
