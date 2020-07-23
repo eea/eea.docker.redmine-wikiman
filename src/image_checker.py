@@ -1,10 +1,11 @@
-import requests
 import os
-import logging
-from natsort import natsorted
-import json
 import re
-
+import json
+import logging
+import requests
+import semantic_version
+from natsort import natsorted
+from packaging.version import parse, Version
 
 class ImageChecker:
     def __init__(self):
@@ -15,6 +16,7 @@ class ImageChecker:
         self.redmine_minor_color = "%{color:orange}"
         self.redmine_major_color = "%{color:purple}"
         self.redmine_ok_color = "%{color:green}"
+        self.redmine_info_color = "%{color:black}"
 
     def get_dockerhub_login_token(self):
         auth_url = "https://hub.docker.com/v2/users/login/"
@@ -48,6 +50,71 @@ class ImageChecker:
                 flavour = piece + "-" + flavour
         return flavour
 
+    def non_semantic_version(self, version):
+        """
+            We are considering a semantic version any concatenation of no more
+            than 3 1,2,3-digit numbers separated by a '.' , linked by '-' to
+            none ore many alphanumeric or other 1,2,3-digit numbers '.' separated.
+        """
+        digit_pattern = re.compile("^v?\d{1,3}$")
+        word_pattern = re.compile("^[a-zA-Z0-9]+$")
+
+        version_pieces = version.split('-')
+        actual_version = version_pieces[0]
+        flavour = version_pieces[1:] if len(version_pieces) > 1 else []
+
+        for element in actual_version.split('.'):
+            if not re.match(digit_pattern, element):
+                return True
+
+        for piece in flavour:
+            for element in piece.split('.'):
+                if not re.match(digit_pattern, element) and not re.match(word_pattern, element):
+                    return True
+
+        return False
+
+
+    def check_non_semantic_version(self, image, version):
+        tags_details_url = f"https://hub.docker.com/v2/repositories/{image}/tags/"
+        h = {"Authorization": f"Bearer {self.dockerhub_token}"}
+        r = requests.get(tags_details_url, headers=h)
+        if r.status_code == 401:
+            logging.error(f"{image}: access denied when looking for hub.docker tags creation details")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}access denied when looking for hub.docker tags creation details%",
+            )
+
+        try:
+            tags_details = r.json()["results"]
+        except (json.decoder.JSONDecodeError, KeyError):
+            logging.info(f"{image}: could not fetch tags creation details.")
+            return False, f"{image}: could not fetch tags creation details."
+
+        # Sort tags by their update time and keep the relevant names
+        tags = [(tag['name'], tag['last_updated']) for tag in tags_details]
+        tags = sorted(tags, key=lambda x: x[0], reverse=True)
+        tags = [tag for tag in tags if (tag[0] != 'latest' and tag[0] != 'master' and 'dev' not in tag[0]
+                                        and 'alpha' not in tag[0] and 'beta' not in tag[0])]
+
+        if not tags:
+            logging.error(f"{image}: no non develop tags obtained")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}no non develop tags obtained%",
+            )
+
+        if tags[0][0] != version:
+            return (
+                False,
+                f"{image}:{version}: {self.redmine_major_color}non semantic version - upgrade to {tags[0][0]}%"
+            )
+        return (
+            True,
+            f"{image}:{version}: {self.redmine_ok_color}Up to date%"
+        )
+
     def filter_potential_image_updates(self, image_name, versions):
         """
             Filter the versions to contain at least a digit and be a stable version.
@@ -57,6 +124,7 @@ class ImageChecker:
             - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
         """
 
+        '''
         versions = [v for v in versions if any(char.isdigit() for char in v)]
         versions = [
             v
@@ -67,6 +135,8 @@ class ImageChecker:
             versions = [v for v in versions if re.match(r"^v?[\d.]*", v).group(0)]
         else:
             versions = [v for v in versions if re.match(r"^[\d.]*", v).group(0)]
+        '''
+        versions = [v for v in versions if not self.non_semantic_version(v)]
 
         image_tag = image_name.split(":")[1]
         image_flavour = self.get_image_flavour(image_tag)
@@ -74,7 +144,7 @@ class ImageChecker:
 
         return versions
 
-    def get_image_potential_updates(self, image_name):
+    def get_image_versions(self, image_name):
         index_url = "https://index.docker.io"
         auth_url = "https://auth.docker.io/token"
 
@@ -89,10 +159,6 @@ class ImageChecker:
             }
         else:
             image = image_name
-            if ":" in image_name:
-                # Check if image was provided with version
-                image = image_name.split(":")[0]
-
             if "/" not in image:
                 # Check for docker base images
                 image = f"library/{image}"
@@ -128,12 +194,16 @@ class ImageChecker:
             )
 
         if not versions:
-            logging.info(f"{image_name}: tags list obtain is empty")
+            logging.info(f"{image_name}: tags list obtained is empty")
             return (
                 False,
-                f"{image_name}: {self.redmine_error_color}tags list can not be obtain%",
+                f"{image_name}: {self.redmine_error_color}tags list obtained is empty%",
             )
 
+        return True, versions
+
+
+    def get_potential_updates(self, image_name, versions):
         potential_updates = self.filter_potential_image_updates(image_name, versions)
         if not potential_updates:
             return (
@@ -185,13 +255,22 @@ class ImageChecker:
                 status = False
                 msg = f"{image_name}: {self.redmine_error_color}can not check for updates to 'latest' tag%"
             else:
-                success, versions = self.get_image_potential_updates(image_name)
-                if not success:
-                    status = False
-                    msg = versions
+                image, curr_version = image_name.split(":")
+                if self.non_semantic_version(curr_version):
+                    logging.info(f"{image_name}: non semantic version tag")
+                    status, msg = self.check_non_semantic_version(image, curr_version)
                 else:
-                    image, curr_version = image_name.split(":")
-                    status, msg = self.compare_versions(image, versions, curr_version)
+                    success, versions = self.get_image_versions(image)
+                    if not success:
+                        status = False
+                        msg = versions
+                    else:
+                        success, potential_updates = self.get_potential_updates(image_name, versions)
+                        if not success:
+                            status = False
+                            msg = potential_updates
+                        else:
+                            status, msg = self.compare_versions(image, potential_updates, curr_version)
             self.images_cache[image_name] = (status, msg)
 
         return status, msg
@@ -207,11 +286,11 @@ class ImageChecker:
             # Already a base image or not owned
             return
 
-        if ":" not in image or image.split(":")[1] == "latest":
-            return
+        full_image_name, version = image, 'latest'
+        if ":" in image:
+            full_image_name, version = image.split(":")
 
-        image_name, version = image.split(":")
-        repo, image_name = image_name.split("/")
+        repo, image_name = full_image_name.split("/")
 
         # Fetch build list
         build_list_url = f"https://hub.docker.com/api/audit/v1/action/?include_related=true&limit=500&object=%2Fapi%2Frepo%2Fv1%2Frepository%2F{repo}%2F{image_name}%2F"
@@ -236,11 +315,29 @@ class ImageChecker:
                 version_uri = item["resource_uri"]
 
         if not version_uri:
-            logging.info(f"{image}: could not find tag {version} in build history.")
-            return (
-                False,
-                f"{image}: {self.redmine_error_color}could not find tag {version} in build history.%",
-            )
+            if version == 'latest':
+                return
+
+            success, versions = self.get_image_versions(full_image_name)
+            if not success:
+                logging.info(f"{versions}")
+                return (
+                    False,
+                    f"{versions}"
+                )
+
+            if version in versions:
+                logging.info(f"{image}: tag {version} was built externally, no Dockerfile available.")
+                return (
+                    False,
+                    f"{image}: {self.redmine_info_color} was built externally, no Dockerfile available.%",
+                )
+            else:
+                logging.info(f"{image}: could not find tag {version} in build history.")
+                return (
+                    False,
+                    f"{image}: {self.redmine_error_color}could not find tag {version} in build history.%",
+                )
 
         # Get build details
         r = requests.get(f"https://hub.docker.com{version_uri}", headers=h)
@@ -287,6 +384,7 @@ class ImageChecker:
         return base_status, base_msg
 
     def check_image_and_base_status(self, image_name):
+        logging.info(f"AAA: {image_name}")
         image_status, image_msg = self.check_image_status(image_name)
 
         if "/" in image_name:
