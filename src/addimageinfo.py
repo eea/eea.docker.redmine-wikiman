@@ -23,13 +23,20 @@ def get_dockerfile(url):
     logging.debug("Deployment url " + url)
     try:
       if 'https://github.com/' in url:
-        api = url.replace('https://github.com/',
-                          'https://api.github.com/repos/').replace('tree/master',
-                                                                   'contents')
+        # Some URLs use blob/master instead of tree/master, catering to both
+        api = url.replace(
+          'https://github.com/', 'https://api.github.com/repos/'
+        ).replace(
+          'tree/master', 'contents'
+        ).replace(
+          'blob/master', 'contents'
+        )
         response = requests.get(api, headers=authorization_header)
         if response.status_code != 200:
           logging.debug(response.json())
-          logging.warning(f"There was a problem with the github api response for {api}")
+          logging.warning(
+            f"There was a problem with the github api response for {api}"
+          )
           return
         filter_dirs = [x for x in response.json() if x['type'] == 'dir']
         biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
