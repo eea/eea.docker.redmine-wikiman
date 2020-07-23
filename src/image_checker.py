@@ -253,7 +253,7 @@ class ImageChecker:
         else:
             if ":" not in image_name or image_name.split(":")[1] == "latest":
                 status = False
-                msg = f"{image_name}: {self.redmine_error_color}can not check for updates to 'latest' tag%"
+                msg = f"{image_name}: {self.redmine_error_color}'latest' tag is not upgradeable%"
             else:
                 image, curr_version = image_name.split(":")
                 if self.non_semantic_version(curr_version):
