@@ -23,19 +23,28 @@ def get_dockerfile(url):
     logging.debug("Deployment url " + url)
     try:
       if 'https://github.com/' in url:
-        api = url.replace('https://github.com/',
-                          'https://api.github.com/repos/').replace('tree/master',
-                                                                   'contents')
+        # Some URLs use blob/master instead of tree/master, catering to both
+        api = url.replace(
+          'https://github.com/', 'https://api.github.com/repos/'
+        ).replace(
+          'tree/master', 'contents'
+        ).replace(
+          'blob/master', 'contents'
+        )
         response = requests.get(api, headers=authorization_header)
         if response.status_code != 200:
           logging.debug(response.json())
-          logging.warning("There was a problem with the github api response")
+          logging.warning(
+            f"There was a problem with the github api response for {api}"
+          )
           return
         filter_dirs = [x for x in response.json() if x['type'] == 'dir']
         biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
         response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header)
-        filter_dc = [x for x in response2.json(
-        ) if 'docker-compose' in str(x['name']).lower()]
+        filter_dc = [
+          x for x in response2.json()
+          if 'docker-compose' in str(x['name']).lower()
+        ]
         response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header)
         return response3.text
 
@@ -61,7 +70,8 @@ def get_docker_images(urls):
       dockerfile = get_dockerfile(url)
 
       if not dockerfile:
-        logging.warning("No docker-compose.yml file found, skipping the page")
+        logging.warning(f"No docker-compose.yml file found, skipping {url}")
+        # TODO: this return statement seems out of place here!
         return {}
         break
 
