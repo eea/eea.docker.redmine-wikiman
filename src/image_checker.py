@@ -239,6 +239,7 @@ class ImageChecker:
         if image_name.startswith("docker.io/"):
             image_name = image_name.replace("docker.io/", "")
 
+        logging.info(f"processing image {image_name}")
         if image_name in self.images_cache:
             status, msg = self.images_cache[image_name]
         else:
@@ -246,7 +247,7 @@ class ImageChecker:
                 status = False
                 msg = f"{image_name}: {self.redmine_error_color}'latest' tag is not upgradeable%"
             else:
-                image, curr_version = image_name.split(":")
+                image, curr_version = image_name.split(":", 1)
                 if self.non_semantic_version(curr_version):
                     logging.info(f"{image_name}: non semantic version tag")
                     status, msg = self.check_non_semantic_version(image, curr_version)
