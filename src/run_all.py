@@ -74,18 +74,16 @@ if __name__ == "__main__":
             page = a
     if len(args) > 0:
         environments = args
+        
+
+    logging.info('Running list stacks')
+    run_list_stacks(dry_run)
+
+    logging.info('Running list hosts')
+    run_list_hosts(dry_run, environments)        
 
     logging.info('Running list containers')
     run_list_containers(image_checker, dry_run)
 
     logging.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
-
-
-    logging.info('Running list stacks')
-    run_list_stacks(dry_run, environments)
-
-    logging.info('Running list hosts')
-    run_list_hosts(dry_run, environments)
-
-
