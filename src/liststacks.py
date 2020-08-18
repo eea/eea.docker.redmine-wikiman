@@ -14,7 +14,7 @@ from redminelib import Redmine
 from urllib.parse import urlparse
 
 
-class Discover(object):
+class Rancher_Stacks(object):
 
     def __init__(self):
         self.projectName = os.getenv('WIKI_PROJECT', '')
@@ -62,22 +62,7 @@ def getKey(instance):
     """ Return the key to sort on """
     return instance['name']
 
-
-if __name__ == '__main__':
-    dryrun = False
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "vn")
-    except getopt.GetoptError as err:
-        sys.exit(2)
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
-    for o, a in opts:
-        if o == "-v":
-            logging.basicConfig(
-                format='%(levelname)s:%(message)s',
-                level=logging.DEBUG)
-        if o == "-n":
-            dryrun = True
+def main(dry_run, environments)
 
     pageTitle = os.getenv('WIKI_STACKSPAGETITLE', 'Rancher Stacks')
 
@@ -89,7 +74,7 @@ if __name__ == '__main__':
         time.strftime('%d %B %Y') +
         '. _Do not update this page manually._')
 
-    disc = Discover()
+    disc = Rancher_Stacks()
     rancher_configs = os.getenv('RANCHER_CONFIG')
     for rancher_config in rancher_configs.split():
         rancher_configuration = rancher_config.split(",")
@@ -177,3 +162,23 @@ if __name__ == '__main__':
             disc.write_page(new_content)
     else:
         logging.info("Content is the same, not saving")
+
+
+
+if __name__ == '__main__':
+    dryrun = False
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "vn")
+    except getopt.GetoptError as err:
+        sys.exit(2)
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+    for o, a in opts:
+        if o == "-v":
+            logging.basicConfig(
+                format='%(levelname)s:%(message)s',
+                level=logging.DEBUG)
+        if o == "-n":
+            dryrun = True
+            
+    main(dryrun, environments)        

@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import applytemplate
 import listcontainers
+import liststacks
 from listhosts import RancherInstances
 from image_checker import ImageChecker
 
@@ -46,6 +47,10 @@ def run_list_hosts(dry_run, environments):
 def run_list_containers(image_checker, dry_run):
     listcontainers.main(image_checker, dry_run)
 
+def run_list_stacks(dry_run, environments):
+    liststacks.main(dry_run, environments)
+
+
 if __name__ == "__main__":
     dry_run = False
     environments = None
@@ -76,5 +81,11 @@ if __name__ == "__main__":
     logging.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
 
+
+    logging.info('Running list stacks')
+    run_list_stacks(dry_run, environments)
+
     logging.info('Running list hosts')
     run_list_hosts(dry_run, environments)
+
+
