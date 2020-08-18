@@ -47,8 +47,8 @@ def run_list_hosts(dry_run, environments):
 def run_list_containers(image_checker, dry_run):
     listcontainers.main(image_checker, dry_run)
 
-def run_list_stacks(dry_run, environments):
-    liststacks.main(dry_run, environments)
+def run_list_stacks(dry_run):
+    liststacks.main(dry_run)
 
 
 if __name__ == "__main__":
