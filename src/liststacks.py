@@ -62,7 +62,7 @@ def getKey(instance):
     """ Return the key to sort on """
     return instance['name']
 
-def main(dry_run, environments)
+def main(dryrun):
 
     pageTitle = os.getenv('WIKI_STACKSPAGETITLE', 'Rancher Stacks')
 
@@ -181,4 +181,4 @@ if __name__ == '__main__':
         if o == "-n":
             dryrun = True
             
-    main(dryrun, environments)        
+    main(dryrun)        
