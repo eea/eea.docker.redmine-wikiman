@@ -20,7 +20,7 @@ if [[ "$@" == "run" ]]; then
     echo "Received RANCHER_CONFIG and WIKI related variables"
 
     flag="${flag} -p ${WIKI_PAGE}"
-    python /run_all.py $flag
+    python /run_all.py $flag 2>&1
   fi
 
 else
