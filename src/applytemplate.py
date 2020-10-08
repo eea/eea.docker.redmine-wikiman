@@ -114,6 +114,9 @@ class StackFinder:
     def find(self, url):
         stack = ""
         url_no_protocol = url.replace('http://', '').replace('https://', '')
+        #remove \
+        url_no_protocol = url_no_protocol.replace('\\','')
+
         regex = re.compile(
             r' (https?://)?{}/?[^a-z/]'.format(url_no_protocol.replace('.', r'\.')),
             re.IGNORECASE,

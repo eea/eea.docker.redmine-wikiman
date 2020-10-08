@@ -11,7 +11,8 @@ import liststacks
 from listhosts import RancherInstances
 from image_checker import ImageChecker
 
-log = logging.getLogger(__name__)
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+log = logging.getLogger('')
 
 def run_apply_template(page, image_checker, dry_run):
     assert page, "Please provide a template"
@@ -41,8 +42,8 @@ def run_list_hosts(dry_run, environments):
         else:
             obj.write_page()
     else:
-        logging.info("Content is the same, not saving")
-    logging.info("Done list hosts")
+        log.info("Content is the same, not saving")
+    log.info("Done list hosts")
 
 def run_list_containers(image_checker, dry_run):
     listcontainers.main(image_checker, dry_run)
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     page = None
     image_checker = ImageChecker()
 
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+    log.setLevel(logging.INFO)
     try:
         opts, args = getopt.getopt(sys.argv[1:], ":p:dvn")
     except getopt.GetoptError as err:
@@ -65,9 +66,7 @@ if __name__ == "__main__":
         sys.exit(2)
     for o, a in opts:
         if o == "-v":
-            logging.basicConfig(
-                format='%(levelname)s:%(message)s',
-                level=logging.DEBUG)
+            log.setLevel(logging.DEBUG)
         if o == "-n":
             dry_run = True
         if o == "-p":
@@ -76,14 +75,14 @@ if __name__ == "__main__":
         environments = args
         
 
-    logging.info('Running list stacks')
+    log.info('Running list stacks')
     run_list_stacks(dry_run)
 
-    logging.info('Running list hosts')
+    log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
 
-    logging.info('Running list containers')
+    log.info('Running list containers')
     run_list_containers(image_checker, dry_run)
 
-    logging.info('Running apply template')
+    log.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)

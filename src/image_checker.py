@@ -287,7 +287,16 @@ class ImageChecker:
         # Fetch build list
         build_list_url = f"https://hub.docker.com/api/audit/v1/action/?include_related=true&limit=500&object=%2Fapi%2Frepo%2Fv1%2Frepository%2F{repo}%2F{image_name}%2F"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
-        r = requests.get(build_list_url, headers=h)
+        try:
+            r = requests.get(build_list_url, headers=h)
+        except (ConnectionError):
+            logging.error(f"{image}: connection error when looking for base image")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}connection error when looking for base image%",
+            )
+            
+
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for base image")
             return (
