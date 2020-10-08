@@ -9,7 +9,8 @@ class ImageChecker:
     def __init__(self):
         self.dockerhub_token = self.get_dockerhub_login_token()
         self.images_cache = {}
-
+        self.images_base_cache = {}
+        
         self.redmine_error_color = "%{color:red}"
         self.redmine_minor_color = "%{color:orange}"
         self.redmine_major_color = "%{color:purple}"
@@ -278,12 +279,18 @@ class ImageChecker:
             # Already a base image or not owned
             return
 
+    
+        if image in self.images_base_cache:
+            base_status, base_msg = self.images_base_cache[image]        
+            return base_status, base_msg
+
         full_image_name, version = image, 'latest'
         if ":" in image:
             full_image_name, version = image.split(":")
 
         repo, image_name = full_image_name.split("/")
 
+        
         # Fetch build list
         build_list_url = f"https://hub.docker.com/api/audit/v1/action/?include_related=true&limit=500&object=%2Fapi%2Frepo%2Fv1%2Frepository%2F{repo}%2F{image_name}%2F"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
@@ -382,6 +389,9 @@ class ImageChecker:
 
             base_status |= status
             base_msg += f"{msg} "
+        
+        self.images_base_cache[image] = (base_status, base_msg)    
+        
         return base_status, base_msg
 
     def check_image_and_base_status(self, image_name):
