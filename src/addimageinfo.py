@@ -57,7 +57,10 @@ def get_dockerfile(url):
         for rel_path, e in r.list_recursive():
           if str(e['name']).lower() == 'docker-compose.yml':
             return r.cat(rel_path + '/' + e['name']).decode('utf-8')
-
+    except svn.exception.SvnException:
+      logging.warning(
+        "There was a problem accessing the SVN from DeploymentRepoURL docker-compose.yml")
+      logging.error("Check url: " + url)
     except BaseException:
       logging.warning(
         "There was a problem accessing the DeploymentRepoURL docker-compose.yml")

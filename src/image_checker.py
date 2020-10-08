@@ -9,7 +9,8 @@ class ImageChecker:
     def __init__(self):
         self.dockerhub_token = self.get_dockerhub_login_token()
         self.images_cache = {}
-
+        self.images_base_cache = {}
+        
         self.redmine_error_color = "%{color:red}"
         self.redmine_minor_color = "%{color:orange}"
         self.redmine_major_color = "%{color:purple}"
@@ -100,8 +101,8 @@ class ImageChecker:
         try:
             tags_details = r.json()["results"]
         except (json.decoder.JSONDecodeError, KeyError):
-            logging.info(f"{image}: could not fetch tags creation details.")
-            return False, f"{image}: could not fetch tags creation details."
+            logging.info(f"{image}: could not fetch tag creation details.")
+            return False, f"{image}: could not fetch tag creation details."
 
         # Sort tags by their update time and keep the relevant names
         tags = [(tag['name'], tag['last_updated']) for tag in tags_details]
@@ -239,7 +240,9 @@ class ImageChecker:
         if image_name.startswith("docker.io/"):
             image_name = image_name.replace("docker.io/", "")
 
-        logging.info(f"processing image {image_name}")
+        logging.debug(f"processing image {image_name}")
+       
+       
         if image_name in self.images_cache:
             status, msg = self.images_cache[image_name]
         else:
@@ -278,16 +281,31 @@ class ImageChecker:
             # Already a base image or not owned
             return
 
+    
+        if image in self.images_base_cache:
+            base_status, base_msg = self.images_base_cache[image]        
+            return base_status, base_msg
+
         full_image_name, version = image, 'latest'
         if ":" in image:
             full_image_name, version = image.split(":")
 
         repo, image_name = full_image_name.split("/")
 
+        
         # Fetch build list
         build_list_url = f"https://hub.docker.com/api/audit/v1/action/?include_related=true&limit=500&object=%2Fapi%2Frepo%2Fv1%2Frepository%2F{repo}%2F{image_name}%2F"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
-        r = requests.get(build_list_url, headers=h)
+        try:
+            r = requests.get(build_list_url, headers=h)
+        except (ConnectionError):
+            logging.error(f"{image}: connection error when looking for base image")
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}connection error when looking for base image%",
+            )
+            
+
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for base image")
             return (
@@ -342,17 +360,17 @@ class ImageChecker:
         try:
             dockerfile = r.json()["dockerfile"]
         except (json.decoder.JSONDecodeError, KeyError):
-            logging.info(f"{image}: dockerfile is not available in build history")
+            logging.info(f"{image}: Dockerfile is not available in build history")
             return (
                 False,
-                f"{image}: {self.redmine_error_color}dockerfile is not available in build history%",
+                f"{image}: {self.redmine_error_color}Dockerfile is not available in build history%",
             )
 
         if "FROM" not in dockerfile:
             logging.info(f"{image}: can't find FROM statement in dockerfile")
             return (
                 False,
-                f"{image}: {self.redmine_error_color}can't find FROM statement in dockerfile%",
+                f"{image}: {self.redmine_error_color}can't find FROM statement in Dockerfile%",
             )
 
         base_images = set()
@@ -373,9 +391,16 @@ class ImageChecker:
 
             base_status |= status
             base_msg += f"{msg} "
+        
+        self.images_base_cache[image] = (base_status, base_msg)    
+        
         return base_status, base_msg
 
     def check_image_and_base_status(self, image_name):
+        
+        if "@sha256" in image_name:
+                return False, f"N/A - tag is encoded, could not check it"
+                
         image_status, image_msg = self.check_image_status(image_name)
 
         if "/" in image_name:
