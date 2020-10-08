@@ -240,7 +240,7 @@ class ImageChecker:
         if image_name.startswith("docker.io/"):
             image_name = image_name.replace("docker.io/", "")
 
-        logging.info(f"processing image {image_name}")
+        logging.debug(f"processing image {image_name}")
         if image_name in self.images_cache:
             status, msg = self.images_cache[image_name]
         else:
