@@ -53,7 +53,7 @@ def run_list_containers(image_checker, dry_run):
 def run_list_stacks(dry_run):
     liststacks.main(dry_run)
 
-def run_list_stacks(dry_run):
+def run_backup_stacks(dry_run):
     backupstacks.main(dry_run)
 
 

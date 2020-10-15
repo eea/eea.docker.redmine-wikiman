@@ -58,6 +58,7 @@ def get_raw(rancherUrl, rancherAccessKey,
             f.close()
         else:
             logging.error(exception)
+            return
     return rawdata
 
 
@@ -199,10 +200,12 @@ def main(dryrun):
             repo_path = repos_location + '/' + rancher_name + '/' + env 
             
             Path(repo_path).mkdir(parents=True, exist_ok=True)
-
-            repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git')
-
             
+            try:
+                repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git')
+            except:
+                logging.info("Received error while initiating the git repo, will skip RANCHER ENV")
+                continue
             existing_stacks = '.git  00-infrastructure-stacks'
             
             for instance in sorted(structdata['data'], key=getKey):
