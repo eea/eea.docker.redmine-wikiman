@@ -208,7 +208,10 @@ class ImageChecker:
     def compare_versions(self, image, potential_updates, curr_version):
         def sanitize_version(version):
             """Sanitizes version strings, as they might contain non-numerics"""
-            return version.lstrip("v")
+            if hasattr(version, "lstrip"):
+                return version.lstrip("v")
+            else:
+                return version
 
         last_version = natsorted(potential_updates, key=sanitize_version)[-1]
 
@@ -302,13 +305,12 @@ class ImageChecker:
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
         try:
             r = requests.get(build_list_url, headers=h)
-        except (ConnectionError):
-            logging.error(f"{image}: connection error when looking for base image")
+        except Exception as exc:
+            logging.error(f"{image}: connection error when looking for base image: {exc}")
             return (
                 False,
                 f"{image}: {self.redmine_error_color}connection error when looking for base image%",
             )
-            
 
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for base image")
