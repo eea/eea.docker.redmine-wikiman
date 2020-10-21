@@ -206,7 +206,11 @@ class ImageChecker:
         return True, potential_updates
 
     def compare_versions(self, image, potential_updates, curr_version):
-        last_version = natsorted(potential_updates)[-1]
+        def sanitize_version(version):
+            """Sanitizes version strings, as they might contain non-numerics"""
+            return version.lstrip("v")
+
+        last_version = natsorted(potential_updates, key=sanitize_version)[-1]
 
         if last_version == curr_version:
             return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
