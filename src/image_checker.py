@@ -215,7 +215,13 @@ class ImageChecker:
 
         last_version = natsorted(potential_updates, key=sanitize_version)[-1]
 
+        # curr_version might also be in one of the forms:
+        # - "2", which actually means the latest "2.x.x"
+        # - "2.3", which actually means the latest "2.3.x"
         if last_version == curr_version:
+            return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
+        elif curr_version.count(".") < 2 and last_version.startswith(curr_version):
+            # Takes care of the incomplete curr_version case described above
             return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
         else:
             curr_major = curr_version.split(".")[0]
