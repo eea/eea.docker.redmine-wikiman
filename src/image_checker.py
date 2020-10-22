@@ -220,7 +220,7 @@ class ImageChecker:
         # - "2.3", which actually means the latest "2.3.x"
         if last_version == curr_version:
             return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
-        elif curr_version.count(".") < 2 and last_version.startswith(curr_version):
+        elif "/" not in image and last_version.startswith(curr_version+"."):
             # Takes care of the incomplete curr_version case described above
             return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
         else:
