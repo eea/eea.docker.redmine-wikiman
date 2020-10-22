@@ -60,7 +60,7 @@ class ImageChecker:
             - we force the version to contain a numerical orderd string e.g.: redis:32bit-stretch is not valid
             - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
         """
-        digit_pattern = re.compile("^v?\d{1,3}$")
+        digit_pattern = re.compile("^v?\d{1,4}$")
         word_pattern = re.compile("^[a-zA-Z0-9]+$")
         develop_tags = ["beta", "alpha", "rc", "RC"]
 
