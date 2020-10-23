@@ -120,7 +120,7 @@ class ImageChecker:
         if tags[0][0] != version:
             return (
                 False,
-                f"{image}:{version}: {self.redmine_major_color}non semantic version - upgrade to {tags[0][0]}%"
+                f"{image}:{version}: {self.redmine_error_color}non semantic version%"
             )
         return (
             True,
