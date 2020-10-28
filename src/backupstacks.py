@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 from zipfile import ZipFile
 from shutil import rmtree
+from shutil import move
 from git import Repo
 from datetime import datetime
 
@@ -143,16 +144,16 @@ def init_repo(path, giturl):
         repo = Repo.clone_from(giturl, path)
     return repo
 
-def save_repo(repo, repo_path):
+def save_repo(repo, repo_path, message):
     now = datetime.now()
-    repo.git.add('-A')
+    repo.git.add(repo_path, '-A')
     if repo.is_dirty():
-        repo.index.commit('Backup from ' + now.strftime("%d-%m-%Y %H:%M"))
+        repo.index.commit(message + now.strftime("%d-%m-%Y %H:%M"))
         origin = repo.remote(name='origin')
         origin.push()
         logging.info("Updated repo " + repo_path)
     else:
-        logging.debug("Nothing to update" + repo_path)
+        logging.debug("Nothing to update " + repo_path)
 
 
 def main(dryrun):
@@ -206,10 +207,14 @@ def main(dryrun):
             except:
                 logging.info("Received error while initiating the git repo, will skip RANCHER ENV")
                 continue
-            existing_stacks = '.git  00-infrastructure-stacks'
+            existing_stacks = '.git  00-infrastructure-stacks 99-archived-stacks'
             
             for instance in sorted(structdata['data'], key=getKey):
                 link = envURL + "/apps/stacks/" + instance['id']
+                count = sum(p['name'] == instance['name'] for p in structdata['data']) 
+
+                if count > 1:
+                    instance['name'] = instance['name']+'-'+instance['id']
 
                 if instance.get('links').get('composeConfig'):
                     try:
@@ -233,20 +238,29 @@ def main(dryrun):
                     composeFile = None
                                 
                 if (instance['system']):
-                    path = repo_path + '/00-infrastructure-stacks/' + instance['name']
+                    stack_path = '00-infrastructure-stacks/' + instance['name']
                 else:
-                    path = repo_path + '/' + instance['name']
-
+                    stack_path = instance['name']
+                
+                path = repo_path + '/' + stack_path
+                if  instance['name'] == 'default':
+                    logging.info(instance)
                 backup_configuration(path, instance, env, rancher_name, composeFile)
+                if not dryrun:
+                    save_repo(repo, stack_path, 'Backup '+instance['name']+' on ')
+
                 existing_stacks += ' '+instance['name']
-            for i in os.listdir(repo_path):
-                if i not in existing_stacks.split():
-                    logging.info("Found stack directory that does not exist in rancher - "+i+", will delete it")
-                    rmtree(repo_path+'/'+i)
+
+            for check_path in [repo_path,repo_path+'/00-infrastructure-stacks']:
+                for i in os.listdir(check_path):
+                    if i not in existing_stacks.split():
+                        logging.info("Found stack directory that does not exist in rancher - "+i+", will move it to archive")
+                        now = datetime.now()
+                        move(check_path+'/'+i,check_path+'/99-archived-stacks/'+i+now.strftime("-%Y%m%d-%H%M"))
             if dryrun:
                 logging.info("Run without commiting, you can review the files")
             else:
-                save_repo(repo, repo_path)
+                save_repo(repo, '.' , 'Rancher backup on ')
 
 
 if __name__ == '__main__':
