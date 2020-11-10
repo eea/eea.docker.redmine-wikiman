@@ -147,6 +147,8 @@ def init_repo(path, giturl):
 def save_repo(repo, repo_path, message):
     now = datetime.now()
     repo.git.add(repo_path, '-A')
+    if repo_path == '.':
+        repo_path = ''
     if repo.is_dirty():
         repo.index.commit(message + now.strftime("%d-%m-%Y %H:%M"))
         origin = repo.remote(name='origin')
@@ -251,12 +253,47 @@ def main(dryrun):
 
                 existing_stacks += ' '+instance['name']
 
+
+            structdata = get_operation(
+                rancherApiUrl,
+                rancherAccessKey,
+                rancherSecretKey,
+                stackUrl + "/volumes/?state=active&storageDriverId_notnull&limit=500")
+
+            volumes = []
+
+
+            for data in sorted(structdata['data'], key=getKey):
+                obj={}   
+                obj['name']=data['name']
+                obj['driver']=data['driver']
+                obj['created']=datetime.strptime(data['created'],'%Y-%m-%dT%H:%M:%SZ').strftime("%d/%m/%Y %H:%M")
+                obj['mounts']=[]
+                
+                for mount in data['mounts']:
+                    mntname=mount.get("instanceName")
+                    if mntname is None:
+                        mntname=''
+                    if mount["permission"] == 'rw':
+                        obj['mounts'].append( mntname+":"+mount["path"])
+                    else:
+                        obj['mounts'].append( mntname+":"+mount["path"]+":"+mount["permission"])
+                volumes.append(obj)
+
+            if volumes:
+                ff = open(repo_path+'/volumes.yaml', 'w+')
+                yaml.dump(volumes, ff, allow_unicode=True, sort_keys=False)   
+                existing_stacks = existing_stacks + ' volumes.yaml'
+
             for check_path in [repo_path,repo_path+'/00-infrastructure-stacks']:
                 for i in os.listdir(check_path):
                     if i not in existing_stacks.split():
                         logging.info("Found stack directory that does not exist in rancher - "+i+", will move it to archive")
                         now = datetime.now()
                         move(check_path+'/'+i,check_path+'/99-archived-stacks/'+i+now.strftime("-%Y%m%d-%H%M"))
+
+
+                        
             if dryrun:
                 logging.info("Run without commiting, you can review the files")
             else:
