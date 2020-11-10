@@ -245,8 +245,6 @@ def main(dryrun):
                     stack_path = instance['name']
                 
                 path = repo_path + '/' + stack_path
-                if  instance['name'] == 'default':
-                    logging.info(instance)
                 backup_configuration(path, instance, env, rancher_name, composeFile)
                 if not dryrun:
                     save_repo(repo, stack_path, 'Backup '+instance['name']+' on ')
