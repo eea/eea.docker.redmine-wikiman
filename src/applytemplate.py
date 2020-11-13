@@ -475,6 +475,7 @@ class FactsheetUpdater:
         )
         self.todo_map = defaultdict(dict)
         self.seen_pages = set()
+        self.all_pages = set()
         self.factsheet_project = factsheet_project
         self.template_project = template_project
         self.template_name = template_name
@@ -516,6 +517,7 @@ class FactsheetUpdater:
     def recursive_update(self, start_page):
         prj = self.factsheet_project
         for name in self.taskman.wiki_children(prj, start_page):
+            self.all_pages.add(name)
             self.update(name)
 
     def save_todo_list(self, start_page, start_time):
@@ -551,7 +553,7 @@ class FactsheetUpdater:
                 if m:
                     assert m.group("project") == self.factsheet_project
                     page = unescape_html(m.group("page"))
-                    if page not in self.seen_pages:
+                    if (page in self.all_pages) and (page not in self.seen_pages):
                         merged_todos[owner][page] = m.group("summary")
 
         for owner, page_map in self.todo_map.items():
@@ -572,7 +574,9 @@ class FactsheetUpdater:
                 "lines": lines,
             })
 
+
         new = todo_page.render()
+
         self.save_page(self.template_project, self.todolist_name, orig, new)
 
 

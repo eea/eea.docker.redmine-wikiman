@@ -89,8 +89,8 @@ if __name__ == "__main__":
     log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
 
-    log.info('Running list containers')
-    run_list_containers(image_checker, dry_run)
-
     log.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
+
+    log.info('Running list containers')
+    run_list_containers(image_checker, dry_run)
