@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 import applytemplate
 import listcontainers
 import liststacks
+import backupstacks
+
 from listhosts import RancherInstances
 from image_checker import ImageChecker
 
@@ -51,6 +53,10 @@ def run_list_containers(image_checker, dry_run):
 def run_list_stacks(dry_run):
     liststacks.main(dry_run)
 
+def run_backup_stacks(dry_run):
+    backupstacks.main(dry_run)
+
+
 
 if __name__ == "__main__":
     dry_run = False
@@ -74,15 +80,19 @@ if __name__ == "__main__":
     if len(args) > 0:
         environments = args
         
-
     log.info('Running list stacks')
     run_list_stacks(dry_run)
+
+    
+    if os.getenv('GITLAB_CONFIG'):
+        log.info('Running backup stacks')
+        run_backup_stacks(dry_run)
 
     log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
 
-    log.info('Running list containers')
-    run_list_containers(image_checker, dry_run)
-
     log.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
+
+    log.info('Running list containers')
+    run_list_containers(image_checker, dry_run)

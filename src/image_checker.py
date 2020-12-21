@@ -60,7 +60,7 @@ class ImageChecker:
             - we force the version to contain a numerical orderd string e.g.: redis:32bit-stretch is not valid
             - we allow 'v' starting versions e.g: eeacms/esbootstrap:v3.0.4
         """
-        digit_pattern = re.compile("^v?\d{1,3}$")
+        digit_pattern = re.compile("^v?\d{1,4}$")
         word_pattern = re.compile("^[a-zA-Z0-9]+$")
         develop_tags = ["beta", "alpha", "rc", "RC"]
 
@@ -120,7 +120,7 @@ class ImageChecker:
         if tags[0][0] != version:
             return (
                 False,
-                f"{image}:{version}: {self.redmine_major_color}non semantic version - upgrade to {tags[0][0]}%"
+                f"{image}:{version}: {self.redmine_error_color}non semantic version%"
             )
         return (
             True,
@@ -206,9 +206,22 @@ class ImageChecker:
         return True, potential_updates
 
     def compare_versions(self, image, potential_updates, curr_version):
-        last_version = natsorted(potential_updates)[-1]
+        def sanitize_version(version):
+            """Sanitizes version strings, as they might contain non-numerics"""
+            if hasattr(version, "lstrip"):
+                return version.lstrip("v")
+            else:
+                return version
 
+        last_version = natsorted(potential_updates, key=sanitize_version)[-1]
+
+        # curr_version might also be in one of the forms:
+        # - "2", which actually means the latest "2.x.x"
+        # - "2.3", which actually means the latest "2.3.x"
         if last_version == curr_version:
+            return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
+        elif "/" not in image and last_version.startswith(curr_version+"."):
+            # Takes care of the incomplete curr_version case described above
             return True, f"{image}:{curr_version}: {self.redmine_ok_color}Up to date%"
         else:
             curr_major = curr_version.split(".")[0]
@@ -298,13 +311,12 @@ class ImageChecker:
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
         try:
             r = requests.get(build_list_url, headers=h)
-        except (ConnectionError):
-            logging.error(f"{image}: connection error when looking for base image")
+        except Exception as exc:
+            logging.error(f"{image}: connection error when looking for base image: {exc}")
             return (
                 False,
                 f"{image}: {self.redmine_error_color}connection error when looking for base image%",
             )
-            
 
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for base image")
