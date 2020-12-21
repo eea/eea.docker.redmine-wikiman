@@ -83,8 +83,10 @@ if __name__ == "__main__":
     log.info('Running list stacks')
     run_list_stacks(dry_run)
 
-    log.info('Running backup stacks')
-    run_backup_stacks(dry_run)
+    
+    if os.getenv('GITLAB_CONFIG'):
+        log.info('Running backup stacks')
+        run_backup_stacks(dry_run)
 
     log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
