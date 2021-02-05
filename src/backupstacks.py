@@ -70,6 +70,8 @@ def getKey(instance):
 
 def getInstanceName(instance):
     """ Return the key to sort on """
+    if instance.get("instanceName") is None:
+        return ""
     return instance.get("instanceName")
   
 
