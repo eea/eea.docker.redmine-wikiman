@@ -68,6 +68,10 @@ def getKey(instance):
     return instance['name']
 
 
+def getInstanceName(instance):
+    """ Return the key to sort on """
+    return instance.get("instanceName")
+  
 
 
 def backup_configuration(path, stack, instance, rancher_name, compose):
@@ -268,7 +272,7 @@ def main(dryrun):
                 obj['created']=datetime.strptime(data['created'],'%Y-%m-%dT%H:%M:%SZ').strftime("%d/%m/%Y %H:%M")
                 obj['mounts']=[]
                 
-                for mount in data['mounts']:
+                for mount in sorted(data['mounts'], key=getInstanceName):
                     mntname=mount.get("instanceName")
                     if mntname is None:
                         mntname=''
