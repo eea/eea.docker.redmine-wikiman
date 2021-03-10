@@ -2,6 +2,10 @@
 
 set -e
 
+if [ -n "$ENV_PATH" ] && [ -f "$ENV_PATH" ]; then
+       source  "$ENV_PATH"
+fi
+
 if [[ "$@" == "run" ]]; then
         echo "Checking mandatory environment variables"
 	flag=""
