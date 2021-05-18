@@ -90,11 +90,11 @@ class Discover(object):
                 continue
             imageUuid = imageUuid[7:]
             hostId = instance['hostId']
-            if hostId is None:
-                logging.info("Container " + instance.get('name','') + " does not have host, will skip it")
-                continue
             if instance['name'] is None:
                 instance['name'] = '-'
+            if hostId is None:
+                logging.info("Container " + instance['name'] + " does not have host, will skip it")
+                continue
             containerStruct = self.containers.setdefault(hostId, [])
             containerLink = url.replace(
                 'v2-beta/projects',
