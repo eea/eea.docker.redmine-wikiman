@@ -274,14 +274,15 @@ def main(dryrun):
                 obj['created']=datetime.strptime(data['created'],'%Y-%m-%dT%H:%M:%SZ').strftime("%d/%m/%Y %H:%M")
                 obj['mounts']=[]
                 
-                for mount in sorted(data['mounts'], key=getInstanceName):
-                    mntname=mount.get("instanceName")
-                    if mntname is None:
-                        mntname=''
-                    if mount["permission"] == 'rw':
-                        obj['mounts'].append( mntname+":"+mount["path"])
-                    else:
-                        obj['mounts'].append( mntname+":"+mount["path"]+":"+mount["permission"])
+                if data['mounts']:
+                  for mount in sorted(data['mounts'], key=getInstanceName):
+                      mntname=mount.get("instanceName")
+                      if mntname is None:
+                          mntname=''
+                      if mount["permission"] == 'rw':
+                          obj['mounts'].append( mntname+":"+mount["path"])
+                      else:
+                          obj['mounts'].append( mntname+":"+mount["path"]+":"+mount["permission"])
                 volumes.append(obj)
 
             if volumes:
