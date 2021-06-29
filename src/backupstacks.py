@@ -57,6 +57,9 @@ def get_raw(rancherUrl, rancherAccessKey,
             f = urllib.request.urlopen(url)
             rawdata = f.read()
             f.close()
+        elif "HTTP Error 404: Not Found" in exception:
+            logging.warning("Received http code 404 - not found")
+            return
         else:
             logging.error(exception)
             return
@@ -141,13 +144,15 @@ def backup_configuration(path, stack, instance, rancher_name, compose):
     
     return
 
-def init_repo(path, giturl):
+def init_repo(path, giturl, rancher_name):
     try:
         repo = Repo(path)
         origin = repo.remote(name='origin')
         origin.pull()
+        logging.debug("Successfully updated ( pull ) the git repo " + rancher_name)  
     except:
         repo = Repo.clone_from(giturl, path)
+        logging.info("Successfully initiated the git repo " + rancher_name)    
     return repo
 
 def save_repo(repo, repo_path, message):
@@ -211,10 +216,11 @@ def main(dryrun):
             Path(repo_path).mkdir(parents=True, exist_ok=True)
             
             try:
-                repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git')
+                repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git', rancher_name)
             except:
-                logging.info("Received error while initiating the git repo, will skip RANCHER ENV")
+                logging.error("Received ERROR while initiating the git repo " + rancher_name + ", will skip RANCHER ENV")
                 continue
+                
             existing_stacks = '.git  00-infrastructure-stacks 99-archived-stacks'
             
             for instance in sorted(structdata['data'], key=getKey):
@@ -237,9 +243,9 @@ def main(dryrun):
                         logging.warning(exception)
                         continue
                     except urllib.error.URLError as exception:
-                        logging.error(instance['links']['composeConfig'])
-                        logging.error(project['name']+' '+instance['name'])
-                        logging.error(exception)
+                        logging.warning(instance['links']['composeConfig'])
+                        logging.warning(project['name']+' '+instance['name'])
+                        logging.warning(exception)
                         existing_stacks += ' '+instance['name']
                         continue                       
                 else:
@@ -273,6 +279,7 @@ def main(dryrun):
                 obj['driver']=data['driver']
                 obj['created']=datetime.strptime(data['created'],'%Y-%m-%dT%H:%M:%SZ').strftime("%d/%m/%Y %H:%M")
                 obj['mounts']=[]
+                obj['driverOpts']=data.get('driverOpts')
                 
                 if data['mounts']:
                   for mount in sorted(data['mounts'], key=getInstanceName):
@@ -280,9 +287,10 @@ def main(dryrun):
                       if mntname is None:
                           mntname=''
                       if mount["permission"] == 'rw':
-                          obj['mounts'].append( mntname+":"+mount["path"])
+                          obj['mounts'].append(mntname+":"+mount["path"])
                       else:
-                          obj['mounts'].append( mntname+":"+mount["path"]+":"+mount["permission"])
+                          obj['mounts'].append(mntname+":"+mount["path"]+":"+mount["permission"])
+                                           
                 volumes.append(obj)
 
             if volumes:
@@ -303,6 +311,7 @@ def main(dryrun):
                 logging.info("Run without commiting, you can review the files")
             else:
                 save_repo(repo, '.' , 'Rancher backup on ')
+           
 
 
 if __name__ == '__main__':
@@ -322,3 +331,4 @@ if __name__ == '__main__':
             dryrun = True
             
     main(dryrun)        
+    logging.info("Finished backupstacks.py script")
