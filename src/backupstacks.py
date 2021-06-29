@@ -312,7 +312,7 @@ def main(dryrun):
             else:
                 save_repo(repo, '.' , 'Rancher backup on ')
            
-
+    logging.info("Finished backupstacks.py script")
 
 if __name__ == '__main__':
     dryrun = False
@@ -331,4 +331,3 @@ if __name__ == '__main__':
             dryrun = True
             
     main(dryrun)        
-    logging.info("Finished backupstacks.py script")
