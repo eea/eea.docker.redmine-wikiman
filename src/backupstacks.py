@@ -158,7 +158,6 @@ def init_repo(path, giturl, rancher_name):
         origin.pull()
         logging.debug("Successfully updated ( pull ) the git repo " + rancher_name)  
     except:
-        logging.info(sys.exc_info()[0])
         repo = Repo.clone_from(giturl, path)
         logging.info("Successfully initiated the git repo " + rancher_name)    
     return repo
