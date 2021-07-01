@@ -57,7 +57,7 @@ def get_raw(rancherUrl, rancherAccessKey,
             f = urllib.request.urlopen(url)
             rawdata = f.read()
             f.close()
-        elif "HTTP Error 404: Not Found" in exception:
+        elif "Error 404" in exception:
             logging.warning("Received http code 404 - not found")
             return
         else:
@@ -216,9 +216,9 @@ def main(dryrun):
             Path(repo_path).mkdir(parents=True, exist_ok=True)
             
             try:
-                repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git', rancher_name)
+                repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git', env)
             except:
-                logging.error("Received ERROR while initiating the git repo " + rancher_name + ", will skip RANCHER ENV")
+                logging.error("Received ERROR while initiating the git repo " + env + ", will skip RANCHER ENV")
                 continue
                 
             existing_stacks = '.git  00-infrastructure-stacks 99-archived-stacks'
@@ -279,7 +279,8 @@ def main(dryrun):
                 obj['driver']=data['driver']
                 obj['created']=datetime.strptime(data['created'],'%Y-%m-%dT%H:%M:%SZ').strftime("%d/%m/%Y %H:%M")
                 obj['mounts']=[]
-                obj['driverOpts']=data.get('driverOpts')
+                if data.get('driverOpts'):
+                  obj['driverOpts']=data.get('driverOpts')
                 
                 if data['mounts']:
                   for mount in sorted(data['mounts'], key=getInstanceName):
