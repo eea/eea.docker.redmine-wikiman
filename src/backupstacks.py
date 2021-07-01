@@ -55,7 +55,7 @@ def get_raw(rancherUrl, rancherAccessKey,
         if exception.code == "404":
           logging.warning("Received http code 404 - not found")
           return
-        else
+        else:
           logging.info("Received error")
           logging.info(exception.code)
           logging.error(exception)
