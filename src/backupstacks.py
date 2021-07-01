@@ -51,15 +51,16 @@ def get_raw(rancherUrl, rancherAccessKey,
         f = urllib.request.urlopen(url)
         rawdata = f.read()
         f.close()
+    except urllib.error.HTTPError as exception:
+        if e.code == "404":
+          logging.warning("Received http code 404 - not found")
+          return
     except urllib.error.URLError as exception:
         if "Operation timed out" in exception:
             logging.warning(exception)
             f = urllib.request.urlopen(url)
             rawdata = f.read()
             f.close()
-        elif "Error 404" in exception:
-            logging.warning("Received http code 404 - not found")
-            return
         else:
             logging.info("Received error")
             logging.error(exception)
