@@ -52,7 +52,7 @@ def get_raw(rancherUrl, rancherAccessKey,
         rawdata = f.read()
         f.close()
     except urllib.error.HTTPError as exception:
-        if e.code == "404":
+        if exception.code == "404":
           logging.warning("Received http code 404 - not found")
           return
     except urllib.error.URLError as exception:
