@@ -55,6 +55,11 @@ def get_raw(rancherUrl, rancherAccessKey,
         if exception.code == "404":
           logging.warning("Received http code 404 - not found")
           return
+        else
+          logging.info("Received error")
+          logging.info(exception.code)
+          logging.error(exception)
+          return           
     except urllib.error.URLError as exception:
         if "Operation timed out" in exception:
             logging.warning(exception)
