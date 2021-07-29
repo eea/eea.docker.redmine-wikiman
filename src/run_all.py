@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import time
 import getopt
 from urllib.parse import urlparse
@@ -54,7 +53,21 @@ def run_list_stacks(dry_run):
 def run_backup_stacks(dry_run):
     backupstacks.main(dry_run)
 
-
+def reset_logs():
+    log_dir = '/logs/'
+    files = sorted(os.listdir(log_dir), reverse=True)
+    for item in files:
+        if item.endswith(".9"):
+            os.remove(os.path.join(log_dir, item))
+        else:
+            ext = os.path.splitext(item)[1]
+            if ext == '.log':
+                new_count = "log.1"
+            else:
+                new_count = str(int(ext[1:]) + 1)
+            new_name = os.path.splitext(item)[0] + "." + new_count
+            os.rename(os.path.join(log_dir, item), os.path.join(log_dir, new_name))     
+            
 
 if __name__ == "__main__":
     dry_run = False
@@ -78,6 +91,8 @@ if __name__ == "__main__":
     if len(args) > 0:
         environments = args
 
+    reset_logs()
+    
     log = logging.getLogger("")
     
     logging.root.handlers = []
@@ -85,7 +100,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/logs/list_stacks.log", when="h", interval=1, backupCount=10),
+            logging.FileHandler("/logs/list_stacks.log"),
             logging.StreamHandler()
         ]
     )
@@ -99,7 +114,7 @@ if __name__ == "__main__":
             level=log_level,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
-               TimedRotatingFileHandler("/logs/backup_stacks.log", when="d", interval=1, backupCount=10),
+               logging.FileHandler("/logs/backup_stacks.log"),
                logging.StreamHandler()
             ]
         )
@@ -112,7 +127,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/logs/list_hosts.log", when="d", interval=1, backupCount=10),
+            logging.FileHandler("/logs/list_hosts.log"),
             logging.StreamHandler()
         ]
     )
@@ -126,7 +141,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/logs/apply_template.log", when="d", interval=1, backupCount=10),
+            logging.FileHandler("/logs/apply_template.log"),
             logging.StreamHandler()
         ]
     )
@@ -140,7 +155,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/logs/list_containers.log", when="d", interval=1, backupCount=10),
+            logging.FileHandler("/logs/list_containers.log"),
             logging.StreamHandler()
         ]
     )
