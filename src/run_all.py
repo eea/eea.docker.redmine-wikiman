@@ -96,3 +96,5 @@ if __name__ == "__main__":
 
     log.info('Running list containers')
     run_list_containers(image_checker, dry_run)
+
+    log.info('Finished running all scripts')
