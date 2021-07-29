@@ -181,6 +181,8 @@ def main(dryrun):
     rancher_configs = os.getenv('RANCHER_CONFIG')
     repos_location = os.getenv('REPO_PATH','GIT')
     git_url_auth = os.getenv('GITLAB_CONFIG') 
+    
+    perfect_run = 'yes'
 
     for rancher_config in rancher_configs.split():
         rancher_configuration = rancher_config.split(",")
@@ -200,6 +202,7 @@ def main(dryrun):
                 rancherApiUrl +
                 "/projects")
         except BaseException:
+            perfect_run = 'no'
             raise RuntimeError("There was a problem reading from Rancher")
 
         for project in sorted(structdata['data'], key=getKey):
@@ -226,6 +229,7 @@ def main(dryrun):
                 repo = init_repo(repo_path, git_url_auth + '/' + rancher_name.lower()+'/'+env+'.git', env)
             except:
                 logging.error("Received ERROR while initiating the git repo " + env + ", will skip RANCHER ENV")
+                perfect_run = 'no'
                 continue
                 
             existing_stacks = '.git  00-infrastructure-stacks 99-archived-stacks'
@@ -321,7 +325,11 @@ def main(dryrun):
                 save_repo(repo, '.' , 'Rancher backup on ')
            
     logging.info("Finished backupstacks.py script")
-
+    if perfect_run == 'yes':
+        logging.info("Script ended succesfully, with no errors")
+    else:
+        logging.info("Script ended partially succesful, with some errors")
+        
 if __name__ == '__main__':
     dryrun = False
 
