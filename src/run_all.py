@@ -13,9 +13,6 @@ import backupstacks
 from listhosts import RancherInstances
 from image_checker import ImageChecker
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
-log = logging.getLogger('')
-
 def run_apply_template(page, image_checker, dry_run):
     assert page, "Please provide a template"
 
@@ -44,8 +41,8 @@ def run_list_hosts(dry_run, environments):
         else:
             obj.write_page()
     else:
-        log.info("Content is the same, not saving")
-    log.info("Done list hosts")
+        logging.info("Content is the same, not saving")
+    logging.info("Done list hosts")
 
 def run_list_containers(image_checker, dry_run):
     listcontainers.main(image_checker, dry_run)
@@ -56,7 +53,21 @@ def run_list_stacks(dry_run):
 def run_backup_stacks(dry_run):
     backupstacks.main(dry_run)
 
-
+def reset_logs():
+    log_dir = '/logs/'
+    files = sorted(os.listdir(log_dir), reverse=True)
+    for item in files:
+        if item.endswith(".9"):
+            os.remove(os.path.join(log_dir, item))
+        else:
+            ext = os.path.splitext(item)[1]
+            if ext == '.log':
+                new_count = "log.1"
+            else:
+                new_count = str(int(ext[1:]) + 1)
+            new_name = os.path.splitext(item)[0] + "." + new_count
+            os.rename(os.path.join(log_dir, item), os.path.join(log_dir, new_name))     
+            
 
 if __name__ == "__main__":
     dry_run = False
@@ -64,7 +75,7 @@ if __name__ == "__main__":
     page = None
     image_checker = ImageChecker()
 
-    log.setLevel(logging.INFO)
+    log_level = logging.INFO
     try:
         opts, args = getopt.getopt(sys.argv[1:], ":p:dvn")
     except getopt.GetoptError as err:
@@ -72,28 +83,85 @@ if __name__ == "__main__":
         sys.exit(2)
     for o, a in opts:
         if o == "-v":
-            log.setLevel(logging.DEBUG)
+            log_level = logging.DEBUG
         if o == "-n":
             dry_run = True
         if o == "-p":
             page = a
     if len(args) > 0:
         environments = args
+
+    reset_logs()
+    
+    log = logging.getLogger("")
+    
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/logs/list_stacks.log"),
+            logging.StreamHandler()
+        ]
+    )
         
-    log.info('Running list stacks')
+    logging.info('Running list stacks')
     run_list_stacks(dry_run)
 
-    
     if os.getenv('GITLAB_CONFIG'):
+        logging.root.handlers = []
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+               logging.FileHandler("/logs/backup_stacks.log"),
+               logging.StreamHandler()
+            ]
+        )
         log.info('Running backup stacks')
         run_backup_stacks(dry_run)
 
+        
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/logs/list_hosts.log"),
+            logging.StreamHandler()
+        ]
+    )
+                
     log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
 
+        
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/logs/apply_template.log"),
+            logging.StreamHandler()
+        ]
+    )
+        
+        
     log.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
-
+        
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/logs/list_containers.log"),
+            logging.StreamHandler()
+        ]
+    )
+        
+        
+        
     log.info('Running list containers')
     run_list_containers(image_checker, dry_run)
 
