@@ -78,54 +78,72 @@ if __name__ == "__main__":
         environments = args
 
     log = logging.getLogger("")
-    formatter =  logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(log_level)
-    stdout_handler.setFormatter(formatter)
-
-    file_handler = logging.FileHandler('/var/log/list_stacks.log')
-    file_handler.setLevel(log_level)
-    file_handler.setFormatter(formatter)
-
-    log.addHandler(file_handler)
-    log.addHandler(stdout_handler)
-
+    
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/var/log/list_stacks.log"),
+            logging.StreamHandler()
+        ]
+    )
         
-    log.info('Running list stacks')
+    logging.info('Running list stacks')
     run_list_stacks(dry_run)
 
-
-
-
-    
     if os.getenv('GITLAB_CONFIG'):
         log.info('Running backup stacks')
-        log.removeHandler(file_handler)
-        file_handler = logging.FileHandler('/var/log/run_backup.log')
-        log.addHandler(file_handler)
+        logging.root.handlers = []
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+               logging.FileHandler("/var/log/backup_stacks.log"),
+               logging.StreamHandler()
+            ]
+        )
         run_backup_stacks(dry_run)
 
         
-    log.removeHandler(file_handler)
-    file_handler = logging.FileHandler('/var/log/list_hosts.log')
-    log.addHandler(file_handler)
-        
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/var/log/list_hosts.log"),
+            logging.StreamHandler()
+        ]
+    )
+                
     log.info('Running list hosts')
     run_list_hosts(dry_run, environments)        
 
         
-    log.removeHandler(file_handler)
-    file_handler = logging.FileHandler('/var/log/apply_template.log')
-    log.addHandler(file_handler)
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/var/log/apply_template.log"),
+            logging.StreamHandler()
+        ]
+    )
         
         
     log.info('Running apply template')
     run_apply_template(page, image_checker, dry_run)
         
-    log.removeHandler(file_handler)
-    file_handler = logging.FileHandler('/var/log/list_containers.log')
-    log.addHandler(file_handler)
+    logging.root.handlers = []
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("/var/log/list_containers.log"),
+            logging.StreamHandler()
+        ]
+    )
+        
         
         
     log.info('Running list containers')
