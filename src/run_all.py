@@ -62,8 +62,6 @@ if __name__ == "__main__":
     image_checker = ImageChecker()
 
     log_level = logging.INFO
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=log_level)
-    log = logging.getLogger()
     try:
         opts, args = getopt.getopt(sys.argv[1:], ":p:dvn")
     except getopt.GetoptError as err:
@@ -72,7 +70,6 @@ if __name__ == "__main__":
     for o, a in opts:
         if o == "-v":
             log_level = logging.DEBUG
-            log.setLevel(log_level)
         if o == "-n":
             dry_run = True
         if o == "-p":
@@ -80,8 +77,8 @@ if __name__ == "__main__":
     if len(args) > 0:
         environments = args
 
-    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', 
-                                  '%m-%d-%Y %H:%M:%S')
+    log = logging.getLogger("")
+    formatter =  logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(log_level)
