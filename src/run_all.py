@@ -84,7 +84,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler("/var/log/list_stacks.log"),
+            logging.TimedRotatingFileHandler("/var/log/list_stacks.log", when="h", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -93,16 +93,16 @@ if __name__ == "__main__":
     run_list_stacks(dry_run)
 
     if os.getenv('GITLAB_CONFIG'):
-        log.info('Running backup stacks')
         logging.root.handlers = []
         logging.basicConfig(
             level=log_level,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
-               logging.FileHandler("/var/log/backup_stacks.log"),
+               logging.TimedRotatingFileHandler("/var/log/backup_stacks.log", when="d", interval=1, backupCount=10),
                logging.StreamHandler()
             ]
         )
+        log.info('Running backup stacks')
         run_backup_stacks(dry_run)
 
         
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler("/var/log/list_hosts.log"),
+            logging.TimedRotatingFileHandler("/var/log/list_hosts.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler("/var/log/apply_template.log"),
+            logging.TimedRotatingFileHandler("/var/log/apply_template.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler("/var/log/list_containers.log"),
+            logging.TimedRotatingFileHandler("/var/log/list_containers.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
