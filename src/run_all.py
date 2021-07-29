@@ -85,7 +85,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/var/log/list_stacks.log", when="h", interval=1, backupCount=10),
+            TimedRotatingFileHandler("/logs/list_stacks.log", when="h", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             level=log_level,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
-               TimedRotatingFileHandler("/var/log/backup_stacks.log", when="d", interval=1, backupCount=10),
+               TimedRotatingFileHandler("/logs/backup_stacks.log", when="d", interval=1, backupCount=10),
                logging.StreamHandler()
             ]
         )
@@ -112,7 +112,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/var/log/list_hosts.log", when="d", interval=1, backupCount=10),
+            TimedRotatingFileHandler("/logs/list_hosts.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/var/log/apply_template.log", when="d", interval=1, backupCount=10),
+            TimedRotatingFileHandler("/logs/apply_template.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         level=log_level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            TimedRotatingFileHandler("/var/log/list_containers.log", when="d", interval=1, backupCount=10),
+            TimedRotatingFileHandler("/logs/list_containers.log", when="d", interval=1, backupCount=10),
             logging.StreamHandler()
         ]
     )
