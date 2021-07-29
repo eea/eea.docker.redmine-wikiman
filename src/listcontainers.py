@@ -200,6 +200,9 @@ class Discover(object):
         content.extend(envText)
 
 def main(image_checker, dry_run):
+    
+    logging.info("List containers script started")
+    
     pageTitle = os.getenv('WIKI_CONTAINERSPAGETITLE', 'Rancher Containers')
 
     content = []
@@ -281,6 +284,8 @@ def main(image_checker, dry_run):
             disc.write_stdout(new_content)
         else:
             disc.write_page(new_content)
+    
+    logging.info("List containers script finished succesfully")
 
 if __name__ == '__main__':
     dryrun = False
