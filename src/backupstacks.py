@@ -326,9 +326,9 @@ def main(dryrun):
            
     logging.info("Finished backupstacks.py script")
     if perfect_run == 'yes':
-        logging.info("Script ended succesfully, with no errors")
+        logging.info("Script ended successfully, with no errors")
     else:
-        logging.info("Script ended partially succesful, with some errors")
+        logging.info("Script ended partially successful, with some errors")
         
 if __name__ == '__main__':
     dryrun = False
