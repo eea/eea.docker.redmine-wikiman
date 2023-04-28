@@ -3,6 +3,7 @@ import re
 import json
 import logging
 import requests
+import time
 from natsort import natsorted
 
 class ImageChecker:
@@ -160,7 +161,16 @@ class ImageChecker:
                 "scope": f"repository:{image}:pull",
             }
 
-        r = requests.get(auth_url, params=payload)
+        try:
+            r = requests.get(auth_url, params=payload)
+        except Exception as exc:
+            logging.error(f"{image}: connection error when looking for image versions: {exc}")
+            time.sleep(30)
+            return (
+                False,
+                f"{image}: {self.redmine_error_color}connection error when looking for image versions%",
+            )
+        
         if not r.status_code == 200:
             logging.info(f"could not fetch docker hub token for {image_name}.")
             return False, f"{image_name}: could not fetch docker hub token"
@@ -313,6 +323,7 @@ class ImageChecker:
             r = requests.get(build_list_url, headers=h)
         except Exception as exc:
             logging.error(f"{image}: connection error when looking for base image: {exc}")
+            time.sleep(30)
             return (
                 False,
                 f"{image}: {self.redmine_error_color}connection error when looking for base image%",
