@@ -6,6 +6,9 @@ if [ -n "$ENV_PATH" ] && [ -f "$ENV_PATH" ]; then
        source  "$ENV_PATH"
 fi
 
+#run no more than 12h by default
+TIMEOUT=${TIMEOUT:-43200}
+
 if [[ "$@" == "run" ]]; then
         echo "Checking mandatory environment variables"
 	flag=""
@@ -24,7 +27,7 @@ if [[ "$@" == "run" ]]; then
     echo "Received RANCHER_CONFIG and WIKI related variables"
 
     flag="${flag} -p ${WIKI_PAGE}"
-    python /run_all.py $flag 2>&1
+    timeout $TIMEOUT python /run_all.py $flag 2>&1
   fi
 
 else
