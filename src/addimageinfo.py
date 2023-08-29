@@ -31,7 +31,7 @@ def get_dockerfile(url):
         ).replace(
           'blob/master', 'contents'
         )
-        response = requests.get(api, headers=authorization_header)
+        response = requests.get(api, headers=authorization_header, timeout=60)
         if response.status_code != 200:
           logging.debug(response.json())
           logging.warning(
@@ -40,12 +40,12 @@ def get_dockerfile(url):
           return
         filter_dirs = [x for x in response.json() if x['type'] == 'dir']
         biggest = str(max(filter_dirs, key=lambda x: int(x['name']))['name'])
-        response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header)
+        response2 = requests.get(api.strip('/') + "/" + biggest, headers=authorization_header, timeout=60)
         filter_dc = [
           x for x in response2.json()
           if 'docker-compose' in str(x['name']).lower()
         ]
-        response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header)
+        response3 = requests.get(str(filter_dc[0]['url']), headers=raw_header, timeout=60)
         return response3.text
 
       if 'https://eeasvn.eea.europa.eu/' in url:
@@ -87,7 +87,7 @@ def get_docker_images(urls):
           docker_image = name.split(':')[0]
           response4 = requests.get(
               "https://hub.docker.com/api/build/v1/source/?image=" +
-              docker_image)
+              docker_image, timeout=60)
           github_url = ''
           dockerhub_url = ''
           if docker_image.find('/') > 0:
