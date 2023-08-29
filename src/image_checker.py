@@ -91,7 +91,7 @@ class ImageChecker:
 
         tags_details_url = f"https://hub.docker.com/v2/repositories/{image}/tags/"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
-        r = requests.get(tags_details_url, headers=h)
+        r = requests.get(tags_details_url, headers=h, timeout=60)
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for hub.docker tags creation details")
             return (
@@ -162,7 +162,7 @@ class ImageChecker:
             }
 
         try:
-            r = requests.get(auth_url, params=payload)
+            r = requests.get(auth_url, params=payload, timeout=60)
         except Exception as exc:
             logging.error(f"{image}: connection error when looking for image versions: {exc}")
             time.sleep(30)
@@ -179,7 +179,7 @@ class ImageChecker:
 
         # Fetch versions
         h = {"Authorization": f"Bearer {token}"}
-        r = requests.get(f"{index_url}/v2/{image}/tags/list", headers=h)
+        r = requests.get(f"{index_url}/v2/{image}/tags/list", headers=h, timeout=60)
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for tags list")
             return (
@@ -320,7 +320,7 @@ class ImageChecker:
         build_list_url = f"https://hub.docker.com/api/audit/v1/action/?include_related=true&limit=500&object=%2Fapi%2Frepo%2Fv1%2Frepository%2F{repo}%2F{image_name}%2F"
         h = {"Authorization": f"Bearer {self.dockerhub_token}"}
         try:
-            r = requests.get(build_list_url, headers=h)
+            r = requests.get(build_list_url, headers=h, timeout=60)
         except Exception as exc:
             logging.error(f"{image}: connection error when looking for base image: {exc}")
             time.sleep(30)
@@ -373,7 +373,7 @@ class ImageChecker:
                 )
 
         # Get build details
-        r = requests.get(f"https://hub.docker.com{version_uri}", headers=h)
+        r = requests.get(f"https://hub.docker.com{version_uri}", headers=h, timeout=60)
         if r.status_code == 401:
             logging.error(f"{image}: access denied when looking for base image build details")
             return (
