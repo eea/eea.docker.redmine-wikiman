@@ -286,7 +286,6 @@ class Template:
     def _merge_fields(self, intro_lines):
         original_case = {}
         fields = OrderedDict()
-
         extra_lines = []
         fields_finished = False
         for line in intro_lines:
@@ -306,6 +305,9 @@ class Template:
             [label, value] = line.strip().split(":", 1)
             label = label.strip()
             value = value.strip()
+            if "{color:red}ToDo" in value and label.lower() not in self.fields.keys():
+                log.debug(f"Not keeping the old mandatory field {label!r}")
+                continue
             fields.setdefault(label.lower(), []).append(value)
             original_case[label.lower()] = label
 
