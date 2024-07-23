@@ -293,6 +293,11 @@ class Template:
         fields = OrderedDict()
         extra_lines = []
         fields_finished = False
+        
+        existing_fields = []
+        for field in self.fields:
+            existing_fields.append(field["label"])
+            
         for line in intro_lines:
             if line.strip() == TOC_CODE:
                 continue
@@ -310,7 +315,8 @@ class Template:
             [label, value] = line.strip().split(":", 1)
             label = label.strip()
             value = value.strip()
-            if "{color:red}ToDo" in value and label.lower() not in self.fields.keys():
+            
+            if "{color:red}ToDo" in value and label.lower() not in existing_fields:
                 log.debug(f"Not keeping the old mandatory field {label!r}")
                 continue
             fields.setdefault(label.lower(), []).append(value)
