@@ -13,6 +13,7 @@ import io
 import tempfile
 import subprocess
 import argparse
+import time
 from datetime import datetime, date
 
 from redminelib import Redmine
@@ -88,8 +89,12 @@ class Taskman:
         return remove_extensions_header(page.text)
 
     def save_wiki(self, project_id, name, text):
-        self.redmine.wiki_page.update(name, project_id=project_id, text=text)
-
+        try:
+            self.redmine.wiki_page.update(name, project_id=project_id, text=text)
+        except redminelib.exceptions.UnknownError:
+            time.sleep(30)
+            self.redmine.wiki_page.update(name, project_id=project_id, text=text)
+    
     def wiki_children(self, project_id, name):
         project = self.redmine.project.get(project_id)
         children_of = defaultdict(list)
