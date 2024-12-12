@@ -3,3 +3,4 @@ docker-compose.yml
 # Environments
 venv/
 .envrc
+.env
