@@ -1,0 +1,36 @@
+Rencher Containers -> Pods_containers
+
+Server name1
+    Cluster X
+        Node 1
+            Pod1
+                Container1
+                Container2
+            Pod2
+                Container21
+
+------------------------------------------------------------
+
+Rancher_Hosts -> nodes
+
+Server name1
+    Cluster X
+        Node 1
+        Node 2
+
+------------------------------------------------------------
+
+Rancher_Stacks -> apps
+
+Server name1
+    Cluster X
+        Namespace 1
+            App11
+            App12
+        Namespace 2
+            App21
+            App22
+
+------------------------------------------------------------
+
+BISE -> apps

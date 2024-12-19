@@ -4,3 +4,4 @@ docker-compose.yml
 venv/
 .envrc
 .env
+.DS_Store
