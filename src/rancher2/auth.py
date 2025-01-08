@@ -9,12 +9,11 @@ load_dotenv()
 
 
 class RancherClient:
-    def __init__(self):
-        self.base_url = os.getenv("RANCHER2_BASE_URL", "")
+    def __init__(self, base_url=None, token=None):
+        self.base_url = base_url
         self.verify = os.getenv("RANCHER2_VERIFY_SSL", "true").lower() == "true"
         self.session = requests.Session()
-        self.token = os.getenv("RANCHER2_TOKEN", "")
-        self.session.headers.update({"Authorization": f"Bearer {self.token}"})
+        self.session.headers.update({"Authorization": f"Bearer {token}"})
 
     def get(self, url, params=None):
         response = self.session.get(
