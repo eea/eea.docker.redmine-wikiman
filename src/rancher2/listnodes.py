@@ -90,6 +90,7 @@ class RancherNodes:
             cluster_content.append(f"\nh3. \"{cluster['name']}\":{cluster_link}\n")
 
             # add cluster information
+            cluster_content.append(f"*Description*: {cluster['description'] or '-'}\n")
             cluster_content.append(
                 f"*State*: {cluster['state']} &nbsp; &nbsp; "
                 f"*Provider*: {cluster['provider']} &nbsp; &nbsp; "
