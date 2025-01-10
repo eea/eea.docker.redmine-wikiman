@@ -33,7 +33,6 @@ class Rancher2Apps(Rancher2Base):
         self.content.append(f'\nh2. "{rancher_server_name}":{server_link}\n')
 
         clusters = self._get_clusters(rancher_client)
-        self.content = []
         for cluster in clusters:
             cluster_link = self._add_cluster_short_content(
                 rancher_client, cluster, self.content
@@ -46,15 +45,17 @@ class Rancher2Apps(Rancher2Base):
                 # add namespace information
                 if namespace_id not in namespaces:
                     # some apps do not have a namespace set
-                    self.content.append(f'\nh3. "{namespace_id}"\n')
+                    self.content.append(f'\nh4. _Namespace: "{namespace_id}"_\n')
                 else:
                     namespace = namespaces[namespace_id]
                     namespace_link = f"{cluster_link}/namespace/{namespace_id}"
-                    self.content.append(f'\nh3. "{namespace_id}":{namespace_link}\n')
+                    self.content.append(
+                        f'\nh4. _Namespace: "{namespace_id}":{namespace_link}_\n'
+                    )
                     self.content.append(
                         f"*State*: {namespace['state']} &nbsp; &nbsp; "
                         f"*Created*: {namespace['created']} &nbsp; &nbsp; "
-                        f"*ProjectID*: {namespace['projectId']}\n"
+                        f"*ProjectID*: {namespace['projectId'] or '-'}\n"
                     )
 
                 # add app information

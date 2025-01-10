@@ -39,7 +39,7 @@ class Rancher2Base:
         """
 
         cluster_link = f"{rancher_client.base_url}dashboard/c/{cluster['id']}/explorer"
-        cluster_content.append(f"\nh3. \"{cluster['name']}\":{cluster_link}\n")
+        cluster_content.append(f"\nh3. Cluster: \"{cluster['name']}\":{cluster_link}\n")
 
         # add cluster information
         cluster_content.append(f"*Description*: {cluster['description'] or '-'}\n")
