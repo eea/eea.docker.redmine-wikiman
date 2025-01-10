@@ -6418,7 +6418,7 @@
                 }
             ]
         },
-        "v1/catalog.cattle.io.apps": {
+        "k8s/clusters/local/v1/catalog.cattle.io.apps": {
             "type": "collection",
             "links": {
                 "self": "https://localhost/v1/catalog.cattle.io.apps"
@@ -6428,621 +6428,9 @@
             },
             "actions": {},
             "resourceType": "catalog.cattle.io.app",
-            "revision": "53114",
-            "count": 7,
+            "revision": "587302",
+            "count": 5,
             "data": [
-                {
-                    "id": "cattle-elemental-system/elemental-operator",
-                    "type": "catalog.cattle.io.app",
-                    "links": {
-                        "remove": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator",
-                        "self": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator",
-                        "update": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator",
-                        "view": "https://localhost/apis/catalog.cattle.io/v1/namespaces/cattle-elemental-system/apps/elemental-operator"
-                    },
-                    "actions": {
-                        "uninstall": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator?action=uninstall"
-                    },
-                    "apiVersion": "catalog.cattle.io/v1",
-                    "kind": "App",
-                    "metadata": {
-                        "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/7RWW2/cNhP9KwK/x0/UStqbLSAPqVOkQdG4SIw8tM7DiBqtWFMkQY6Uusb+94Laq7PyrXXfJHGu58wc8Y61SFABASvuGGhtCEga7cOrKf9AQR4pcdIkAogUJtJMZMUK1qBqOVjL4gftzDeNjq/6G1awSZ/F0c9SV28+o3BIT7ppaJEVzDdJyJQ4VAgekz5LUGGLmkBxY9EBGZf02bPieQsiBN2c8UMgf+sJW7aOmXA4AHAlW/QErWWF7pSKmYIS1QCLAAJlVkcZhOo8oeMOrdkV7kCLBh0XDTjyj5TXgG9CTfl5WmdZWVd1VUN2ns/ORInTZT0V59N5np7Ns/MFLrJQ5DbFKRBsc/ZUnzEbMPmENTrUAj0rfr9jYOUXdF4azQo2IFoqI24ug+k7VEjDSQ3KY8yE0eSMUuhYQa7DmN1IHeZiT+/LCeyGwTqrZ5mAWc7PS1jw2Wwx55DjjM+q5XR5llfVvES2/rqOmbcoBkICxOHhkVk+JQ06MlxqT6DUPTCFq960QKJh8RjX6EjWEqsDx6N2lfRWwe1uHH7chR81vulK5P0e/OsuTaf4JsqSfJqkPB31eR7Rp37Gs4Ipqbs/R48tulaS50+ZOdPLCj1f9e4YvSOTPiuRIBt1323Hac95kqWh52j4IMJ79iAG26Hijy3EqZcXxgbzFjSsBo9RM7odrHbLTcaMk9dJ7k3nBA77P7b6T/nw+6nGPawnh9AeQZYli2Qe9OD+5uYsfLFfvrOLWYVeOGk3e3yYyGjHZXShTFdFH4Fkj9Hl5+iXPUBRbVx0sSkv+mgq9AmLmRRDpIbI+mIycfAtWUlqurLz6IJCoKZEmHZH92RP0KQFqSfKrMxECnaqaCxmR32m8yRNsv93dtvxOh5+P/sOpzGTujZhz+/3+GGz3pEwrVVIyGJWS+fpHVplbocdztN8xrOcZ8urLC/myyJd/saC3D/HyiFUQ+H/iw5wXm5nL/oJVRtdhCG41tf6qpE+GkYiKo0hTw6sj0BHm6ZZzDwBdWHtql3iV9F6h5tRe0jl98LteinwrRCm0zTCyUszr+PvsrkSRAIdNcbJvwZpTm7O/EYqDnVsp+yTUThWhAAruQuH/038fZP/PvwPUldSr16WBaz19wJupnCrUq/OyUEDj5V7ekj/9tcP28l4WR9PBn6vTAnq5TQ8/qvZBt8oV3X5eet30YDWqI6uJYq3UjjDF0nKS3AY7g4qSPaR3Q7NWiESr7CGTtE/rWh3N3kFEr8eqWO2PghHuLJ7dD1W71GHkINFGjPftS24W1bcrdfrvwMAAP//l8/a0fQLAAA",
-                            "objectset.rio.cattle.io/id": "helm-app",
-                            "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
-                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.elemental-operator.v1",
-                            "objectset.rio.cattle.io/owner-namespace": "cattle-elemental-system"
-                        },
-                        "creationTimestamp": "2024-12-17T12:57:08Z",
-                        "fields": [
-                            "elemental-operator",
-                            "elemental",
-                            "105.0.1+up1.6.5",
-                            "elemental-operator",
-                            "1",
-                            "deployed"
-                        ],
-                        "generation": 2,
-                        "labels": {
-                            "catalog.cattle.io/cluster-repo-name": "rancher-charts",
-                            "objectset.rio.cattle.io/hash": "c290f11bfdfdfa19248cbe37f3c9352085196e61"
-                        },
-                        "managedFields": [
-                            {
-                                "apiVersion": "catalog.cattle.io/v1",
-                                "fieldsType": "FieldsV1",
-                                "fieldsV1": {
-                                    "f:metadata": {
-                                        "f:annotations": {
-                                            ".": {},
-                                            "f:objectset.rio.cattle.io/applied": {},
-                                            "f:objectset.rio.cattle.io/id": {},
-                                            "f:objectset.rio.cattle.io/owner-gvk": {},
-                                            "f:objectset.rio.cattle.io/owner-name": {},
-                                            "f:objectset.rio.cattle.io/owner-namespace": {}
-                                        },
-                                        "f:labels": {
-                                            ".": {},
-                                            "f:catalog.cattle.io/cluster-repo-name": {},
-                                            "f:objectset.rio.cattle.io/hash": {}
-                                        },
-                                        "f:ownerReferences": {
-                                            ".": {},
-                                            "k:{\"uid\":\"8f41ca42-9ba6-4465-a2e4-4d73782dd5be\"}": {}
-                                        }
-                                    },
-                                    "f:spec": {
-                                        ".": {},
-                                        "f:chart": {
-                                            ".": {},
-                                            "f:metadata": {
-                                                ".": {},
-                                                "f:annotations": {
-                                                    ".": {},
-                                                    "f:catalog.cattle.io/auto-install": {},
-                                                    "f:catalog.cattle.io/certified": {},
-                                                    "f:catalog.cattle.io/display-name": {},
-                                                    "f:catalog.cattle.io/kube-version": {},
-                                                    "f:catalog.cattle.io/namespace": {},
-                                                    "f:catalog.cattle.io/os": {},
-                                                    "f:catalog.cattle.io/permits-os": {},
-                                                    "f:catalog.cattle.io/provides-gvr": {},
-                                                    "f:catalog.cattle.io/rancher-version": {},
-                                                    "f:catalog.cattle.io/release-name": {},
-                                                    "f:catalog.cattle.io/scope": {},
-                                                    "f:catalog.cattle.io/type": {},
-                                                    "f:catalog.cattle.io/ui-source-repo": {},
-                                                    "f:catalog.cattle.io/ui-source-repo-type": {},
-                                                    "f:catalog.cattle.io/upstream-version": {}
-                                                },
-                                                "f:apiVersion": {},
-                                                "f:appVersion": {},
-                                                "f:description": {},
-                                                "f:icon": {},
-                                                "f:name": {},
-                                                "f:version": {}
-                                            }
-                                        },
-                                        "f:helmVersion": {},
-                                        "f:info": {
-                                            ".": {},
-                                            "f:description": {},
-                                            "f:firstDeployed": {},
-                                            "f:lastDeployed": {},
-                                            "f:readme": {},
-                                            "f:status": {}
-                                        },
-                                        "f:name": {},
-                                        "f:namespace": {},
-                                        "f:resources": {},
-                                        "f:version": {}
-                                    }
-                                },
-                                "manager": "rancher",
-                                "operation": "Update",
-                                "time": "2024-12-17T12:57:16Z"
-                            },
-                            {
-                                "apiVersion": "catalog.cattle.io/v1",
-                                "fieldsType": "FieldsV1",
-                                "fieldsV1": {
-                                    "f:status": {
-                                        ".": {},
-                                        "f:observedGeneration": {},
-                                        "f:summary": {
-                                            ".": {},
-                                            "f:state": {}
-                                        }
-                                    }
-                                },
-                                "manager": "rancher",
-                                "operation": "Update",
-                                "subresource": "status",
-                                "time": "2024-12-17T12:57:16Z"
-                            }
-                        ],
-                        "name": "elemental-operator",
-                        "namespace": "cattle-elemental-system",
-                        "ownerReferences": [
-                            {
-                                "apiVersion": "v1",
-                                "blockOwnerDeletion": false,
-                                "controller": true,
-                                "kind": "Secret",
-                                "name": "sh.helm.release.v1.elemental-operator.v1",
-                                "uid": "8f41ca42-9ba6-4465-a2e4-4d73782dd5be"
-                            }
-                        ],
-                        "relationships": [
-                            {
-                                "fromId": "cattle-elemental-system/sh.helm.release.v1.elemental-operator.v1",
-                                "fromType": "secret",
-                                "rel": "owner",
-                                "state": "active",
-                                "message": "Resource is always ready"
-                            },
-                            {
-                                "toId": "cattle-elemental-system/elemental-operator",
-                                "toType": "serviceaccount",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "elemental-capi-role",
-                                "toType": "rbac.authorization.k8s.io.clusterrole",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "elemental-operator",
-                                "toType": "rbac.authorization.k8s.io.clusterrole",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "elemental-operator",
-                                "toType": "rbac.authorization.k8s.io.clusterrolebinding",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "cattle-elemental-system/elemental-operator",
-                                "toType": "apps.deployment",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Deployment is available. Replicas: 1"
-                            },
-                            {
-                                "toId": "elemental-operator",
-                                "toType": "management.cattle.io.apiservice",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "elemental-operator",
-                                "toType": "management.cattle.io.globalrole",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            },
-                            {
-                                "toId": "cattle-elemental-system/sl-micro-6.0-baremetal-channel",
-                                "toType": "elemental.cattle.io.managedosversionchannel",
-                                "rel": "helmresource"
-                            },
-                            {
-                                "toId": "cattle-elemental-system/elemental-operator",
-                                "toType": "elemental.cattle.io.metadata",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "Resource is current"
-                            }
-                        ],
-                        "resourceVersion": "52743",
-                        "state": {
-                            "error": false,
-                            "message": "",
-                            "name": "deployed",
-                            "transitioning": false
-                        },
-                        "uid": "ac415f1b-02ae-42f9-bab4-fdb242a114a0"
-                    },
-                    "spec": {
-                        "chart": {
-                            "metadata": {
-                                "annotations": {
-                                    "catalog.cattle.io/auto-install": "elemental-crd=match",
-                                    "catalog.cattle.io/certified": "rancher",
-                                    "catalog.cattle.io/display-name": "Elemental",
-                                    "catalog.cattle.io/kube-version": ">= 1.23.0-0",
-                                    "catalog.cattle.io/namespace": "cattle-elemental-system",
-                                    "catalog.cattle.io/os": "linux",
-                                    "catalog.cattle.io/permits-os": "linux",
-                                    "catalog.cattle.io/provides-gvr": "elemental.cattle.io/v1beta1",
-                                    "catalog.cattle.io/rancher-version": ">= 2.10.0-0 < 2.11.0-0",
-                                    "catalog.cattle.io/release-name": "elemental-operator",
-                                    "catalog.cattle.io/scope": "management",
-                                    "catalog.cattle.io/type": "cluster-tool",
-                                    "catalog.cattle.io/ui-source-repo": "rancher-charts",
-                                    "catalog.cattle.io/ui-source-repo-type": "cluster",
-                                    "catalog.cattle.io/upstream-version": "1.6.5"
-                                },
-                                "apiVersion": "v2",
-                                "appVersion": "1.6.5",
-                                "description": "Elemental provides Cloud Native OS Management for Cluster Nodes.",
-                                "icon": "https://raw.githubusercontent.com/rancher/elemental/main/logo/icon-elemental.svg",
-                                "name": "elemental",
-                                "version": "105.0.1+up1.6.5"
-                            }
-                        },
-                        "helmVersion": 3,
-                        "info": {
-                            "description": "Install complete",
-                            "firstDeployed": "2024-12-17T12:57:07Z",
-                            "lastDeployed": "2024-12-17T12:57:07Z",
-                            "readme": "# Elemental Operator Helm Chart\n\nThis chart bootstraps an elemental-operator deployment on a [Rancher Manager](https://rancher.com/docs/rancher/) cluster using the [Helm](https://helm.sh) package manager.\n\nCheck out the [Elemental Operator Helm Chart documentation](https://elemental.docs.rancher.com/elementaloperatorchart-reference/) in the official [Elemental guide](https://elemental.docs.rancher.com/).\n",
-                            "status": "deployed"
-                        },
-                        "name": "elemental-operator",
-                        "namespace": "cattle-elemental-system",
-                        "resources": [
-                            {
-                                "apiVersion": "v1",
-                                "kind": "ServiceAccount",
-                                "name": "elemental-operator",
-                                "namespace": "cattle-elemental-system"
-                            },
-                            {
-                                "apiVersion": "rbac.authorization.k8s.io/v1",
-                                "kind": "ClusterRole",
-                                "name": "elemental-capi-role"
-                            },
-                            {
-                                "apiVersion": "rbac.authorization.k8s.io/v1",
-                                "kind": "ClusterRole",
-                                "name": "elemental-operator"
-                            },
-                            {
-                                "apiVersion": "rbac.authorization.k8s.io/v1",
-                                "kind": "ClusterRoleBinding",
-                                "name": "elemental-operator"
-                            },
-                            {
-                                "apiVersion": "apps/v1",
-                                "kind": "Deployment",
-                                "name": "elemental-operator",
-                                "namespace": "cattle-elemental-system"
-                            },
-                            {
-                                "apiVersion": "management.cattle.io/v3",
-                                "kind": "APIService",
-                                "name": "elemental-operator"
-                            },
-                            {
-                                "apiVersion": "management.cattle.io/v3",
-                                "kind": "GlobalRole",
-                                "name": "elemental-operator"
-                            },
-                            {
-                                "apiVersion": "elemental.cattle.io/v1beta1",
-                                "kind": "ManagedOSVersionChannel",
-                                "name": "sl-micro-6.0-baremetal-channel",
-                                "namespace": "fleet-default"
-                            },
-                            {
-                                "apiVersion": "elemental.cattle.io/v1beta1",
-                                "kind": "Metadata",
-                                "name": "elemental-operator",
-                                "namespace": "cattle-elemental-system"
-                            }
-                        ],
-                        "version": 1
-                    },
-                    "status": {
-                        "observedGeneration": 2,
-                        "summary": {
-                            "state": "deployed"
-                        }
-                    }
-                },
-                {
-                    "id": "cattle-elemental-system/elemental-operator-crds",
-                    "type": "catalog.cattle.io.app",
-                    "links": {
-                        "remove": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator-crds",
-                        "self": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator-crds",
-                        "update": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator-crds",
-                        "view": "https://localhost/apis/catalog.cattle.io/v1/namespaces/cattle-elemental-system/apps/elemental-operator-crds"
-                    },
-                    "actions": {
-                        "uninstall": "https://localhost/v1/catalog.cattle.io.apps/cattle-elemental-system/elemental-operator-crds?action=uninstall"
-                    },
-                    "apiVersion": "catalog.cattle.io/v1",
-                    "kind": "App",
-                    "metadata": {
-                        "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/8RWUY/jNBD+K9G84uSapNmWSDygWwSIh5OWEw+ge5jak8asY1v2pFCt8t+R0+z1gN7uCnHdt8YZz/fN981M8wADMSpkhPYB0FrHyNrZmB7d7neSHImLoF0hkdlQod0braCFnsyQo/cgPhvn/rAU8v3hHlp4cyhF9pO26pufSQbiZ69ZHAhaiH2RkIpAhjBScSgLMjSQZTS58xSQXchlULE4lC9KGj3KlPn0Lj9ni8fINMAkQAaaVXivB4qMg4fWjsYIMLgjM2sjkdG4/ScI0oyRKeSBvHtkH9DKnkIuewwcn6DXY+yhhVLV1WZVdZ2Uq53aUF19XambWtVVreq6oXXVddjsMJFcID6jBpwCnitWwCzMHXUUyEqK0P72AOj1LxSidhZamGXdGSfv36XQWzLE85sOTSQB0lkOzhgK0HIYScC9tqlDPhr9H60c5z6rt6rb0WqVy2q7ztfrrcxxo2Te4KZumpvtDdYdTB8mAdGTnK1JYqcfT7T2BfsosO40qbNtIC7E9VopSrqkWi9GvEz3f99bdMmfMXYS//CngnTizydlcVM0IEBRlEH7k1vwbfYDmSGb1ck6FzJF3rijtvvs7lRv9t0jZPZugcze3t1GuNBsMigQwEefjtF7o+WsLgg4nImsmmJVlF+N/kRpmsS8Nz5SrQVo27nkyN/J/mgjozGZdIM3xEnoTofItzPn2aRqVa3zssrLzfuyaptNu2p+hTSiL4mKjDxGaEE9hv5/ExUoujFcnCX0mv5ksukxFvfbmHyfm32ZmbdjZDfcLRluqdNWL7Iu7AaUvbak7YEsu6Apnqfo3EwwiS8OfYxkSLILr8+AafAG+fpaBNrryOG0WK4IbnFPykU94P6qRS+4y4jLHq0l83oEroi8/JdcDTASqafs/fDJoi2n80ZLn22RwoHU92Tp1JnQrgTEcRgwHKF9mKbprwAAAP//03A2ZPgJAAA",
-                            "objectset.rio.cattle.io/id": "helm-app",
-                            "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
-                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.elemental-operator-crds.v1",
-                            "objectset.rio.cattle.io/owner-namespace": "cattle-elemental-system"
-                        },
-                        "creationTimestamp": "2024-12-17T12:57:05Z",
-                        "fields": [
-                            "elemental-operator-crds",
-                            "elemental-crd",
-                            "105.0.1+up1.6.5",
-                            "elemental-operator-crds",
-                            "1",
-                            "deployed"
-                        ],
-                        "generation": 2,
-                        "labels": {
-                            "catalog.cattle.io/cluster-repo-name": "rancher-charts",
-                            "objectset.rio.cattle.io/hash": "1d32702ffcc0bd7e3292d63d323d335e42ffa5ba"
-                        },
-                        "managedFields": [
-                            {
-                                "apiVersion": "catalog.cattle.io/v1",
-                                "fieldsType": "FieldsV1",
-                                "fieldsV1": {
-                                    "f:metadata": {
-                                        "f:annotations": {
-                                            ".": {},
-                                            "f:objectset.rio.cattle.io/applied": {},
-                                            "f:objectset.rio.cattle.io/id": {},
-                                            "f:objectset.rio.cattle.io/owner-gvk": {},
-                                            "f:objectset.rio.cattle.io/owner-name": {},
-                                            "f:objectset.rio.cattle.io/owner-namespace": {}
-                                        },
-                                        "f:labels": {
-                                            ".": {},
-                                            "f:catalog.cattle.io/cluster-repo-name": {},
-                                            "f:objectset.rio.cattle.io/hash": {}
-                                        },
-                                        "f:ownerReferences": {
-                                            ".": {},
-                                            "k:{\"uid\":\"38dfbe00-c284-448c-a7dc-5a7355686a3f\"}": {}
-                                        }
-                                    },
-                                    "f:spec": {
-                                        ".": {},
-                                        "f:chart": {
-                                            ".": {},
-                                            "f:metadata": {
-                                                ".": {},
-                                                "f:annotations": {
-                                                    ".": {},
-                                                    "f:catalog.cattle.io/certified": {},
-                                                    "f:catalog.cattle.io/hidden": {},
-                                                    "f:catalog.cattle.io/namespace": {},
-                                                    "f:catalog.cattle.io/release-name": {}
-                                                },
-                                                "f:apiVersion": {},
-                                                "f:appVersion": {},
-                                                "f:description": {},
-                                                "f:name": {},
-                                                "f:type": {},
-                                                "f:version": {}
-                                            }
-                                        },
-                                        "f:helmVersion": {},
-                                        "f:info": {
-                                            ".": {},
-                                            "f:description": {},
-                                            "f:firstDeployed": {},
-                                            "f:lastDeployed": {},
-                                            "f:status": {}
-                                        },
-                                        "f:name": {},
-                                        "f:namespace": {},
-                                        "f:resources": {},
-                                        "f:version": {}
-                                    }
-                                },
-                                "manager": "rancher",
-                                "operation": "Update",
-                                "time": "2024-12-17T12:57:07Z"
-                            },
-                            {
-                                "apiVersion": "catalog.cattle.io/v1",
-                                "fieldsType": "FieldsV1",
-                                "fieldsV1": {
-                                    "f:status": {
-                                        ".": {},
-                                        "f:observedGeneration": {},
-                                        "f:summary": {
-                                            ".": {},
-                                            "f:state": {}
-                                        }
-                                    }
-                                },
-                                "manager": "rancher",
-                                "operation": "Update",
-                                "subresource": "status",
-                                "time": "2024-12-17T12:57:07Z"
-                            }
-                        ],
-                        "name": "elemental-operator-crds",
-                        "namespace": "cattle-elemental-system",
-                        "ownerReferences": [
-                            {
-                                "apiVersion": "v1",
-                                "blockOwnerDeletion": false,
-                                "controller": true,
-                                "kind": "Secret",
-                                "name": "sh.helm.release.v1.elemental-operator-crds.v1",
-                                "uid": "38dfbe00-c284-448c-a7dc-5a7355686a3f"
-                            }
-                        ],
-                        "relationships": [
-                            {
-                                "fromId": "cattle-elemental-system/sh.helm.release.v1.elemental-operator-crds.v1",
-                                "fromType": "secret",
-                                "rel": "owner",
-                                "state": "active",
-                                "message": "Resource is always ready"
-                            },
-                            {
-                                "toId": "machineinventories.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "machineinventoryselectors.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "machineinventoryselectortemplates.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "machineregistrations.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "managedosimages.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "managedosversionchannels.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "managedosversions.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "metadata.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            },
-                            {
-                                "toId": "seedimages.elemental.cattle.io",
-                                "toType": "apiextensions.k8s.io.customresourcedefinition",
-                                "rel": "helmresource",
-                                "state": "active",
-                                "message": "CRD is established"
-                            }
-                        ],
-                        "resourceVersion": "52654",
-                        "state": {
-                            "error": false,
-                            "message": "",
-                            "name": "deployed",
-                            "transitioning": false
-                        },
-                        "uid": "dcd4dcfd-6245-431c-a270-cfb6c68859d7"
-                    },
-                    "spec": {
-                        "chart": {
-                            "metadata": {
-                                "annotations": {
-                                    "catalog.cattle.io/certified": "rancher",
-                                    "catalog.cattle.io/hidden": "true",
-                                    "catalog.cattle.io/namespace": "cattle-elemental-system",
-                                    "catalog.cattle.io/release-name": "elemental-operator-crds"
-                                },
-                                "apiVersion": "v2",
-                                "appVersion": "1.6.5",
-                                "description": "A Helm chart for deploying Rancher Elemental Operator CRDs",
-                                "name": "elemental-crd",
-                                "type": "application",
-                                "version": "105.0.1+up1.6.5"
-                            }
-                        },
-                        "helmVersion": 3,
-                        "info": {
-                            "description": "Install complete",
-                            "firstDeployed": "2024-12-17T12:57:05Z",
-                            "lastDeployed": "2024-12-17T12:57:05Z",
-                            "status": "deployed"
-                        },
-                        "name": "elemental-operator-crds",
-                        "namespace": "cattle-elemental-system",
-                        "resources": [
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "machineinventories.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "machineinventoryselectors.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "machineinventoryselectortemplates.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "machineregistrations.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "managedosimages.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "managedosversionchannels.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "managedosversions.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "metadata.elemental.cattle.io"
-                            },
-                            {
-                                "apiVersion": "apiextensions.k8s.io/v1",
-                                "kind": "CustomResourceDefinition",
-                                "name": "seedimages.elemental.cattle.io"
-                            }
-                        ],
-                        "version": 1
-                    },
-                    "status": {
-                        "observedGeneration": 2,
-                        "summary": {
-                            "state": "deployed"
-                        }
-                    }
-                },
                 {
                     "id": "cattle-fleet-system/fleet",
                     "type": "catalog.cattle.io.app",
@@ -7059,25 +6447,25 @@
                     "kind": "App",
                     "metadata": {
                         "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/7xXT2/jthP9KsL8jj9RlmR7bQvIoc2iW7QoFtjd9tBmDyNqbDGhSIKklE0DffeCkmM7ifMH2WRvJjmcN/PmzZi6hoY8VugRimtApbRHL7RyYanLc+LekU+s0AlH7yUlQk9EBQXUJBuGxkD8oJ2+VGTZpruAAiZdFke/C1WdfCZuyT95TWFDUICrk4CUWJKEjpIuS9aSyCfd7FkunEEe/IxnbLjL3JXz1EAfA7c05PtFNOQ8NgYK1UoZg8SS5MACR49Sbw68c9k6T5ZZMvomTouK12QZr9F690hoNboaCljMF4T56h1f8eUyX7+jNeE7xPlyuVhgPq9wOl+sslkZgtxCDLHDuHwsrRiG9D/RmiwpTg6Kf64BjfiLrBNaQQFdBjGUUvOLj8H0PUnyw8kapaMYuFbeainJQuFtSzFcCBWqvives8rTDkrB6SJfruaczUpM2azK52xV8jkrcz6r1rhYYLaA/msfgzPEB8oDieHHI+K8XxZsvWZCOY9S3tDFuK1OGvS8hvhYJcl6sRZU7St41I6+GbKiIeUxuA6UHLWrRVWReszioi2JdbtCnLVpOqWTKEvyZZKyNBo2eJQl0zysj/p4WgD372gHBUih2m9Hjw3ZRnjH9mbxpVCVvnTHza3uREWObTobghgbwm1rv7frMpSmxuyok5uWuc9GnmTpIRt5kmUPsrGVHrvVJX18R/A5hB2z30mDzxBYRY5bYUb9wy/henS603/Eog/CfzQuQh995ihDWQUfbGvvjSsmk7Hnk20+gxSdI+8mUm+0m4ykuG4D91p5n3qWzpM0yf7fmm1gfR8PM3YX8TQGodY6aP92yH+ajcWKIq4bI8mHANfCOv+ejNRXg7bzNJ+xLGfZ4ku6KmbTYjb/G8KQe8xqXkyXwcoSVkPU/4tGdn4l2USnIekzdabGPeEOeHKBpyTanVTkxEZRFUEMzqNvg8qqG+CXTDhLTrf24dm2G1e2E5x+4ly3yt/hnx1Muacx+/gFOBvhz3X5vd5PtVqLzR9oXjcBWyJPsPW1tuLfYbAmF0s3tu0B+Njbn/Sg/IfgX9P5lrTvd/mzUJVQd9vudcO+hzFGz8rt/gsRnqD7zap9tBJvivZ0kX4s/Ou07HYg7N02WgmvrVAb9kbD50em8HIENMbdKsL4/xOeVq8rgWcBvTyPMrwpbw8Fq9VvO2f7LCShak2gbPheONelew7g14PXwazf/2+GzzJHtqPqAymyOD4C0hhc2zRor6C47vv+vwAAAP//xKYv2dgNAAA",
+                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/7xXTW/jNhP+K8K8x1eU9WGvHAE5tFl0ixbFArvbHtrsgaJGEhOKJEhK2TTQfy8oObaTOB/IOnszyeE8M888M6ZuoENHK+ooFDdApVSOOq6k9UtVXiBzFl1kuIoYdU5gxNWCV1BAi6IjVGsIH7VTVxINaYZLKGAxJGHwO5fV6WdkBt2z1yTtEAqwbeSRIoMCqcVoSKJaILpoyF7kwmrKvJ/5jEx3ib22DjsYQ2AGp3y/8A6to52GQvZChCBoiWJigVFHhWr2vDPRW4eGGNTqNk5DJWvRENZS4+wTobXUtlDAcp3l2TLN8zKrT5KMYb6s6nVCl+UqzWO6PGGY5e/WtQ9yAzHFDvPyqbRCmNL/hDUalAwtFP/cANX8LzSWKwkFDAmEUArFLj960/co0E0nNRUWQ2BKOqOEQAOFMz2GcMmlr/q2eC8qTz8pJa9jdvIuLUmS5TlZLvM1OalWSDDPTmiaLVfxsoLx6xiC1cgmyj2J/scT4nxYFto7Rbi0jgpxSxdhpjrtqGMthIcqicbxmmO1q+BBO/ym0fAOpaPetafkoF3LqwrlUxaXfYlk2BbivI/jDE+DJErXUUziYNpgQRJlqV8f9PG8AB7eURYKEFz23w4eazQdd5bszMIrLit1ZQ+bGzXwCi1pBuODmBvCbmq/sxsSKnRLk4NOblvmIRtplMT7bKRRkjzKxkZ65E6XjOE9wafgd/RuJ/Y+fWAVWma4nvUPv/jrwdlW/wEJPnD3UduAuuAzo8KXlbPJtnVO22KxmHs+2uQzSdFadHYhVKPsYibFDg08aOVd6km8iuIo+X+vN4GNYzjN2G3EWQhc1spr/27If+rG0AoDpjot0PkAa26se49aqOtJ22mcrkickDj/EufFKi/i9G/wQ+4pq3WxzL2VQVpNUf8vmNn5FUUXnPmkz+W5nPe43ePJep6iYHtSoeWNxCqAEKyjrvcqq26BXzPhDFrVm8dn23ZcmYEz/Ikx1Ut3j3+yN+WexxzDV+A03F2o8nu9nylZ8+YPqo+bgCkpi2jvWmX4v9NgjS7Xdm7bPfC5tz+pSfmPwR/T+Ya073f5M5cVl/fb7rhhP8CYoyflZv+VCM/Q/WbVPliJN0V7vkg/Fv44LbsZCDu3nZLcKcNlQ95o+PzIFF6PQLW2d4ow///4p9VxJfAioNfnUfo35d2hYJT8betsl4VAKnvtKZu+Fy5UaV8C+HXvdZCNu/9N/1lm0QxYfUCJhs6PgDgE23cdNddQ3Izj+F8AAAD//1cNIDbYDQAA",
                             "objectset.rio.cattle.io/id": "helm-app",
                             "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
-                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.fleet.v4",
+                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.fleet.v3",
                             "objectset.rio.cattle.io/owner-namespace": "cattle-fleet-system"
                         },
-                        "creationTimestamp": "2024-12-17T09:43:45Z",
+                        "creationTimestamp": "2025-01-07T07:57:03Z",
                         "fields": [
                             "fleet",
                             "fleet",
                             "105.0.1+up0.11.1",
                             "fleet",
-                            "4",
+                            "3",
                             "deployed"
                         ],
-                        "generation": 8,
+                        "generation": 6,
                         "labels": {
                             "catalog.cattle.io/cluster-repo-name": "rancher-charts",
-                            "objectset.rio.cattle.io/hash": "757ea296c9c882f6efea6aa58877a25da357914b"
+                            "objectset.rio.cattle.io/hash": "483734277b3f913ce74df81a4b5270a49ce3768f"
                         },
                         "managedFields": [
                             {
@@ -7100,7 +6488,7 @@
                                         },
                                         "f:ownerReferences": {
                                             ".": {},
-                                            "k:{\"uid\":\"a372895c-4ba0-4d25-9bc5-b2c4dfa77a17\"}": {}
+                                            "k:{\"uid\":\"7f0c962b-1377-4478-9d5e-e739a234504d\"}": {}
                                         }
                                     },
                                     "f:spec": {
@@ -7148,7 +6536,7 @@
                                 },
                                 "manager": "rancher",
                                 "operation": "Update",
-                                "time": "2024-12-17T09:45:42Z"
+                                "time": "2025-01-07T07:58:52Z"
                             },
                             {
                                 "apiVersion": "catalog.cattle.io/v1",
@@ -7166,7 +6554,7 @@
                                 "manager": "rancher",
                                 "operation": "Update",
                                 "subresource": "status",
-                                "time": "2024-12-17T09:45:42Z"
+                                "time": "2025-01-07T07:58:52Z"
                             }
                         ],
                         "name": "fleet",
@@ -7177,13 +6565,13 @@
                                 "blockOwnerDeletion": false,
                                 "controller": true,
                                 "kind": "Secret",
-                                "name": "sh.helm.release.v1.fleet.v4",
-                                "uid": "a372895c-4ba0-4d25-9bc5-b2c4dfa77a17"
+                                "name": "sh.helm.release.v1.fleet.v3",
+                                "uid": "7f0c962b-1377-4478-9d5e-e739a234504d"
                             }
                         ],
                         "relationships": [
                             {
-                                "fromId": "cattle-fleet-system/sh.helm.release.v1.fleet.v4",
+                                "fromId": "cattle-fleet-system/sh.helm.release.v1.fleet.v3",
                                 "fromType": "secret",
                                 "rel": "owner",
                                 "state": "active",
@@ -7309,14 +6697,14 @@
                                 "message": "Resource is always ready"
                             }
                         ],
-                        "resourceVersion": "3977",
+                        "resourceVersion": "3884",
                         "state": {
                             "error": false,
                             "message": "",
                             "name": "deployed",
                             "transitioning": false
                         },
-                        "uid": "c090e658-1e78-4eec-810b-ca2b15d002c7"
+                        "uid": "2059c4d2-63ad-464a-a308-67bb4146e3ac"
                     },
                     "spec": {
                         "chart": {
@@ -7345,8 +6733,8 @@
                         "helmVersion": 3,
                         "info": {
                             "description": "Upgrade complete",
-                            "firstDeployed": "2024-12-17T09:43:45Z",
-                            "lastDeployed": "2024-12-17T09:45:38Z",
+                            "firstDeployed": "2025-01-07T07:57:02Z",
+                            "lastDeployed": "2025-01-07T07:58:47Z",
                             "readme": "# Fleet Helm Chart\n\nFleet is GitOps at scale. Fleet is designed to manage multiple clusters.\n\n## What is Fleet?\n\n* Cluster engine: Fleet is a container management and deployment engine designed to offer users more control on the local cluster and constant monitoring through GitOps. Fleet focuses not only on the ability to scale, but it also gives users a high degree of control and visibility to monitor exactly what is installed on the cluster.\n\n* Deployment management: Fleet can manage deployments from git of raw Kubernetes YAML, Helm charts, Kustomize, or any combination of the three. Regardless of the source, all resources are dynamically turned into Helm charts, and Helm is used as the engine to deploy all resources in the cluster. As a result, users can enjoy a high degree of control, consistency, and auditability of their clusters.\n\n## Introduction\n\nThis chart deploys Fleet on a Kubernetes cluster. It also deploys some of its dependencies as subcharts.\n\nThe documentation is centralized in the [doc website](https://fleet.rancher.io/).\n\n## Prerequisites\n\nGet helm if you don't have it. Helm 3 is just a CLI.\n\n\n## Install Fleet\n\nInstall the Fleet Helm charts (there are two because we separate out CRDs for ultimate flexibility.):\n\n```\n$ helm repo add fleet https://rancher.github.io/fleet-helm-charts/\n$ helm -n cattle-fleet-system install --create-namespace --wait fleet-crd fleet/fleet-crd\n$ helm -n cattle-fleet-system install --create-namespace --wait fleet fleet/fleet\n```",
                             "status": "deployed"
                         },
@@ -7452,10 +6840,10 @@
                                 "namespace": "cattle-fleet-system"
                             }
                         ],
-                        "version": 4
+                        "version": 3
                     },
                     "status": {
-                        "observedGeneration": 8,
+                        "observedGeneration": 6,
                         "summary": {
                             "state": "deployed"
                         }
@@ -7477,13 +6865,13 @@
                     "kind": "App",
                     "metadata": {
                         "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/8RWTY/jNgz9KwF7rO34I8lkDPS0g36ghwLTRQ/t7kGR6FiNLAkindnBwP+9kO1Ntt3MBwo0vdkSxff4Hin7CTpkoQQLqJ9AWOtYsHaW4qvb/YmSCTkL2mVSMBvMtFtqBTW0aLpUeA/Js3HuwWJI98cD1LA8FsniZ23Vd7+iDMivHrOiQ6iB2iwiZQENCsLsWGSNQeRUBpUdizelIS9kzDXtpdN5eiTGDoYEZMCx5ve6Q2LReahtb0wCRuzQjEpIwcK4/RfZpemJMaQBvfvMNQgrWwypbEVgeoFaK6iFGhohtttNJatik1c31Xa9Xm2q/Kbc4q0qqnxdVohqVdxGkjPEqXaYll4qLYFRgntsMKCVSFD/8QTC698wkHYWahgF3BknD7/E0Ds0yONOIwxhAtJZDs4YDFBz6DGBg7bR/ZOJb7apH7tGlVW5227KtMFqk65kLtLtulRpqRrEbbPeVlUJw8chAfIoR+mjmPHhhUa9YA8G1o1GdbYFkgtxrVYKoxKxuosRr6v89RlHUIPRtv90cdtj6DRTeg5LHrRV7oEuhs+apl+1wJD8w80S4oo/r+RZUWRRfYUkg/aTufB9TLF41xO77h7J9UHiHTba6knSBLQcA1tmT/VyOXV0NisZSQkiZFoat3e0HClldNzDxUY9nvgU+TrLs+Lb3s/MhiEZb5IT5SoBbRsXXf07558ssTBmIV3nDXI0q9GB+A69cY+j0WVertKiTIub9/ltvVrV+fp3iGP8lqiAQo3Mv1nM8tzfLX5E0y3exeI/2A/2FdmmaNkKSIBYcB/tVZ+B/+0MhxnowvQKr/ETo42vlB22FI0Zh22e0ueonm3a9VYZnEh2aJmmsT13HwzJf4V6qr0T3mu7vyb2dbDmj8Q+uN5fFTHgXhOH6Yb8v4DZHfC66FcCc5avNip7zfEXIyBx0PJ6fs641wHTndgjSXGpto9ffD+K4Xyzxt9TwnBE9QNanDoO6jwB6rtOhEeon4Zh+CsAAP//ouIK9eAKAAA",
+                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/8RWTY/jNgz9KwF7rO3Y+ZgkBnraQT/QQ4Hpood298CR6ViNLAkindnBwP+9kO1Ntt3MBwo0vdkSxff4Hin7CVoSrFAQyidAa52gaGc5vrr7P0kJk2RBu0yhiKFMu7muoISGTJui95A8G+ceLIV0fzxACfNjkcx+1rb67ldSgeTVYxZbghK4ySJSFsgQMmXHIqsNkaQqVNmxeFMa9qhirnEvHc/zIwu10CegAg01v9ctsWDrobSdMQkYvCczKKFQ0Lj9F9mV6VgopIG8+8w1oFUNhVQ1GIRfoNYgN1BCjbjd3izVsrjJl5vldr1e3SzzzWJLu6pY5uvFkqhaFbtIcoI41Q7j0kulJTBIcEc1BbKKGMo/ngC9/o0Ca2ehhEHAe+PU4ZcYekuGZNip0TAloJyV4IyhAKWEjhI4aBvdP5n4Zpu6oWswV2u1yFfpDtUqXakNpbhcbNIbXNW42u1qtUHoP/YJsCc1SB/FjA8vNOoFeyiIrjVVZ1sguRDX6KqiqESs7mLE6yp/fcYxlGC07T5d3PYUWi2cnsOSB20r98AXwydN069aoE/+4eYC4oo/r+RZUWRR/YpYBe1Hc+H7mGL2rmNx7R2x64KiW6q11aOkCWg1BDYinsv5fOzobFIykkJmEp4bt3c8HyhlfNzDxUY9nvgU+TrLs+Lbzk/M+j4ZbpIT5WUC2tYuuvp3zj9ZFjRmplzrDUk0q9aB5Za8cY+D0Yt8sU7zIs037/NNud6Ui+J3iGP8lqhAWA3Mv5lN8tzdzn4k087exeI/2A/2FdnGaNUgJMCC0kV7q8/A/3aGwwR0YXrRa/okZOMrZ4ctR2OGYZum9DmqZ5vuO1sZGkm2ZIXHsT13H/TJf4V6qr1F77XdXxP7OljTR2IfXOevihhor1nCeEP+X8DiDnRd9CuBOStXG5W9lviLEYglaHU9Pyfc64DpFvfECi/V9vGL70fRn2/W+HvKFI5U/UCWxo6DMk+Au7bF8AjlU9/3fwUAAP//RELXhuAKAAA",
                             "objectset.rio.cattle.io/id": "helm-app",
                             "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
                             "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.fleet-crd.v1",
                             "objectset.rio.cattle.io/owner-namespace": "cattle-fleet-system"
                         },
-                        "creationTimestamp": "2024-12-17T09:44:05Z",
+                        "creationTimestamp": "2025-01-07T07:57:21Z",
                         "fields": [
                             "fleet-crd",
                             "fleet-crd",
@@ -7518,7 +6906,7 @@
                                         },
                                         "f:ownerReferences": {
                                             ".": {},
-                                            "k:{\"uid\":\"d232b862-fe36-4c0a-852d-2dfee8f58332\"}": {}
+                                            "k:{\"uid\":\"a0c5c204-9ac4-4c7e-a327-6a4fa499fc7a\"}": {}
                                         }
                                     },
                                     "f:spec": {
@@ -7561,7 +6949,7 @@
                                 },
                                 "manager": "rancher",
                                 "operation": "Update",
-                                "time": "2024-12-17T09:44:06Z"
+                                "time": "2025-01-07T07:57:22Z"
                             },
                             {
                                 "apiVersion": "catalog.cattle.io/v1",
@@ -7579,7 +6967,7 @@
                                 "manager": "rancher",
                                 "operation": "Update",
                                 "subresource": "status",
-                                "time": "2024-12-17T09:44:06Z"
+                                "time": "2025-01-07T07:57:22Z"
                             }
                         ],
                         "name": "fleet-crd",
@@ -7591,7 +6979,7 @@
                                 "controller": true,
                                 "kind": "Secret",
                                 "name": "sh.helm.release.v1.fleet-crd.v1",
-                                "uid": "d232b862-fe36-4c0a-852d-2dfee8f58332"
+                                "uid": "a0c5c204-9ac4-4c7e-a327-6a4fa499fc7a"
                             }
                         ],
                         "relationships": [
@@ -7680,14 +7068,14 @@
                                 "message": "CRD is established"
                             }
                         ],
-                        "resourceVersion": "3007",
+                        "resourceVersion": "2992",
                         "state": {
                             "error": false,
                             "message": "",
                             "name": "deployed",
                             "transitioning": false
                         },
-                        "uid": "9a2427d5-176e-45c5-8ebb-0529485ad165"
+                        "uid": "769553cd-3674-439c-809a-83c1825ed09b"
                     },
                     "spec": {
                         "chart": {
@@ -7711,8 +7099,8 @@
                         "helmVersion": 3,
                         "info": {
                             "description": "Install complete",
-                            "firstDeployed": "2024-12-17T09:44:05Z",
-                            "lastDeployed": "2024-12-17T09:44:05Z",
+                            "firstDeployed": "2025-01-07T07:57:21Z",
+                            "lastDeployed": "2025-01-07T07:57:21Z",
                             "readme": "# Fleet CRD Helm Chart\n\nFleet CustomResourceDefinitions Helm chart is a requirement for the Fleet Helm Chart.\n\nThe Fleet documentation is centralized in the [doc website](https://fleet.rancher.io/).\n",
                             "status": "deployed"
                         },
@@ -7800,25 +7188,25 @@
                     "kind": "App",
                     "metadata": {
                         "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/7xXTY/bNhP+K8JcX5GWZG/sFRDgTTdAEQRtgzTooW0OI2pksaZIgaTsbhf67wWltb27ltPNh3MxJM1wnplnvug7aMhjiR4hvwPU2nj00mgXXk3xFwnvyHMrDRfovSIuzUyWkENNqmHYthCf1TM7TZattxvIYbZN4+it1OXLX0lY8v95TGNDkIOreUDilhShI75NuUUtarKstWYrnTRa6jUT2Eq+TZ9l1rUogu1RdmqHuVvnqYE+BmFp4OODbMh5bFrIdadUDAoLUgNLAj0qs36AJFTnPFlmqTX7OPZOixqtd59ws0ZXQw5LzFb4giqqFlVWFtl8uVq+SMT1MqsWV4skW10titX1dRacfAJxEg+MKs8NO4aBqvdUkSUtyEH+xx1gK38jG/Qhh4HoQhmx+SWoviZFfpBUqBzFIIz21ihFFnJvO4phI3WomkPyvzi93VB96YvVcl5kS7YqrwVbXBcFwwUJVpXLqpgTiQpT6D/2MbiWxJCmQHx4+ETBT6SSrJeVpPLIL8QTeqV0rcLbfbbfj6rRuwcxRDev3r2Jbg7MRD+hxvUZe7UsSwpMB/YmNTZdQWx7yMifXZLM6WWU8mzJE5ZEwwcRpXyehfdJG59XFafnjYMclNTd35PilmwjvWNHtXgndWl2blo9QJfk2HprIQdsW8dLapW5bUj72ZD901P7cjmlIuNp8pCKjKfpWSruC/Bpu572Uh9PtAK27fFLyld8DjGU5ISV7dgYMHB57AvWjNmPhGla9LJQFO2kr6Op0oEYajP4VXvfunw2W0tfdwUXptkTMHvo6qxQppg1KPVsHDizAD+DGMI3j1KTHduaGpQquFdb6fhGNv93naNg+NikN0EWvZUN9B+fNW2c6ew4N77W4Y8xHBObJlc84cn/ujbhC55A38fDGjpQP49B6sqEVn5M/hvtPCo1kK3Ih46qpHX+9VBeQ3dnSbZgacbS5YfkOl9c5Wn6O4Q5/xwtbXwI9zwpUY0uKoh0JEdXqOTRTU1iE0nvIufRdy4qAnfDI+RQ7lEvMeEtHXP0ZLZr8jtjN1Kv+WblQm8MJX4/wH8epe+MkuL2WCIlVdgpz1Apswu/n+lRH09tmMPSsFsp6JUQptMPlsdZOliLXtTM4ffwYjDQHGb5V+HZAgXHztfGyn+GvTSVg5vxfvHeKHriBq7Xltboqdx7xGzQ+uZAF7P+iCu7IXbPoTSXhWlQ1FJfCu4Zlfr1cD9IXY7L4lyminuNC2BdLsKJ6lOEJVlGikQ4NVbhd2m98zxP+VQ80vyWU+gJ+I6K2pgNc4+kXwwYrl6Pwn59uIY9AT690Hwu9sMNn/bH/Rf+foZwqPyRNFkcN3kSg+uaBu0t5Hd93/8bAAD//8KNdOvADgAA",
+                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/7xXb2/bthP+KsK9/Ym0pNROIqDAr0uBYSi2FV23F9v64kSeLc4UKZCUvSzQdx8oxXYSy136x31jSOLxnrvnnuPRd9BQQIkBobwDNMYGDMoaH19t9ReJ4ClwpywXGIImruxMSSihJt0wbFtIT9rZrSHHVps1lDDb5GnyRhn58hcSjsJ/bjPYEJTgax6RuCNN6Ilvcu7QiJoca53dKK+sUWbFBLaKb4pnufUtiuh7XDv2w/ytD9RAn4JwNPDxXjXkAzYtlKbTOgWNFemBJYEBtV09QBK684Ecc9TaXR67oEWNLviPhFmjr6EEKVC8eJHLJS4xK/KcquV8UeHlQhZZIYtlIWQh54ssBvkE4igfGE2em3YKA1XvaEmOjCAP5R93gK36jVy0hxI2OaRQaSvWP0fT16QpDCtL1J5SENYEZ7UmB2VwHaWwViaqZl/8zy5vN6hvcT0nEsWc5cvrK/Yiu8jZdZETW8zneVEt5NWcCug/9Cn4lsRQpkh8fPiI4CdKSS6opSJ54BfSCTupfKvxdlftd6Np8vZBDsnNq7c/JDd7ZpIf0eDqhL9aSUmR6cjepMW6q4ht9hX5s8uyC3qZ5Ly45BnLkuGDSHJ+UcT3SR/NEIH8GMynCed4v/VQglam+3tyuSXXqODZwSzdKiPt1k+bR2hJnq02DkrAtvVcUqvtbUMmzAZZHu/aKeqYrYLn2UO2Cp7nJ9m61+jTjj5utz6d6BZs28OXnF/xC0hBkhdOtWPvwMDloXXYWB6XCNu0GFSlKdmqUCdT6oIUajvEVYfQ+nI2W6lQdxUXttkRMHsY6qzStpo1qMxsPJNmEX4GKcRvAZUhN3Y+Nah0DK92yvO1av7vO0/R8aGPb+Ja8kY10H941oHkbefGo+VLA/6QwqGweTbnOc/+17UZX/AM+j4dJtWe+osUlFna2O2Pyf+1XTmUNJCtKcRuWCrnw+tBXkOTFFkxZ1nOssv32WU5vyqz698hjoKTVlfl/LIsimhlbIjpniYlqdEnFZFJlPEBtSbJk5uaxDpRwSc+YOh8UkXuhsc4JHao5xgCjg41enL8Gwpb69bKrPj6ysfeGCR+f8b/NK6+tVqJ24NEJC2x04Gh1nYbfz8xoj6dGkL7ueI2StArIWxnHsyXk3SwFoOomcdvEcXgoNkf91+E5yoUHLtQW6f+GUbXVA1uxivIO6vpSRi4WjlaYSC5i4i5aPXVgc7m/RFXbk3snkNlzwvToKiVORfcM5T65XDfKSPHYXGqUtW9xRmwzpfhhPo0oSTHSJOIu0YVfpPWO83zVEzVI8uveQo9Ad9SVVu7Zv7R6mcDxqvXo7Rf769hT4CPLzSfiv1wwhf9Yf7Ff6gxHZLfkyGH4yTPUvBd06C7hfKu7/t/AwAA///yku4D4w4AAA",
                             "objectset.rio.cattle.io/id": "helm-app",
                             "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
-                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.rancher-provisioning-capi.v1",
+                            "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.rancher-provisioning-capi.v2",
                             "objectset.rio.cattle.io/owner-namespace": "cattle-provisioning-capi-system"
                         },
-                        "creationTimestamp": "2024-12-17T09:45:12Z",
+                        "creationTimestamp": "2025-01-07T07:58:10Z",
                         "fields": [
                             "rancher-provisioning-capi",
                             "rancher-provisioning-capi",
-                            "105.0.0+up0.4.0",
+                            "105.1.0+up0.6.0",
                             "rancher-provisioning-capi",
-                            "1",
+                            "2",
                             "deployed"
                         ],
-                        "generation": 2,
+                        "generation": 4,
                         "labels": {
                             "catalog.cattle.io/cluster-repo-name": "rancher-charts",
-                            "objectset.rio.cattle.io/hash": "7a28a6efef4f2db2378760c972f45402854b8992"
+                            "objectset.rio.cattle.io/hash": "dcac441dfafa0211ebf56ba76d202d2f2cd2d560"
                         },
                         "managedFields": [
                             {
@@ -7841,7 +7229,7 @@
                                         },
                                         "f:ownerReferences": {
                                             ".": {},
-                                            "k:{\"uid\":\"16873b27-8d9c-49bb-a4ec-fd7fb3eecfa1\"}": {}
+                                            "k:{\"uid\":\"695eec25-1f98-4031-921e-65512b6d85e2\"}": {}
                                         }
                                     },
                                     "f:spec": {
@@ -7856,6 +7244,7 @@
                                                     "f:catalog.cattle.io/display-name": {},
                                                     "f:catalog.cattle.io/hidden": {},
                                                     "f:catalog.cattle.io/kube-version": {},
+                                                    "f:catalog.cattle.io/managed": {},
                                                     "f:catalog.cattle.io/namespace": {},
                                                     "f:catalog.cattle.io/os": {},
                                                     "f:catalog.cattle.io/permits-os": {},
@@ -7890,7 +7279,7 @@
                                 },
                                 "manager": "rancher",
                                 "operation": "Update",
-                                "time": "2024-12-17T09:45:28Z"
+                                "time": "2025-01-07T08:57:26Z"
                             },
                             {
                                 "apiVersion": "catalog.cattle.io/v1",
@@ -7908,7 +7297,7 @@
                                 "manager": "rancher",
                                 "operation": "Update",
                                 "subresource": "status",
-                                "time": "2024-12-17T09:45:28Z"
+                                "time": "2025-01-07T08:57:26Z"
                             }
                         ],
                         "name": "rancher-provisioning-capi",
@@ -7919,13 +7308,13 @@
                                 "blockOwnerDeletion": false,
                                 "controller": true,
                                 "kind": "Secret",
-                                "name": "sh.helm.release.v1.rancher-provisioning-capi.v1",
-                                "uid": "16873b27-8d9c-49bb-a4ec-fd7fb3eecfa1"
+                                "name": "sh.helm.release.v1.rancher-provisioning-capi.v2",
+                                "uid": "695eec25-1f98-4031-921e-65512b6d85e2"
                             }
                         ],
                         "relationships": [
                             {
-                                "fromId": "cattle-provisioning-capi-system/sh.helm.release.v1.rancher-provisioning-capi.v1",
+                                "fromId": "cattle-provisioning-capi-system/sh.helm.release.v1.rancher-provisioning-capi.v2",
                                 "fromType": "secret",
                                 "rel": "owner",
                                 "state": "active",
@@ -8030,14 +7419,14 @@
                                 "message": "Deployment is available. Replicas: 1"
                             }
                         ],
-                        "resourceVersion": "3812",
+                        "resourceVersion": "18862",
                         "state": {
                             "error": false,
                             "message": "",
                             "name": "deployed",
                             "transitioning": false
                         },
-                        "uid": "9150553a-c792-4e77-b91d-ff23e2d1d2a0"
+                        "uid": "8d6ed2bc-8421-4fe6-9264-0971eeee8cac"
                     },
                     "spec": {
                         "chart": {
@@ -8047,6 +7436,7 @@
                                     "catalog.cattle.io/display-name": "Rancher Provisioning CAPI Controller Manager",
                                     "catalog.cattle.io/hidden": "true",
                                     "catalog.cattle.io/kube-version": ">= 1.27.0-0 < 1.32.0-0",
+                                    "catalog.cattle.io/managed": "true",
                                     "catalog.cattle.io/namespace": "cattle-provisioning-capi-system",
                                     "catalog.cattle.io/os": "linux",
                                     "catalog.cattle.io/permits-os": "linux,windows",
@@ -8068,14 +7458,14 @@
                                 "sources": [
                                     "https://github.com/rancher/provisioning/blob/main/charts/capi/"
                                 ],
-                                "version": "105.0.0+up0.4.0"
+                                "version": "105.1.0+up0.6.0"
                             }
                         },
                         "helmVersion": 3,
                         "info": {
-                            "description": "Install complete",
-                            "firstDeployed": "2024-12-17T09:45:11Z",
-                            "lastDeployed": "2024-12-17T09:45:11Z",
+                            "description": "Upgrade complete",
+                            "firstDeployed": "2025-01-07T07:58:09Z",
+                            "lastDeployed": "2025-01-07T08:57:22Z",
                             "notes": "rancher-provisioning-capi has been installed. Check its status by running:\n  kubectl --namespace cattle-provisioning-capi-system get pods\"",
                             "status": "deployed"
                         },
@@ -8160,10 +7550,10 @@
                                 "namespace": "cattle-provisioning-capi-system"
                             }
                         ],
-                        "version": 1
+                        "version": 2
                     },
                     "status": {
-                        "observedGeneration": 2,
+                        "observedGeneration": 4,
                         "summary": {
                             "state": "deployed"
                         }
@@ -8185,13 +7575,13 @@
                     "kind": "App",
                     "metadata": {
                         "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/6xWTY/bNhD9K8ZcKzH68IdWQA5pAvRQFAW2aQq0zWFEjizWFEmQlLfbhf57Qclebza2m21ys83HmXnz3iP8AD0FFBgQ6gdArU3AII328atp/iIePAXmpGEcQ1DEpHklBdTQkepTtBaSizhzp8ml2/0Oani1z5PFj1KL178QdxT+85rGnqAG37HYiTlShJ7YPmcONe/IpXfUdMbs2L74omLeIo8V57PU3/tAPYwJcEcT5/eyJx+wt1DrQakEFDakpk1wDKjM9kldrgYfyKWOrDnOehyMd+iCvzJUh76DGqqKVnjTbvL8Jhflhsr1pqC8apfUrMoc15u2KkRZreOQz1ocuMN8cJ5aAhP5W2rJkebkof7jAdDKD+S8NBpq2OeQQKMM3/0coe9IUZhOWlSeEuBGB2eUIgd1cAMlsJM6qv8o4gtlGibvNOtMNByX6XJ9U6bLYoUp8kKkVZUvV1WzbgQhjB/HBLwlPgkQVxo/XLHrGZHIBdlKEqfNQXIG10khKO4jcjyL2A0NpfvHvf05ZFnJFzkrC5al2dkrPWrcTq0vVr2m3edo46EGJfXw99ljS66XwacnWHIntTB3/iz8KM8zUvR6UbA8i6wWB5YFy/OLLA+CP4/A0Z9j8sxw0QRo7emXjK1ZdKEgz520s/3gAyopMEi9fSN66SP2t7nkojVucTu3WYR7Sx6upOPELs9WLGPZd4OdO45jMr1hj5OUCUjdmuikT2f51W4dClpw01tFIUrZSufDO7LK3E8KF1mxTPMizTfvs5t6uayL6neID8g11Kouy4jyAcMQRRNH6P/NuyNvBnc56Y/hdXvJ6Q3nZtDh2vquvZtf3yD1gzAv6+Ia5AyH0Bkn/5miz3aVj0Z82v/t/DjfGkXfSy2k3l4m+SVEvtGK0Fr/yZyzN3r6ZiLgMSyOttIHd3FDPw1hStchVG+NbuV2mPGfzXKK+1d0PCX6xT0/PslxMZ4CE/+heHJ7Ej+QpkOhOkvAD32P7h7qh3Ec/w0AAP//HeQMseMIAAA",
+                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/6xW0W7bNhT9FeO+TmJJKY4UAX3oWmAPwzAg6zpgWx8o8sriTJEESTnLAv37QMmO09T2mrVvtnl47z33nEP4AQaMXPLIoXkAboyNPCprQvpq279QxICReGWJ4DFqJMq+UhIa6FEPOXcOsrM4e2fQ55vdFhp4tWPZ6kdl5OtfUHiM/3nN8AGhgdCT1Il41MgDkh0jnhvRo8/vsO2t3ZJd8UXFguMiVVzO8nAfIg4wZSA8zpzfqwFD5IODxoxaZ6B5i3rehOCRa7t5UlfoMUT0uUdnD7MeBhM99zFcGKrnoYcG6hrX/KarGLthsqywvK4KZHV3he26ZPy66upClvV1GvJZiz13WA5OU8tgJn+LHXo0AgM0fzwAd+oD+qCsgQZ2DDJotRXbnxP0HWqM80nHdcAMhDXRW63RQxP9iBlslUnqP4r4QpnG2Tu0KlqUtMrXJRX5VVEVecvW1znlrJSsrNcFvYHp45RBcChmAdJK04cLdj0hEvqoOoXyuDnITuB6JSWmfSSOJxHbscV897i3P0dKS7FipCwIzenJKwM3fDO3Plv1knafo22ABrQy498njx36QcWQH2HZnTLS3oWT8IM8z0jh61VBGE2sVnuWBWHsLMu94M8jcPDnlD0zXDIBd+74CyXXJLlQYhBeucV+8IFrJXlUZvNGDiok7G9LyVVn/ep2abOK9w4DXEjHkR2ja0IJ/W50S8dpyuY37HGSMgNlOpuc9Oksv7qN5xJXwg5OY0xSdsqH+A6dtvezwgUt1jllOa3e06pZV01Z/w7pAbmEqpurIqFC5HFMoskD9P/m3WOwoz+f9Mfw+p0S+EYIO5p4aX2X3s2vb5CHUdqXdfEtF4SPsbde/TNHn2zrkIz4tP/b5XG+tRq/V0YqszlP8kuIfKMVcefCJ3Mu3hjwm4nAD2HxuFEh+rMb+mmMc7r2oXprTac244L/bJZj3L+i4zHRL+758UmOi+kYmPQPJaDfofwBDe4LNTSDMA4D9/fQPEzT9G8AAAD//4BON13jCAAA",
                             "objectset.rio.cattle.io/id": "helm-app",
                             "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
                             "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.rancher-webhook.v2",
                             "objectset.rio.cattle.io/owner-namespace": "cattle-system"
                         },
-                        "creationTimestamp": "2024-12-17T09:44:28Z",
+                        "creationTimestamp": "2025-01-07T07:57:38Z",
                         "fields": [
                             "rancher-webhook",
                             "rancher-webhook",
@@ -8226,7 +7616,7 @@
                                         },
                                         "f:ownerReferences": {
                                             ".": {},
-                                            "k:{\"uid\":\"b60dbca4-4693-425a-ac2d-881458b6bdea\"}": {}
+                                            "k:{\"uid\":\"072bed07-530c-4272-b156-0a13d1385209\"}": {}
                                         }
                                     },
                                     "f:spec": {
@@ -8270,7 +7660,7 @@
                                 },
                                 "manager": "rancher",
                                 "operation": "Update",
-                                "time": "2024-12-17T09:45:33Z"
+                                "time": "2025-01-07T07:58:43Z"
                             },
                             {
                                 "apiVersion": "catalog.cattle.io/v1",
@@ -8288,7 +7678,7 @@
                                 "manager": "rancher",
                                 "operation": "Update",
                                 "subresource": "status",
-                                "time": "2024-12-17T09:45:33Z"
+                                "time": "2025-01-07T07:58:43Z"
                             }
                         ],
                         "name": "rancher-webhook",
@@ -8300,7 +7690,7 @@
                                 "controller": true,
                                 "kind": "Secret",
                                 "name": "sh.helm.release.v1.rancher-webhook.v2",
-                                "uid": "b60dbca4-4693-425a-ac2d-881458b6bdea"
+                                "uid": "072bed07-530c-4272-b156-0a13d1385209"
                             }
                         ],
                         "relationships": [
@@ -8361,14 +7751,14 @@
                                 "message": "Resource is current"
                             }
                         ],
-                        "resourceVersion": "3875",
+                        "resourceVersion": "3775",
                         "state": {
                             "error": false,
                             "message": "",
                             "name": "deployed",
                             "transitioning": false
                         },
-                        "uid": "20987dae-17a2-49ec-a5cb-99e82f51eae9"
+                        "uid": "9829eb73-9f3b-4578-86f2-148a92785c94"
                     },
                     "spec": {
                         "chart": {
@@ -8394,8 +7784,8 @@
                         "helmVersion": 3,
                         "info": {
                             "description": "Upgrade complete",
-                            "firstDeployed": "2024-12-17T09:44:28Z",
-                            "lastDeployed": "2024-12-17T09:45:33Z",
+                            "firstDeployed": "2025-01-07T07:57:38Z",
+                            "lastDeployed": "2025-01-07T07:58:42Z",
                             "status": "deployed"
                         },
                         "name": "rancher-webhook",
@@ -8466,13 +7856,13 @@
                     "kind": "App",
                     "metadata": {
                         "annotations": {
-                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/6xWXY/jNBT9K9F9TjxJmnaaSPsArIQQQkjLah+AfbixbxpTx7Zsp8Mwyn9HTuh0RtN2C+xbYp/ej3POvc0TDBRQYEBongC1NgGDNNrHV9P+QTx4CsxJwziGoIhJcycFNNCTGjK0FtKLOPOgyWW7wx4auDsUafKj1OLdL8QdhS/+TONA0IDvWczEHClCT+xQMP/oAw3ZaHcOBWXc6OCMUuTYobgprLfIY+zlLlviwZQCdzR3/1EO5AMOFho9KpWCwpbUzAnHgMrsXsTlavSBXObImmPVDjXvyWW8Rxf8laJ69D000FVVt27rStTbfL3Ge6pXot7iNi9b3G6Q6oJTVWy2scgjMZdYgAVyvskUZho+UEeONCcPzW9PgFZ+Iuel0dDATGKrDN//HKHvSVGYbzpUnlJ4kakJbqQU9lJHRzwL+5+lG2dnVUTlarPZZEWHRVa1dZ7huqWs2lBXifu6rlcbmD5PKXhLfBYl0hwfrpj5jHDkguwkiZNgkJ7B9VIIiszEbs8i9mNL2eGZwd/HPF/Ru6Rg5ZrlWZ7MBzwp2KqM72djXNPsLdp4aEBJPf559tqSG2Tw2QmWPkgtzIM/Cz/a9W0LJSvyiyX/I2z2RUdO6RmLobUvTnJWVKyEFAR57qRdLAffkyaHKrGjs8ZTcgqaBJMMuKdkSZsoOpBKRiswkI+X2giK7fZmrq4Pwfrm7m4nQz+2jJvh2PbdtVGK0n66qCzcNI4nWot8zXKWwzSl8wJ9jrxKQerORKO+JuAH7QMqlXAzWEUh+q+Tzof3ZJV5nL1b5mWVFWVW3H/M66aqmnX9K8SddQvKBwxjdIk4Qv//inHkzeguL5fnfeEOktM3nJtRh9uovLa+r6T6zuhO7n5Ce0OW+NjJ3b9L5lrkDMfQGyf/mpcO2299HJJXZSx/FR+Mom+lFlLvbun6TTK01r+Ku8g80Fdg8fMLuxbTyR/xa8CTO5BYRnKxZ56CH4cB3SM0T9M0/R0AAP//Zz3wS08IAAA",
+                            "objectset.rio.cattle.io/applied": "H4sIAAAAAAAA/6xWXY/jNBT9K9F9TjxOvyaNtA/ASgghhLSs9gHYhxv7pjF1bMt2Ogyj/HfkhE5nNG23wL4l9un9OOfc2zxBTxElRoT6CdAYGzEqa0J6tc0fJGKgyLyyTGCMmpiyd0pCDR3pvkDnIL+Isw+GfLE77KGGu0OZZz8qI9/9QsJT/OLPDPYENYSOpUzMkyYMxA4lC48hUl8MbudRUiGsid5qTZ4dypvCBocixZ7vijkejDkIT1P3H1VPIWLvoDaD1jlobEhPnAiMqO3uRVyhhxDJF56cPVbt0YiOfCE69DFcKarD0EEN7WrVrpvtSm4rvl7jPW2XclthxRcNVhukbSloVW6qVOSRmEsswAw532QOEw0fqCVPRlCA+rcnQKc+kQ/KGqhhIrHRVux/TtD3pClONy3qQDm8yFRHP1AOe2WSI56F/c/SDZOztqVcklhtCt5uZLES94uiWlFVbKRcrnG7bVaygvHzmENwJCZREs3p4YqZzwhHPqpWkTwJBvkZXKekpMRM6vYsYj80VByeGfx94HxJ77KSLdaMFzybDkRWsuUivZ+NcU2zt2gboAatzPDn2WtHvlcxFCdY/qCMtA/hLPxo17ctLFjJL5b8j7DFFx055mcshs69OOGsXLEF5CApCK/cbDn4ngx51JkbvLOBslPQLNqsxz1lc9pM04F0NjiJkUK6NFZSarezU3VdjC7Ud3c7FbuhYcL2x7bvro1SkvbTRWXhpnE80VryNeOMwzjm0wJ9jrzMQZnWJqO+JuAHEyJqnQnbO00x+a9VPsT35LR9nLy74It1wcuC33/k9/W6qpf8V0g76xZUiBiH5BJ5hP7/FeMp2MFfXi7P+8IflKBvhLCDibdReW19X0n1nTWt2v2E7oYs6bFVu3+XzDcoGA6xs179NS0dtq9CGpJXZcx/FR+spm+Vkcrsbun6TTJ0LryKO8vc01dg8fMLu5bjyR/payCQP5CcR3K2J88hDH2P/hHqp3Ec/w4AAP//66oc208IAAA",
                             "objectset.rio.cattle.io/id": "helm-app",
                             "objectset.rio.cattle.io/owner-gvk": "/v1, Kind=Secret",
                             "objectset.rio.cattle.io/owner-name": "sh.helm.release.v1.system-upgrade-controller.v1",
                             "objectset.rio.cattle.io/owner-namespace": "cattle-system"
                         },
-                        "creationTimestamp": "2024-12-17T09:45:00Z",
+                        "creationTimestamp": "2025-01-07T07:58:31Z",
                         "fields": [
                             "system-upgrade-controller",
                             "system-upgrade-controller",
@@ -8507,7 +7897,7 @@
                                         },
                                         "f:ownerReferences": {
                                             ".": {},
-                                            "k:{\"uid\":\"4ee23666-1fa1-4b90-a5be-46ef4d799936\"}": {}
+                                            "k:{\"uid\":\"91d3ec46-0f6d-4c72-84e8-6dd35a99b4d8\"}": {}
                                         }
                                     },
                                     "f:spec": {
@@ -8552,7 +7942,7 @@
                                 },
                                 "manager": "rancher",
                                 "operation": "Update",
-                                "time": "2024-12-17T09:45:06Z"
+                                "time": "2025-01-07T07:58:37Z"
                             },
                             {
                                 "apiVersion": "catalog.cattle.io/v1",
@@ -8570,7 +7960,7 @@
                                 "manager": "rancher",
                                 "operation": "Update",
                                 "subresource": "status",
-                                "time": "2024-12-17T09:45:06Z"
+                                "time": "2025-01-07T07:58:37Z"
                             }
                         ],
                         "name": "system-upgrade-controller",
@@ -8582,7 +7972,7 @@
                                 "controller": true,
                                 "kind": "Secret",
                                 "name": "sh.helm.release.v1.system-upgrade-controller.v1",
-                                "uid": "4ee23666-1fa1-4b90-a5be-46ef4d799936"
+                                "uid": "91d3ec46-0f6d-4c72-84e8-6dd35a99b4d8"
                             }
                         ],
                         "relationships": [
@@ -8622,14 +8012,14 @@
                                 "message": "Deployment is available. Replicas: 1"
                             }
                         ],
-                        "resourceVersion": "3574",
+                        "resourceVersion": "3702",
                         "state": {
                             "error": false,
                             "message": "",
                             "name": "deployed",
                             "transitioning": false
                         },
-                        "uid": "df04bc2a-315b-48da-b660-b173453e8e7a"
+                        "uid": "3a359d26-a70a-4e80-ad6f-1728e9360b83"
                     },
                     "spec": {
                         "chart": {
@@ -8656,8 +8046,8 @@
                         "helmVersion": 3,
                         "info": {
                             "description": "Install complete",
-                            "firstDeployed": "2024-12-17T09:44:59Z",
-                            "lastDeployed": "2024-12-17T09:44:59Z",
+                            "firstDeployed": "2025-01-07T07:58:30Z",
+                            "lastDeployed": "2025-01-07T07:58:30Z",
                             "status": "deployed"
                         },
                         "name": "system-upgrade-controller",

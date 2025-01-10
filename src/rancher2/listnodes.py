@@ -1,12 +1,4 @@
-import time
-from dotenv import load_dotenv
-import os
-
 from src.rancher2.base import Rancher2Base
-from src.rancher2.auth import RancherClient, RedmineClient
-from src.utils import memory_unit_conversion, cpu_unit_conversion
-
-load_dotenv()
 
 
 class Rancher2Nodes(Rancher2Base):
@@ -23,18 +15,8 @@ class Rancher2Nodes(Rancher2Base):
         clusters = self._get_clusters(rancher_client)
         cluster_content = []
         for cluster in clusters:
-            cluster_link = (
-                f"{rancher_client.base_url}dashboard/c/{cluster['id']}/explorer"
-            )
-            cluster_content.append(f"\nh3. \"{cluster['name']}\":{cluster_link}\n")
-
-            # add cluster information
-            cluster_content.append(f"*Description*: {cluster['description'] or '-'}\n")
-            cluster_content.append(
-                f"*State*: {cluster['state']} &nbsp; &nbsp; "
-                f"*Provider*: {cluster['provider']} &nbsp; &nbsp; "
-                f"*Kubernetes Version*: {cluster['version']['gitVersion']} &nbsp; &nbsp; "
-                f"*Created date*: {cluster['created']}\n"
+            cluster_link = self._add_cluster_short_content(
+                rancher_client, cluster, cluster_content
             )
 
             # add the memory and CPU information
