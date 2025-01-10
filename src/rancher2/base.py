@@ -5,6 +5,8 @@ import os
 from src.rancher2.auth import RancherClient, RedmineClient
 from src.utils import memory_unit_conversion, cpu_unit_conversion
 
+load_dotenv()
+
 
 class Rancher2Base:
     def __init__(self, dryrun=False):
@@ -25,6 +27,30 @@ class Rancher2Base:
             + time.strftime("%d %B %Y")
             + ". _Do not update this page manually._"
         )
+
+    def _add_cluster_short_content(self, rancher_client, cluster, cluster_content):
+        """
+        Add the cluster information to the content and return the cluster link
+        @param rancher_client: RancherClient - The Rancher client
+        @param cluster: dict - The cluster to print
+        @param cluster_content: list - The list to append the content to
+
+        @return: The cluster link
+        """
+
+        cluster_link = f"{rancher_client.base_url}dashboard/c/{cluster['id']}/explorer"
+        cluster_content.append(f"\nh3. \"{cluster['name']}\":{cluster_link}\n")
+
+        # add cluster information
+        cluster_content.append(f"*Description*: {cluster['description'] or '-'}\n")
+        cluster_content.append(
+            f"*State*: {cluster['state']} &nbsp; &nbsp; "
+            f"*Provider*: {cluster['provider']} &nbsp; &nbsp; "
+            f"*Kubernetes Version*: {cluster['version']['gitVersion']} &nbsp; &nbsp; "
+            f"*Created date*: {cluster['created']}\n"
+        )
+
+        return cluster_link
 
     def _get_clusters(self, rancher_client):
         clusters_response = rancher_client.get("/v3/clusters")
