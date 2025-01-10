@@ -20,8 +20,8 @@ class Rancher2Base:
             )
 
         self.content = []
-        self.content.append("{{>toc}}\n\n")
         self.content.append(f"h1. {self.pageTitle}\n")
+        self.content.append("{{>toc}}\n\n")
         self.content.append(
             "Automatically discovered on "
             + time.strftime("%d %B %Y")
