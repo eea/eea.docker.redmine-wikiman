@@ -58,9 +58,10 @@ class Rancher2Apps(Rancher2Base):
                 else:
                     namespace = namespaces[namespace_id]
                     namespace_link = f"{cluster_link}/namespace/{namespace_id}"
-                    project_name = projects_dict.get(namespace["projectId"], "-")
+                    project_id = namespace["projectId"] or ""
+                    project_name = projects_dict.get(project_id, "-")
                     project_link = (
-                        f"{cluster_link}/management.cattle.io.project/{namespace['projectId'].replace(':', '/')}"
+                        f"{cluster_link}/management.cattle.io.project/{project_id.replace(':', '/')}"
                     )
                     self.content.append(
                         f'\nh4. _Namespace: "{namespace_id}":{namespace_link}_\n'
@@ -69,8 +70,7 @@ class Rancher2Apps(Rancher2Base):
                     self.content.append(
                         f"*State*: {namespace['state']} &nbsp; &nbsp; "
                         f"*Created*: {namespace['created']} &nbsp; &nbsp; "
-                        f"*ProjectID*: {namespace['projectId'] or '-'} &nbsp; &nbsp; "
-                        f'*ProjectName*: "{project_name}":{project_link}\n'
+                        f'*Project*: "{project_name}":{project_link}\n'
                     )
 
                 # add app information

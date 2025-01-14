@@ -21,13 +21,11 @@ class Rancher2Pods(Rancher2Base):
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
         for pod in pods_dict.get(node["nodeName"], []):
             # add pod information
-            pod_images = []
             containers_ready = 0
             containers_restarts = 0
             pod_link = f"{cluster_link}/pod/{pod['id']}"
 
             for container in pod["status"]["containerStatuses"]:
-                pod_images.append(container["image"])
                 containers_ready += int(container["ready"] == True)
                 containers_restarts += container["restartCount"]
 
@@ -35,8 +33,7 @@ class Rancher2Pods(Rancher2Base):
             cluster_content.append(f"*Description*: {pod.get('description', '-')}\n")
             cluster_content.append(
                 f"*State*: {pod['status']['phase']} &nbsp; &nbsp; "
-                f"*Namespace*: {pod['metadata']['namespace']} &nbsp; &nbsp; "
-                f"*Images*: {', '.join(pod_images)}\n"
+                f"*Namespace*: {pod['metadata']['namespace']}\n"
             )
             cluster_content.append(
                 f"*Ready*: {containers_ready}/{len(pod['status']['containerStatuses'])} &nbsp; &nbsp; "
