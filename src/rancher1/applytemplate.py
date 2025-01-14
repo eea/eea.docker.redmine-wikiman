@@ -21,7 +21,7 @@ from redminelib.exceptions import ResourceNotFoundError, UnknownError
 from more_itertools import peekable
 
 import addimageinfo
-from image_checker import ImageChecker
+from src.image_checker import ImageChecker
 
 log = logging.getLogger(__name__)
 
