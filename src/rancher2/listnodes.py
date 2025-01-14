@@ -3,7 +3,7 @@ from src.rancher2.base import Rancher2Base
 
 class Rancher2Nodes(Rancher2Base):
     def __init__(self, dryrun=False):
-        self.pageTitle = "Rancher2_test"
+        self.pageTitle = "Rancher2_test_nodes"
         super().__init__(dryrun)
 
     def set_server_rancher_content(self, rancher_client, rancher_server_name):
@@ -38,7 +38,7 @@ class Rancher2Nodes(Rancher2Base):
 
             # add the nodes information
             cluster_content.append(
-                "|_{width:14em}. Name |_. State |_. Version |_. IP address |_. OS |_. Used CPU (core) "
+                "|_{width:14em}. Name |_. Check_MK |_. State |_. Version |_. IP address |_. OS |_. Used CPU (core) "
                 "|_{width:8em}. Used Memory (Gib) |_. Used Pods |_. Created date |"
             )
 
@@ -46,10 +46,16 @@ class Rancher2Nodes(Rancher2Base):
             for node in nodes:
                 capacity, requested = self._get_memory_cpu(node)
                 node_link = f"{cluster_link}/node/{node['nodeName']}"
+                check_mk_link = (
+                    f"https://goldeneye.eea.europa.eu/omdeea/check_mk/index.py"
+                    f"?start_url=%2Fomdeea%2Fcheck_mk%2Fview.py%3Fview_name%3Dhost%26host%3D"
+                    f"{node['nodeName'].split('.')[0]}%26site%3Domdeea"
+                )
 
                 cluster_content.append(
-                    f"| \"{node['nodeName']}\":{node_link} | {node['state']} "
-                    f"| {node['info']['kubernetes']['kubeletVersion']} "
+                    f"| \"{node['nodeName']}\":{node_link} "
+                    f"| \"{node['nodeName'].split('.')[0]}\":{check_mk_link} "
+                    f"| {node['state']} | {node['info']['kubernetes']['kubeletVersion']} "
                     f"| {node['ipAddress']} | {node['info']['os']['operatingSystem']} "
                     f"|>. {requested['cpu']} |>. {requested['memory']} "
                     f"|>. {node['requested']['pods']} | {node['created']} |"

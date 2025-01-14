@@ -1,9 +1,11 @@
+from collections import defaultdict
+
 from src.rancher2.base import Rancher2Base
 
 
 class Rancher2Apps(Rancher2Base):
     def __init__(self, dryrun=False):
-        self.pageTitle = "Rancher2_test"
+        self.pageTitle = "Rancher2_test_apps"
         super().__init__(dryrun)
 
     def _get_namespaces_dict(self, rancher_client, cluster_id):
@@ -16,22 +18,29 @@ class Rancher2Apps(Rancher2Base):
 
     def _get_apps_dict(self, rancher_client, cluster_id):
         # set apps dict
+        app_dict = defaultdict(list)
         apps = rancher_client.get(
             f"k8s/clusters/{cluster_id}/v1/catalog.cattle.io.apps"
         )
-        app_dict = {}
         for app in apps["data"]:
             namespace = app["spec"]["namespace"] or "No Namespace"
-            if namespace not in app_dict:
-                app_dict[namespace] = []
             app_dict[namespace].append(app)
 
         return app_dict
+
+    def _get_projects_dict(self, rancher_client):
+        projects_dict = defaultdict(str)
+        projects = rancher_client.get("/v3/projects")
+        for project in projects["data"]:
+            projects_dict[project["id"]] = project["name"]
+
+        return projects_dict
 
     def set_server_rancher_content(self, rancher_client, rancher_server_name):
         server_link = f"{rancher_client.base_url}dashboard"
         self.content.append(f'\nh2. "{rancher_server_name}":{server_link}\n')
 
+        projects_dict = self._get_projects_dict(rancher_client)
         clusters = self._get_clusters(rancher_client)
         for cluster in clusters:
             cluster_link = self._add_cluster_short_content(
@@ -49,13 +58,19 @@ class Rancher2Apps(Rancher2Base):
                 else:
                     namespace = namespaces[namespace_id]
                     namespace_link = f"{cluster_link}/namespace/{namespace_id}"
+                    project_id = namespace["projectId"] or ""
+                    project_name = projects_dict.get(project_id, "-")
+                    project_link = (
+                        f"{cluster_link}/management.cattle.io.project/{project_id.replace(':', '/')}"
+                    )
                     self.content.append(
                         f'\nh4. _Namespace: "{namespace_id}":{namespace_link}_\n'
                     )
+                    self.content.append(f"*Description*: {namespace.get('description', '-')}\n")
                     self.content.append(
                         f"*State*: {namespace['state']} &nbsp; &nbsp; "
                         f"*Created*: {namespace['created']} &nbsp; &nbsp; "
-                        f"*ProjectID*: {namespace['projectId'] or '-'}\n"
+                        f'*Project*: "{project_name}":{project_link}\n'
                     )
 
                 # add app information

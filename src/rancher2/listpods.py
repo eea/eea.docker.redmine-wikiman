@@ -1,11 +1,13 @@
 from collections import defaultdict
 
+from src.image_checker import ImageChecker
 from src.rancher2.base import Rancher2Base
 
 
 class Rancher2Pods(Rancher2Base):
     def __init__(self, dryrun=False):
-        self.pageTitle = "Rancher2_test"
+        self.pageTitle = "Rancher2_test_pods"
+        self.image_checker = ImageChecker()
         super().__init__(dryrun)
 
     def _get_pods(self, rancher_client):
@@ -17,15 +19,13 @@ class Rancher2Pods(Rancher2Base):
         return pods_dict
 
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
-        for pod in pods_dict[node["nodeName"]]:
+        for pod in pods_dict.get(node["nodeName"], []):
             # add pod information
-            pod_images = []
             containers_ready = 0
             containers_restarts = 0
             pod_link = f"{cluster_link}/pod/{pod['id']}"
 
             for container in pod["status"]["containerStatuses"]:
-                pod_images.append(container["image"])
                 containers_ready += int(container["ready"] == True)
                 containers_restarts += container["restartCount"]
 
@@ -33,8 +33,7 @@ class Rancher2Pods(Rancher2Base):
             cluster_content.append(f"*Description*: {pod.get('description', '-')}\n")
             cluster_content.append(
                 f"*State*: {pod['status']['phase']} &nbsp; &nbsp; "
-                f"*Namespace*: {pod['metadata']['namespace']} &nbsp; &nbsp; "
-                f"*Images*: {', '.join(pod_images)}\n"
+                f"*Namespace*: {pod['metadata']['namespace']}\n"
             )
             cluster_content.append(
                 f"*Ready*: {containers_ready}/{len(pod['status']['containerStatuses'])} &nbsp; &nbsp; "
@@ -46,14 +45,15 @@ class Rancher2Pods(Rancher2Base):
             # add containers information
             cluster_content.append(
                 "|_{width:14em}. Name |_. State |_. Image "
-                "|_. Ready |_. Restarts |_. Start time |"
+                "|_. Ready |_. Restarts |_. Start time |_. Upgrade |"
             )
             for container in pod["status"]["containerStatuses"]:
                 container_state = next(iter(container["state"]))
                 start_time = container["state"]["running"]["startedAt"] if container["started"] else "-"
+                _, update_msg = self.image_checker.check_image_and_base_status(container["image"])
                 cluster_content.append(
                     f"| {container['name']} | {container_state} | {container['image']} "
-                    f"| {container['ready']} | {container['restartCount']} | {start_time} |"
+                    f"| {container['ready']} | {container['restartCount']} | {start_time} | {update_msg} |"
                 )
 
     def set_server_rancher_content(self, rancher_client, rancher_server_name):

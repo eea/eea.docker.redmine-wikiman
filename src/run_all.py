@@ -10,7 +10,7 @@ import rancher1.liststacks as liststacks
 import rancher1.backupstacks as backupstacks
 
 from rancher1.listhosts import RancherInstances
-from rancher1.image_checker import ImageChecker
+from src.image_checker import ImageChecker
 
 
 def run_apply_template(page, image_checker, dry_run):
