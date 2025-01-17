@@ -11,6 +11,7 @@ class Rancher2Nodes(Rancher2Base):
         self.content.append(f'\nh2. "{rancher_server_name}":{server_link}\n')
         server_capacity = 0
         server_requested = 0
+        server_limit = 0
 
         clusters = self._get_clusters(rancher_client)
         cluster_content = []
@@ -19,17 +20,22 @@ class Rancher2Nodes(Rancher2Base):
                 rancher_client, cluster, cluster_content
             )
 
-            # add the memory and CPU information
-            capacity, requested = self._get_memory_cpu(cluster)
-            server_capacity += capacity["memory"]
-            server_requested += requested["memory"]
+            # add the memory information
+            capacity, requested, limit = self._get_memory_data(cluster)
+            server_capacity += capacity
+            server_requested += requested
+            server_limit += limit
+
+            cluster_content.append(f"*Total RAM*: {capacity} GiB\n")
             cluster_content.append(
-                f"*Reserved Memory*: {requested['memory']} "
-                f"GiB from a total of {capacity['memory']} GiB\n"
-            ),
+                f"*Reserved RAM*: {requested} GiB, "
+                f"{round(requested * 100 / capacity, 2)}% used or "
+                f"{round(capacity - requested, 2)} GiB available\n"
+            )
             cluster_content.append(
-                f"*Reserved CPUs*: {requested['cpu']} cores "
-                f"from a total of {capacity['cpu']} cores\n"
+                f"*Limit RAM*: {limit} GiB, "
+                f"{round(limit * 100 / capacity, 2)}% used or "
+                f"{round(capacity - limit, 2)} GiB available\n"
             )
             cluster_content.append(
                 f"*Reserved Pods*: {cluster['requested']['pods']} "
@@ -38,13 +44,14 @@ class Rancher2Nodes(Rancher2Base):
 
             # add the nodes information
             cluster_content.append(
-                "|_{width:14em}. Name |_. Check_MK |_. State |_. Version |_. IP address |_. OS |_. Used CPU (core) "
-                "|_{width:8em}. Used Memory (Gib) |_. Used Pods |_. Created date |"
+                "|_{width:14em}. Name |_. Check_MK |_. State "
+                "|_. Total RAM |_. Used |_. %Used |_. Available |_. Used pods "
+                "|_. IP address |_. Version |_. OS |_. Created date |"
             )
 
             nodes = self._get_nodes(rancher_client, cluster["id"])
             for node in nodes:
-                capacity, requested = self._get_memory_cpu(node)
+                capacity, requested, _ = self._get_memory_data(node)
                 node_link = f"{cluster_link}/node/{node['nodeName']}"
                 check_mk_link = (
                     f"https://goldeneye.eea.europa.eu/omdeea/check_mk/index.py"
@@ -54,14 +61,22 @@ class Rancher2Nodes(Rancher2Base):
 
                 cluster_content.append(
                     f"| \"{node['nodeName']}\":{node_link} "
-                    f"| \"{node['nodeName'].split('.')[0]}\":{check_mk_link} "
-                    f"| {node['state']} | {node['info']['kubernetes']['kubeletVersion']} "
-                    f"| {node['ipAddress']} | {node['info']['os']['operatingSystem']} "
-                    f"|>. {requested['cpu']} |>. {requested['memory']} "
-                    f"|>. {node['requested']['pods']} | {node['created']} |"
+                    f"| \"{node['nodeName'].split('.')[0]}\":{check_mk_link} | {node['state']} "
+                    f"|>. {capacity} |>. {requested} |>. {round(requested * 100 / capacity, 2)} "
+                    f"|>. {round(capacity - requested, 2)} |>. {node['requested']['pods']} "
+                    f"| {node['ipAddress']} | {node['info']['kubernetes']['kubeletVersion']} "
+                    f"| {node['info']['os']['operatingSystem']} | {node['created']} |"
                 )
 
+        self.content.append(f"*Total RAM*: {server_capacity} GiB\n")
         self.content.append(
-            f"\n*Total Reserved Memory*: {server_requested} GiB from a total of {server_capacity} GiB\n"
+            f"*Reserved RAM*: {server_requested} GiB, "
+            f"{round(server_requested * 100 / server_capacity, 2)}% used or "
+            f"{round(server_capacity - server_requested, 2)} GiB available\n"
+        )
+        self.content.append(
+            f"*Limit RAM*: {server_limit} GiB, "
+            f"{round(server_limit * 100 / server_capacity, 2)}% used or "
+            f"{round(server_capacity - server_limit, 2)} GiB available\n"
         )
         self.content.extend(cluster_content)

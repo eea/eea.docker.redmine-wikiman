@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from src.image_checker import ImageChecker
 from src.rancher2.base import Rancher2Base
+from src.utils import memory_unit_conversion
 
 
 class Rancher2Pods(Rancher2Base):
@@ -9,6 +10,16 @@ class Rancher2Pods(Rancher2Base):
         self.pageTitle = "Rancher2_test_pods"
         self.image_checker = ImageChecker()
         super().__init__(dryrun)
+
+    def _get_container_memory_data(self, container, resources_dict):
+        resources = resources_dict.get(container["name"])
+        if not resources:
+            return 0, 0
+
+        requested = round(memory_unit_conversion(resources["requests"]["memory"]), 2)
+        limit = round(memory_unit_conversion(resources["limits"]["memory"]), 2)
+
+        return requested, limit
 
     def _get_pods(self, rancher_client):
         pods_dict = defaultdict(list)
@@ -19,41 +30,31 @@ class Rancher2Pods(Rancher2Base):
         return pods_dict
 
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
+        cluster_content.append(
+            "|_{min-width:14em}. Pod |_. Pod state |_. Namespace "
+            "|_. Container |_. Container state |_. Image |_. Restarts "
+            "|_. Reservation |_. Limit |_. Start time |_. Upgrade |"
+        )
+
         for pod in pods_dict.get(node["nodeName"], []):
-            # add pod information
-            containers_ready = 0
-            containers_restarts = 0
+            # add pod/containers information
             pod_link = f"{cluster_link}/pod/{pod['id']}"
+            resources_dict = {
+                container["name"]: container["resources"]
+                for container in pod["spec"]["containers"]
+            }
 
-            for container in pod["status"]["containerStatuses"]:
-                containers_ready += int(container["ready"] == True)
-                containers_restarts += container["restartCount"]
-
-            cluster_content.append(f"\nh4. _Pod: \"{pod['metadata']['name']}\":{pod_link}_\n")
-            cluster_content.append(f"*Description*: {pod.get('description', '-')}\n")
-            cluster_content.append(
-                f"*State*: {pod['status']['phase']} &nbsp; &nbsp; "
-                f"*Namespace*: {pod['metadata']['namespace']}\n"
-            )
-            cluster_content.append(
-                f"*Ready*: {containers_ready}/{len(pod['status']['containerStatuses'])} &nbsp; &nbsp; "
-                f"*Restarts*: {containers_restarts} &nbsp; &nbsp; "
-                f"*IP address*: {pod['status'].get('podIP', '-')} &nbsp; &nbsp; "
-                f"*Start time*: {pod['status']['startTime']}\n"
-            )
-
-            # add containers information
-            cluster_content.append(
-                "|_{width:14em}. Name |_. State |_. Image "
-                "|_. Ready |_. Restarts |_. Start time |_. Upgrade |"
-            )
             for container in pod["status"]["containerStatuses"]:
                 container_state = next(iter(container["state"]))
                 start_time = container["state"]["running"]["startedAt"] if container["started"] else "-"
                 _, update_msg = self.image_checker.check_image_and_base_status(container["image"])
+                requested, limit = self._get_container_memory_data(container, resources_dict)
+
                 cluster_content.append(
-                    f"| {container['name']} | {container_state} | {container['image']} "
-                    f"| {container['ready']} | {container['restartCount']} | {start_time} | {update_msg} |"
+                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod['status']['phase']} "
+                    f"| {pod['metadata']['namespace']} | {container['name']} | {container_state} "
+                    f"| {container['image']} |>. {container['restartCount']} "
+                    f"|>. {requested} |>. {limit} | {start_time} | {update_msg} |"
                 )
 
     def set_server_rancher_content(self, rancher_client, rancher_server_name):
@@ -61,6 +62,7 @@ class Rancher2Pods(Rancher2Base):
         self.content.append(f'\nh2. "{rancher_server_name}":{server_link}\n')
         server_capacity = 0
         server_requested = 0
+        server_limit = 0
 
         pods_dict = self._get_pods(rancher_client)
         clusters = self._get_clusters(rancher_client)
@@ -70,17 +72,22 @@ class Rancher2Pods(Rancher2Base):
                 rancher_client, cluster, cluster_content
             )
 
-            # add the memory and CPU information
-            capacity, requested = self._get_memory_cpu(cluster)
-            server_capacity += capacity["memory"]
-            server_requested += requested["memory"]
+            # add the memory information
+            capacity, requested, limit = self._get_memory_data(cluster)
+            server_capacity += capacity
+            server_requested += requested
+            server_limit += limit
+
+            cluster_content.append(f"*Total RAM*: {capacity} GiB\n")
             cluster_content.append(
-                f"*Reserved Memory*: {requested['memory']} "
-                f"GiB from a total of {capacity['memory']} GiB\n"
-            ),
+                f"*Reserved RAM*: {requested} GiB, "
+                f"{round(requested * 100 / capacity, 2)}% used or "
+                f"{round(capacity - requested, 2)} GiB available\n"
+            )
             cluster_content.append(
-                f"*Reserved CPUs*: {requested['cpu']} cores "
-                f"from a total of {capacity['cpu']} cores\n"
+                f"*Limit RAM*: {limit} GiB, "
+                f"{round(limit * 100 / capacity, 2)}% used or "
+                f"{round(capacity - limit, 2)} GiB available\n"
             )
             cluster_content.append(
                 f"*Reserved Pods*: {cluster['requested']['pods']} "
@@ -101,18 +108,33 @@ class Rancher2Pods(Rancher2Base):
                     f"*Created date*: {node['created']}\n"
                 )
 
-                # add the memory and CPU information
-                _, requested = self._get_memory_cpu(node)
+                # add the memory information
+                capacity, requested, limit = self._get_memory_data(node)
+                cluster_content.append(f"*Total RAM*: {capacity} GiB\n")
                 cluster_content.append(
-                    f"*Used Memory (Gib)*: {requested['memory']} &nbsp; &nbsp; "
-                    f"*Used CPU (cores)*: {requested['cpu']} &nbsp; &nbsp; "
-                    f"*Used Pods*: {node['requested']['pods']}\n"
+                    f"*Used RAM*: {requested} GiB, "
+                    f"{round(requested * 100 / capacity, 2)}% used or "
+                    f"{round(capacity - requested, 2)} GiB available\n"
                 )
+                cluster_content.append(
+                    f"*Limit RAM*: {limit} GiB, "
+                    f"{round(limit * 100 / capacity, 2)}% used or "
+                    f"{round(capacity - limit, 2)} GiB available\n"
+                )
+                cluster_content.append(f"\n*Used Pods*: {node['requested']['pods']}\n")
 
                 # add pods information
                 self._add_pods_data(cluster_content, cluster_link, node, pods_dict)
 
+        self.content.append(f"*Total RAM*: {server_capacity} GiB\n")
         self.content.append(
-            f"\n*Total Reserved Memory*: {server_requested} GiB from a total of {server_capacity} GiB\n"
+            f"*Reserved RAM*: {server_requested} GiB, "
+            f"{round(server_requested * 100 / server_capacity, 2)}% used or "
+            f"{round(server_capacity - server_requested, 2)} GiB available\n"
+        )
+        self.content.append(
+            f"*Limit RAM*: {server_limit} GiB, "
+            f"{round(server_limit * 100 / server_capacity, 2)}% used or "
+            f"{round(server_capacity - server_limit, 2)} GiB available\n"
         )
         self.content.extend(cluster_content)

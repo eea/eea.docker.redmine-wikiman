@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 
 from src.rancher2.auth import RancherClient, RedmineClient
-from src.utils import memory_unit_conversion, cpu_unit_conversion
+from src.utils import memory_unit_conversion
 
 load_dotenv()
 
@@ -62,36 +62,32 @@ class Rancher2Base:
         nodes_list = nodes_response["data"]
         return nodes_list
 
-    def _get_memory_cpu(self, object):
+    def _get_memory_data(self, object):
         """
-        Return memory and CPU information
+        Returns memory information
         @param object: dict - The object to print
         The object should have the following structure:
         {
             "capacity": {
                 "memory": "2131Mi",
-                "cpu": "2131m",
             },
             "requested": {
                 "memory": "2131Mi",
-                "cpu": "2131m",
-            }
+            },
+            limits": {
+                "memory": "2131Mi",
+            },
         }
 
-        @return: The capacity and requested memory and CPU
+        @return: The capacity, requested memory and memory limit
 
         """
 
-        capacity = {
-            "memory": round(memory_unit_conversion(object["capacity"]["memory"]), 2),
-            "cpu": round(cpu_unit_conversion(object["capacity"]["cpu"]), 2),
-        }
-        requested = {
-            "memory": round(memory_unit_conversion(object["requested"]["memory"]), 2),
-            "cpu": round(cpu_unit_conversion(object["requested"]["cpu"]), 2),
-        }
+        capacity = round(memory_unit_conversion(object["capacity"]["memory"]), 2)
+        requested = round(memory_unit_conversion(object["requested"]["memory"]), 2)
+        limit = round(memory_unit_conversion(object["limits"]["memory"]), 2)
 
-        return capacity, requested
+        return capacity, requested, limit
 
     def write_page(self):
         # To be added: check if the content has changed

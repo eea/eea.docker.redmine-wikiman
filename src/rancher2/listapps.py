@@ -76,7 +76,7 @@ class Rancher2Apps(Rancher2Base):
                 # add app information
                 self.content.append(
                     "|_{width:14em}. Name |_. State |_. Chart Name |_. Chart Version "
-                    "|>. Resources |_. Created date |"
+                    "|_. Resources |_. Created date |"
                 )
                 app_base_link = f"{rancher_client.base_url}dashboard/c/{cluster['id']}/apps/catalog.cattle.io.app"
                 for app in app_list:
