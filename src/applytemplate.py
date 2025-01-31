@@ -5,23 +5,30 @@ Apply the factsheet template to wiki pages
 https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_template
 """
 
+import argparse
+import io
+import logging
 import os
 import re
-from collections import OrderedDict, defaultdict
-import logging
-import io
-import tempfile
 import subprocess
-import argparse
+import tempfile
 import time
-from datetime import datetime, date
 
+from collections import OrderedDict, defaultdict
+from datetime import date, datetime
+
+from more_itertools import peekable
 from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError, UnknownError
-from more_itertools import peekable
 
-import addimageinfo
 from src.image_checker import ImageChecker
+from src.rancher1.addimageinfo import generate_images_text, get_docker_images
+from src.rancher1.stack_finder import StackFinder
+from src.rancher2.addimageinfo import (
+    generate_images_text_rancher2,
+    get_docker_images_rancher2,
+)
+from src.rancher2.app_finder import Rancher2AppFinder
 
 log = logging.getLogger(__name__)
 
@@ -70,12 +77,24 @@ def unescape_html(text):
 
 
 def get_deployment_info(urls, image_checker):
-    docker_images = addimageinfo.get_docker_images(urls)
+    # rancher1
+    docker_images = get_docker_images(urls)
     if not docker_images:
         log.debug("No docker images extracted, will continue")
         return
 
-    update_needed, text = addimageinfo.generate_images_text(
+    update_needed, text = generate_images_text(docker_images, image_checker)
+    return update_needed, text
+
+
+def get_deployment_info_rancher2(urls, image_checker):
+    # rancher2
+    docker_images = get_docker_images_rancher2(urls)
+    if not docker_images:
+        log.debug("No docker images extracted, will continue")
+        return
+
+    update_needed, text = generate_images_text_rancher2(
         docker_images, image_checker
     )
     return update_needed, text
@@ -111,31 +130,6 @@ class Taskman:
                 yield from children(c)
 
         yield from children(name)
-
-
-class StackFinder:
-
-    def __init__(self, stack_wiki_text):
-        self.stacks = stack_wiki_text.splitlines()
-
-    def find(self, url):
-        stack = ""
-        url_no_protocol = url.replace("http://", "").replace("https://", "")
-        # remove \
-        url_no_protocol = url_no_protocol.replace("\\", "")
-
-        regex = re.compile(
-            r" (https?://)?{}/?[^a-z/]".format(url_no_protocol.replace(".", r"\.")),
-            re.IGNORECASE,
-        )
-        stack = list(filter(regex.search, self.stacks))
-        if not stack:
-            stack_name = url_no_protocol.replace(".europa.eu", "").replace(".", "-")
-            stack = [x for x in self.stacks if '|"' + stack_name + '":' in x.lower()]
-
-        regex = re.compile(r'^\|(".+?":.+?) \|.*$')
-        rv = [regex.match(str(st)).group(1) for st in stack]
-        return rv
 
 
 class Wikipage:
@@ -224,7 +218,14 @@ class Template:
             mapped_s["h3"] = [self._map_section(h3) for h3 in s["h3"]]
             self.sections.append(mapped_s)
 
-        self.stack_finder = StackFinder(stack_wiki_text)
+        if stack_wiki_text:
+            # rancher1
+            self.app_finder = None
+            self.stack_finder = StackFinder(stack_wiki_text)
+        else:
+            # rancher2
+            self.app_finder = Rancher2AppFinder()
+            self.stack_finder = None
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -348,7 +349,11 @@ class Template:
                     f"Could not extract url from {url}, check 'Service location'"
                 )
                 continue
-            new_stacks.extend(self.stack_finder.find(url))
+
+            if self.app_finder:
+                new_stacks.extend(self.app_finder.find(service_location=url))
+            else:
+                new_stacks.extend(self.stack_finder.find(url))
 
         if new_stacks:
             new_fields["Rancher Stack URL"] = new_stacks
@@ -405,7 +410,11 @@ class Template:
         if source_code_section is None:
             return
 
-        deployment_info = get_deployment_info(urls, self.image_checker)
+        deployment_info = (
+            get_deployment_info_rancher2(urls, self.image_checker)
+            if self.app_finder
+            else get_deployment_info(urls, self.image_checker)
+        )
         if deployment_info is None:
             return
 
@@ -488,12 +497,16 @@ class FactsheetUpdater:
         self.taskman = taskman
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(template_project, template_name)
-        stack_wiki_text = self.taskman.get_wiki(factsheet_project, stackwiki)
+        stack_wiki_text = (
+            self.taskman.get_wiki(factsheet_project, stackwiki)
+            if stackwiki
+            else None
+        )
         self.template = Template(
             template_text,
             template_project,
             template_name,
-            stack_wiki_text,
+            stack_wiki_text,  # None if rancher2
             image_checker,
         )
         self.todo_map = defaultdict(dict)
@@ -614,7 +627,7 @@ def main(page, config, image_checker):
         template_project=config["template_project"],
         template_name=config["template_name"],
         todolist_name=config["todolist_name"],
-        stackwiki=config["stackwiki"],
+        stackwiki=config.get("stackwiki"),  # None if rancher2
         image_checker=image_checker,
     )
     log.info("Starting at %s" % page)

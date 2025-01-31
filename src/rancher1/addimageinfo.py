@@ -82,15 +82,12 @@ def get_docker_images(urls):
 
         if not dockerfile:
             logging.warning(f"No docker-compose.yml file found, skipping {url}")
-            # TODO: this return statement seems out of place here!
-            return {}
-            break
+            continue
 
         lines = dockerfile.splitlines()
         images = [x for x in lines if " image: " in x]
         for image in images:
             name = image.strip().split(" ")[1].strip('"').strip("'")
-            # print name
             if name not in docker_images:
                 docker_image = name.split(":")[0]
                 response4 = requests.get(
@@ -101,7 +98,6 @@ def get_docker_images(urls):
                 dockerhub_url = ""
                 if docker_image.find("/") > 0:
                     dockerhub_url = "https://hub.docker.com/r/" + docker_image
-                    # print dockerhub_url
                     if response4.status_code == 200 and response4.json().get("objects"):
                         github_url = (
                             "https://github.com/"
@@ -109,12 +105,10 @@ def get_docker_images(urls):
                             + "/"
                             + response4.json()["objects"][0]["repository"]
                         )
-                        # print github_url
                 else:
                     dockerhub_url = "https://hub.docker.com/r/_/" + docker_image
-                    # print dockerhub_url
+
                 docker_images[name] = [github_url, dockerhub_url]
-        # print docker_images
 
     return docker_images
 
