@@ -1,26 +1,32 @@
-import requests
+import os
+import time
 
 from dotenv import load_dotenv
-import os
-
+from kubernetes import client, config
 from redminelib import Redmine
+from redminelib.exceptions import ResourceNotFoundError
 
 load_dotenv()
 
 
 class RancherClient:
-    def __init__(self, base_url=None, token=None):
-        self.base_url = base_url
-        self.verify = os.getenv("RANCHER2_VERIFY_SSL", "true").lower() == "true"
-        self.session = requests.Session()
-        self.session.headers.update({"Authorization": f"Bearer {token}"})
+    def __init__(self):
+        self.base_url = os.getenv("RANCHER2_SERVER_URL", "")
+        self.cluster_id = os.getenv("RANCHER2_CLUSTER_ID", "")
+        self.cluster_name = os.getenv("RANCHER2_CLUSTER_NAME", "")
+        token = os.getenv("RANCHER2_TOKEN", "")
 
-    def get(self, url, params=None):
-        response = self.session.get(
-            self.base_url + url, params=params, verify=self.verify
-        )
-        response.raise_for_status()
-        return response.json()
+        if token:
+            configuration = client.Configuration()
+            configuration.api_key["authorization"] = token
+            configuration.api_key_prefix["authorization"] = "Bearer"
+            configuration.verify_ssl = os.getenv("RANCHER2_VERIFY_SSL", "true").lower() == "true"
+            configuration.host = self.base_url
+            api_client = client.ApiClient(configuration)
+            self.v1 = client.CoreV1Api(api_client)
+        else:
+            config.load_incluster_config()
+            self.v1 = client.CoreV1Api()
 
 
 class RedmineClient:
@@ -31,6 +37,13 @@ class RedmineClient:
         self.redmine_server = Redmine(
             self.base_url, key=self.apikey, requests={"verify": True}
         )
+
+        self.apps_page = os.getenv("WIKI_APPS_PAGE", "")
+        self.nodes_page = os.getenv("WIKI_NODES_PAGE", "")
+        self.pods_page = os.getenv("WIKI_PODS_PAGE", "")
+        self.cluster_name = os.getenv("RANCHER2_CLUSTER_NAME", "")
+
+        self.marker = "_Do not update this page manually._"
 
     def has_changed(self, page_name, new_content):
         """
@@ -43,8 +56,7 @@ class RedmineClient:
         server = self._redmine()
         page = server.wiki_page.get(page_name, project_id=self.project_id)
         old_content = page.text
-        marker = "_Do not update this page manually._"
-        return old_content.split(marker)[1] != new_content.split(marker)[1]
+        return old_content.split(self.marker)[1] != new_content.split(marker)[1]
 
     def write_page(self, page_name, content):
         """
@@ -58,3 +70,19 @@ class RedmineClient:
             project_id=self.project_id,
             text=content,
         )
+
+    def get_page_text(self, page_name):
+        try:
+            text = self.redmine_server.wiki_page.get(
+                page_name, project_id=self.project_id
+            ).text
+        except ResourceNotFoundError:
+            print(f"Page {page_name} does not exist")
+            return ""
+
+        today = time.strftime("%d %B %Y")
+        if today not in text:
+            print(f"Page {page_name} was not updated")
+            return ""
+
+        return text.split(self.marker)[1]
