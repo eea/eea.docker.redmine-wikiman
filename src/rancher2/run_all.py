@@ -2,9 +2,9 @@ import os
 
 import src.applytemplate as applytemplate
 from src.image_checker import ImageChecker
-from src.rancher2.listapps import Rancher2Apps
-from src.rancher2.listnodes import Rancher2Nodes
-from src.rancher2.listpods import Rancher2Pods
+from src.rancher2.listapps import Rancher2Apps, Rancher2MergeApps
+from src.rancher2.listnodes import Rancher2MergeNodes, Rancher2Nodes
+from src.rancher2.listpods import Rancher2MergePods, Rancher2Pods
 
 
 def run_apply_template(page, dry_run=False):
@@ -42,3 +42,21 @@ def run_list_pods(dry_run=False):
     pods = Rancher2Pods(dry_run)
     pods.set_content()
     pods.write_page()
+
+
+def run_merge_apps(dry_run=False):
+    merged_apps = Rancher2MergeApps(dry_run)
+    merged_apps.set_content()
+    merged_apps.write_page()
+
+
+def run_merge_nodes(dry_run=False):
+    merged_nodes = Rancher2MergeNodes(dry_run)
+    merged_nodes.set_content()
+    merged_nodes.write_page()
+
+
+def run_merge_pods(dry_run=False):
+    merged_pods = Rancher2MergePods(dry_run)
+    merged_pods.set_content()
+    merged_pods.write_page()

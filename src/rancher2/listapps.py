@@ -1,89 +1,107 @@
-from collections import defaultdict
+import base64
+import gzip
+import io
+import json
+import os
 
+from dotenv import load_dotenv
+
+from src.rancher2.auth import RancherClient, RedmineClient
 from src.rancher2.base import Rancher2Base
+
+load_dotenv()
 
 
 class Rancher2Apps(Rancher2Base):
     def __init__(self, dryrun=False):
-        self.pageTitle = "Rancher2_test_apps"
-        super().__init__(dryrun)
+        redmineClient = RedmineClient()
+        self.pageTitle = f"{redmineClient.apps_page}_{redmineClient.cluster_name}"
+        super().__init__(redmineClient, dryrun)
 
-    def _get_namespaces_dict(self, rancher_client, cluster_id):
-        namespaces = rancher_client.get(f"/v3/clusters/{cluster_id}/namespaces")
-        namespaces_dict = {
-            namespace["id"]: namespace for namespace in namespaces["data"]
-        }
+    def _decode_chart_data(self, data):
+        encoded_data = data["release"]
+        decoded_data = base64.b64decode(encoded_data)
+        with gzip.GzipFile(fileobj=io.BytesIO(decoded_data), mode="rb") as f:
+            decompressed_data = f.read()
 
-        return namespaces_dict
+        chart_data = json.loads(decompressed_data)["chart"]
+        return chart_Data
 
-    def _get_apps_dict(self, rancher_client, cluster_id):
-        # set apps dict
-        app_dict = defaultdict(list)
-        apps = rancher_client.get(
-            f"k8s/clusters/{cluster_id}/v1/catalog.cattle.io.apps"
+    def _get_namespaces(self, rancher_client):
+        namespaces_response = rancher_client.v1.list_namespace()
+        namespaces_list = namespaces_response.to_dict()["items"]
+        return namespaces_list
+
+    def _get_apps(self, rancher_client, namespace_id):
+        apps_response = rancher_client.v1.list_namespaced_secret(
+            namespace_id, label_selector="owner=helm"
         )
-        for app in apps["data"]:
-            namespace = app["spec"]["namespace"] or "No Namespace"
-            app_dict[namespace].append(app)
+        apps_list = apps_response.to_dict()["items"]
+        return apps_list
 
-        return app_dict
-
-    def _get_projects_dict(self, rancher_client):
-        projects_dict = defaultdict(str)
-        projects = rancher_client.get("/v3/projects")
-        for project in projects["data"]:
-            projects_dict[project["id"]] = project["name"]
-
-        return projects_dict
-
-    def set_server_rancher_content(self, rancher_client, rancher_server_name):
+    def set_content(self):
+        rancher_client = RancherClient()
         server_link = f"{rancher_client.base_url}dashboard"
-        self.content.append(f'\nh2. "{rancher_server_name}":{server_link}\n')
+        cluster_link = f"{server_link}/c/{rancher_client.cluster_id}/explorer"
 
-        projects_dict = self._get_projects_dict(rancher_client)
-        clusters = self._get_clusters(rancher_client)
-        for cluster in clusters:
-            cluster_link = self._add_cluster_short_content(
-                rancher_client, cluster, self.content
+        # add the cluster information
+        self.content.append(
+            f"\nh3. Cluster: \"{rancher_client.cluster_name}\":{cluster_link}\n"
+        )
+
+        namespaces = self._get_namespaces(rancher_client)
+        for namespace in namespaces:
+            # add namespace information
+            namespace_link = f"{cluster_link}/namespace/{namespace['metadata']['name']}"
+            self.content.append(
+                f"\nh4. _Namespace: \"{namespace['metadata']['name']}\":{namespace_link}_\n"
+            )
+            self.content.append(
+                f"*State*: {namespace['status']['phase']} &nbsp; &nbsp; "
+                f"*Created*: {namespace['metadata']['creation_timestamp']}\n"
             )
 
-            namespaces = self._get_namespaces_dict(rancher_client, cluster["id"])
-            apps = self._get_apps_dict(rancher_client, cluster["id"])
-
-            for namespace_id, app_list in apps.items():
-                # add namespace information
-                if namespace_id not in namespaces:
-                    # some apps do not have a namespace set
-                    self.content.append(f'\nh4. _Namespace: "{namespace_id}"_\n')
-                else:
-                    namespace = namespaces[namespace_id]
-                    namespace_link = f"{cluster_link}/namespace/{namespace_id}"
-                    project_id = namespace["projectId"] or ""
-                    project_name = projects_dict.get(project_id, "-")
-                    project_link = (
-                        f"{cluster_link}/management.cattle.io.project/{project_id.replace(':', '/')}"
-                    )
-                    self.content.append(
-                        f'\nh4. _Namespace: "{namespace_id}":{namespace_link}_\n'
-                    )
-                    self.content.append(f"*Description*: {namespace.get('description', '-')}\n")
-                    self.content.append(
-                        f"*State*: {namespace['state']} &nbsp; &nbsp; "
-                        f"*Created*: {namespace['created']} &nbsp; &nbsp; "
-                        f'*Project*: "{project_name}":{project_link}\n'
-                    )
-
-                # add app information
+            # add app information
+            self.content.append(
+                "|_{width:14em}. Name |_. State |_. Chart Name |_. Chart Version "
+                "|_. Created date |_. Description |"
+            )
+            description = namespace["metadata"]["annotations"].get("field.cattle.io/description", '-')
+            app_base_link = (
+                f"{rancher_client.base_url}dashboard/c/{rancher_client.cluster_id}/apps/catalog.cattle.io.app"
+            )
+            apps = self._get_apps(rancher_client, namespace["metadata"]["name"])
+            for app in apps:
+                chart_data = self._decode_chart_data(app["data"])
+                app_link = f"{app_base_link}/{app['metadata']['labels']['name']}"
                 self.content.append(
-                    "|_{width:14em}. Name |_. State |_. Chart Name |_. Chart Version "
-                    "|_. Resources |_. Created date |"
+                    f"| \"{app['metadata']['labels']['name']}\":{app_link} "
+                    f"| {app['metadata']['labels']['status']} "
+                    f"| {chart_data['name']} | {chart_data['version']} "
+                    f"| {app['metadata']['creation_timestamp']} | {description} |"
                 )
-                app_base_link = f"{rancher_client.base_url}dashboard/c/{cluster['id']}/apps/catalog.cattle.io.app"
-                for app in app_list:
-                    app_link = f"{app_base_link}/{app['id']}"
-                    self.content.append(
-                        f"| \"{app['spec']['name']}\":{app_link} | {app['spec']['info']['status']} "
-                        f"| {app['spec']['chart']['metadata']['name']} "
-                        f"| {app['spec']['chart']['metadata']['version']} "
-                        f"|>. {len(app['spec']['resources'])} | {app['metadata']['creationTimestamp']} |"
-                    )
+
+
+class Rancher2MergeApps(Rancher2Base):
+    def __init__(self, dryrun=False):
+        redmineClient = RedmineClient()
+        self.pageTitle = redmineClient.apps_page
+        self.clusters_to_merge = os.getenv("RANCHER2_CLUSTERS_TO_MERGE", "").split("|")
+        super().__init__(redmineClient, dryrun)
+
+    def set_content(self):
+        merged_content = {}
+        for cluster_data in self.clusters_to_merge:
+            rancher_url, rancher_server_name, cluster = cluster_data.split(",")
+            if rancher_server_name not in merged_content:
+                merged_content[rancher_server_name] = {
+                    "title": f'h2. "{rancher_server_name}":{rancher_url}dashboard',
+                    "content": [],
+                }
+
+            text = self.redmineClient.get_page_text(f"{self.pageTitle}_{cluster}")
+            merged_content[rancher_server_name]["content"].extend(text.splitlines())
+
+        for server_content in merged_content.values():
+            self.content.append(f"\n{server_content['title']}\n")
+            self.content.extend(server_content["content"])
