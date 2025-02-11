@@ -22,7 +22,7 @@ from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError, UnknownError
 
 from src.image_checker import ImageChecker
-#from src.rancher1.addimageinfo import generate_images_text, get_docker_images
+from src.rancher1.addimageinfo import generate_images_text, get_docker_images
 from src.rancher1.stack_finder import StackFinder
 from src.rancher2.addimageinfo import (
     generate_images_text_rancher2,

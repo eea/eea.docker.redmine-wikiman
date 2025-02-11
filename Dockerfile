@@ -5,8 +5,9 @@ RUN apk add --no-cache --virtual .run-deps tzdata subversion nano git && \
     pip install kubernetes python-redmine svn more-itertools requests natsort pyyaml zipfile36 gitpython && \
     mkdir -p /logs
 
-WORKDIR /
-COPY . /
+RUN mkdir /app
+WORKDIR /app
+COPY . /app
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["run"]
