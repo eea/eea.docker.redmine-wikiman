@@ -6,8 +6,8 @@ RUN apk add --no-cache --virtual .run-deps tzdata subversion nano git && \
     mkdir -p /logs
 
 RUN mkdir /app
-WORKDIR /app
 COPY . /app
+WORKDIR /app
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["run"]
