@@ -21,13 +21,13 @@ if [[ "$@" == "run" ]]; then
 		flag="${flag} -v"
 	fi
 
-	python /wait_for_redmine.py
+	python /src/wait_for_redmine.py
 
   if [ -n "$WIKI_SERVER" ] && [ -n "$WIKI_APIKEY" ] && [ -n "$WIKI_PROJECT" ] && [ -n "$WIKI_PAGE" ] && [ -n "$RANCHER_CONFIG" ]; then
     echo "Received RANCHER_CONFIG and WIKI related variables"
 
     flag="${flag} -p ${WIKI_PAGE}"
-    timeout $TIMEOUT python /rancher1/run_all.py $flag 2>&1
+    timeout $TIMEOUT python /src/rancher1/run_all.py $flag 2>&1
   fi
 
 else

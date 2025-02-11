@@ -3,7 +3,7 @@ import time
 
 from dotenv import load_dotenv
 
-from utils import memory_unit_conversion
+from src.utils import memory_unit_conversion
 
 load_dotenv()
 

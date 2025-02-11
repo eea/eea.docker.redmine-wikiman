@@ -5,7 +5,7 @@ import shutil
 import tarfile
 import yaml
 
-from rancher2.app_finder import Rancher2AppFinder
+from src.rancher2.app_finder import Rancher2AppFinder
 
 
 ARCHIVES_DIR = "./archives/"

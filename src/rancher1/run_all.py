@@ -4,13 +4,13 @@ import logging
 import getopt
 from urllib.parse import urlparse
 
-import applytemplate as applytemplate
-import rancher1.listcontainers as listcontainers
-import rancher1.liststacks as liststacks
-import rancher1.backupstacks as backupstacks
+import src.applytemplate as applytemplate
+import src.rancher1.listcontainers as listcontainers
+import src.rancher1.liststacks as liststacks
+import src.rancher1.backupstacks as backupstacks
 
-from rancher1.listhosts import RancherInstances
-from image_checker import ImageChecker
+from src.rancher1.listhosts import RancherInstances
+from src.image_checker import ImageChecker
 
 
 def run_apply_template(page, image_checker, dry_run):

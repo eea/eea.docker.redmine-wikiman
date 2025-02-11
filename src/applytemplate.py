@@ -21,14 +21,14 @@ from more_itertools import peekable
 from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError, UnknownError
 
-from image_checker import ImageChecker
-from rancher1.addimageinfo import generate_images_text, get_docker_images
-from rancher1.stack_finder import StackFinder
-from rancher2.addimageinfo import (
+from src.image_checker import ImageChecker
+from src.rancher1.addimageinfo import generate_images_text, get_docker_images
+from src.rancher1.stack_finder import StackFinder
+from src.rancher2.addimageinfo import (
     generate_images_text_rancher2,
     get_docker_images_rancher2,
 )
-from rancher2.app_finder import Rancher2AppFinder
+from src.rancher2.app_finder import Rancher2AppFinder
 
 log = logging.getLogger(__name__)
 

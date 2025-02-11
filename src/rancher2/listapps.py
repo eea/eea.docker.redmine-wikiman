@@ -6,8 +6,8 @@ import os
 
 from dotenv import load_dotenv
 
-from rancher2.auth import RancherClient, RedmineClient
-from rancher2.base import Rancher2Base
+from src.rancher2.auth import RancherClient, RedmineClient
+from src.rancher2.base import Rancher2Base
 
 load_dotenv()
 
