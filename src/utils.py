@@ -10,6 +10,9 @@ def memory_unit_conversion(str_to_convert):
     @return The size in GiB
     """
 
+    if not str_to_convert:
+        return 0
+
     conversion_dict = {
         "b": 1 / (1024**3),
         "ki": 1 / (1024**2),
@@ -47,6 +50,9 @@ def cpu_unit_conversion(str_to_convert):
     @param str_to_convert: The string to convert
     @return The number of cores
     """
+
+    if not str_to_convert:
+        return 0
 
     str_to_convert = str_to_convert.lower()
     conversion_dict = {

@@ -40,13 +40,13 @@ class Rancher2Base:
         @return: The capacity, requested memory and memory limit
 
         """
-        capacity = round(memory_unit_conversion(node["status"]["capacity"]["memory"]), 2)
+        capacity = round(memory_unit_conversion(node["status"]["capacity"].get("memory")), 2)
 
         pod_requests = eval(node["metadata"]["annotations"]["management.cattle.io/pod-requests"])
-        requested = round(memory_unit_conversion(pod_requests["memory"]), 2)
+        requested = round(memory_unit_conversion(pod_requests.get("memory")), 2)
 
         pod_limits = eval(node["metadata"]["annotations"]["management.cattle.io/pod-limits"])
-        limit = round(memory_unit_conversion(pod_limits["memory"]), 2)
+        limit = round(memory_unit_conversion(pod_limits.get("memory")), 2)
 
         return capacity, requested, limit
 
