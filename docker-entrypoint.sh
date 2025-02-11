@@ -27,7 +27,7 @@ if [[ "$@" == "run" ]]; then
     echo "Received RANCHER_CONFIG and WIKI related variables"
 
     flag="${flag} -p ${WIKI_PAGE}"
-    timeout $TIMEOUT python /run_all.py $flag 2>&1
+    timeout $TIMEOUT python /rancher1/run_all.py $flag 2>&1
   fi
 
 else
