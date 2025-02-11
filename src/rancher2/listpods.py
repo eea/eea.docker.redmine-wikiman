@@ -85,7 +85,7 @@ class Rancher2Pods(Rancher2Base):
             cluster_content.append(f"*Description*: {node.get('description', '-')}\n")
             cluster_content.append(
                 f"*Version*: {node['status']['node_info']['kubelet_version']} &nbsp; &nbsp; "
-                f"*IP address*: {node['metadata']['annotations']['k3s.io/internal-ip']} &nbsp; &nbsp; "
+                f"*IP address*: {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} &nbsp; &nbsp; "
                 f"*OS*: {node['status']['node_info']['os_image']} &nbsp; &nbsp; "
                 f"*Created date*: {node['metadata']['creation_timestamp']}\n"
             )

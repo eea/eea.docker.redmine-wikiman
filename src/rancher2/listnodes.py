@@ -46,7 +46,7 @@ class Rancher2Nodes(Rancher2Base):
                 f"|>. {capacity} |>. {requested} |>. {round(requested * 100 / capacity, 2)} "
                 f"|>. {round(capacity - requested, 2)} "
                 f"|>. {eval(node['metadata']['annotations']['management.cattle.io/pod-requests'])['pods']} "
-                f"| {node['metadata']['annotations']['k3s.io/internal-ip']} "
+                f"| {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} "
                 f"| {node['status']['node_info']['kubelet_version']} "
                 f"| {node['status']['node_info']['os_image']} "
                 f"| {node['metadata']['creation_timestamp']} |"
