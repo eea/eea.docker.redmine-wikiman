@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from redminelib import Redmine
 
-from src.image_checker import ImageChecker
+from image_checker import ImageChecker
 
 
 def getKey(instance):

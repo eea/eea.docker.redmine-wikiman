@@ -1,10 +1,10 @@
 import os
 
-import src.applytemplate as applytemplate
-from src.image_checker import ImageChecker
-from src.rancher2.listapps import Rancher2Apps, Rancher2MergeApps
-from src.rancher2.listnodes import Rancher2MergeNodes, Rancher2Nodes
-from src.rancher2.listpods import Rancher2MergePods, Rancher2Pods
+import applytemplate as applytemplate
+from image_checker import ImageChecker
+from rancher2.listapps import Rancher2Apps, Rancher2MergeApps
+from rancher2.listnodes import Rancher2MergeNodes, Rancher2Nodes
+from rancher2.listpods import Rancher2MergePods, Rancher2Pods
 
 
 def run_apply_template(page, dry_run=False):
