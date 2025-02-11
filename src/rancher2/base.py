@@ -1,17 +1,16 @@
-import time
-from dotenv import load_dotenv
 import os
+import time
 
-from src.rancher2.auth import RancherClient, RedmineClient
+from dotenv import load_dotenv
+
 from src.utils import memory_unit_conversion
 
 load_dotenv()
 
 
 class Rancher2Base:
-    def __init__(self, dryrun=False):
-        self.redmineClient = RedmineClient()
-        self.rancherDataList = os.getenv("RANCHER2_CONFIG", "").split("|")
+    def __init__(self, redmineClient, dryrun=False):
+        self.redmineClient = redmineClient
         self.dryrun = dryrun
 
         if not self.pageTitle:
@@ -25,67 +24,29 @@ class Rancher2Base:
         self.content.append(
             "Automatically discovered on "
             + time.strftime("%d %B %Y")
-            + ". _Do not update this page manually._"
+            + f". {self.redmineClient.marker}"
         )
 
-    def _add_cluster_short_content(self, rancher_client, cluster, cluster_content):
-        """
-        Add the cluster information to the content and return the cluster link
-        @param rancher_client: RancherClient - The Rancher client
-        @param cluster: dict - The cluster to print
-        @param cluster_content: list - The list to append the content to
-
-        @return: The cluster link
-        """
-
-        cluster_link = f"{rancher_client.base_url}dashboard/c/{cluster['id']}/explorer"
-        cluster_content.append(f"\nh3. Cluster: \"{cluster['name']}\":{cluster_link}\n")
-
-        # add cluster information
-        cluster_content.append(f"*Description*: {cluster['description'] or '-'}\n")
-        cluster_content.append(
-            f"*State*: {cluster['state']} &nbsp; &nbsp; "
-            f"*Provider*: {cluster['provider']} &nbsp; &nbsp; "
-            f"*Kubernetes Version*: {cluster['version']['gitVersion']} &nbsp; &nbsp; "
-            f"*Created date*: {cluster['created']}\n"
-        )
-
-        return cluster_link
-
-    def _get_clusters(self, rancher_client):
-        clusters_response = rancher_client.get("/v3/clusters")
-        clusters_list = clusters_response["data"]
-        return clusters_list
-
-    def _get_nodes(self, rancher_client, cluster_id):
-        nodes_response = rancher_client.get(f"/v3/clusters/{cluster_id}/nodes")
-        nodes_list = nodes_response["data"]
+    def _get_nodes(self, rancher_client):
+        nodes_response = rancher_client.v1.list_node()
+        nodes_list = nodes_response.to_dict()["items"]
         return nodes_list
 
-    def _get_memory_data(self, object):
+    def _get_memory_data(self, node):
         """
         Returns memory information
-        @param object: dict - The object to print
-        The object should have the following structure:
-        {
-            "capacity": {
-                "memory": "2131Mi",
-            },
-            "requested": {
-                "memory": "2131Mi",
-            },
-            limits": {
-                "memory": "2131Mi",
-            },
-        }
+        @param object: dict - Node
 
         @return: The capacity, requested memory and memory limit
 
         """
+        capacity = round(memory_unit_conversion(node["status"]["capacity"]["memory"]), 2)
 
-        capacity = round(memory_unit_conversion(object["capacity"]["memory"]), 2)
-        requested = round(memory_unit_conversion(object["requested"]["memory"]), 2)
-        limit = round(memory_unit_conversion(object["limits"]["memory"]), 2)
+        pod_requests = eval(node["metadata"]["annotations"]["management.cattle.io/pod-requests"])
+        requested = round(memory_unit_conversion(pod_requests["memory"]), 2)
+
+        pod_limits = eval(node["metadata"]["annotations"]["management.cattle.io/pod-limits"])
+        limit = round(memory_unit_conversion(pod_limits["memory"]), 2)
 
         return capacity, requested, limit
 
@@ -99,11 +60,5 @@ class Rancher2Base:
         else:
             self.redmineClient.write_page(self.pageTitle, content)
 
-    def set_server_rancher_content(self, rancher_client, rancher_server_name):
-        raise NotImplementedError
-
     def set_content(self):
-        for rancher_data in self.rancherDataList:
-            rancher_url, rancher_server_name, rancher_token = rancher_data.split(",")
-            rancher_client = RancherClient(rancher_url, rancher_token)
-            self.set_server_rancher_content(rancher_client, rancher_server_name)
+        raise NotImplementedError
