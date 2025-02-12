@@ -34,7 +34,7 @@ class Rancher2Apps(Rancher2Base):
 
     def _get_apps(self, rancher_client, namespace_id):
         apps_response = rancher_client.v1.list_namespaced_secret(
-            namespace_id, label_selector="owner=helm"
+            namespace_id, label_selector="owner=helm,status=deployed"
         )
         apps_list = apps_response.to_dict()["items"]
         return apps_list
@@ -51,6 +51,10 @@ class Rancher2Apps(Rancher2Base):
 
         namespaces = self._get_namespaces(rancher_client)
         for namespace in namespaces:
+            apps = self._get_apps(rancher_client, namespace["metadata"]["name"])
+            if not apps:
+                continue
+
             # add namespace information
             namespace_link = f"{cluster_link}/namespace/{namespace['metadata']['name']}"
             self.content.append(
@@ -70,7 +74,6 @@ class Rancher2Apps(Rancher2Base):
             app_base_link = (
                 f"{rancher_client.base_url}dashboard/c/{rancher_client.cluster_id}/apps/catalog.cattle.io.app"
             )
-            apps = self._get_apps(rancher_client, namespace["metadata"]["name"])
             for app in apps:
                 chart_data = self._decode_chart_data(app["data"]["release"])
                 app_link = f"{app_base_link}/{app['metadata']['labels']['name']}"
