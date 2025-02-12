@@ -25,7 +25,7 @@ class Rancher2Apps(Rancher2Base):
             decompressed_data = f.read()
 
         chart_data = json.loads(decompressed_data)["chart"]
-        return chart_Data
+        return chart_data
 
     def _get_namespaces(self, rancher_client):
         namespaces_response = rancher_client.v1.list_namespace()
