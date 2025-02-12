@@ -60,14 +60,14 @@ class Rancher2Nodes(Rancher2Base):
         self.content.append(
             f"\nh3. Cluster: \"{rancher_client.cluster_name}\":{cluster_link}\n"
         )
-        self.content.append(f"*Total RAM*: {cluster_capacity} GiB\n")
+        self.content.append(f"*Total RAM*: {round(cluster_capacity, 2)} GiB\n")
         self.content.append(
-            f"*Reserved RAM*: {cluster_requested} GiB, "
+            f"*Reserved RAM*: {round(cluster_requested, 2)} GiB, "
             f"{round(cluster_requested * 100 / cluster_capacity, 2)}% used or "
             f"{round(cluster_capacity - cluster_requested, 2)} GiB available\n"
         )
         self.content.append(
-            f"*Limit RAM*: {cluster_limit} GiB, "
+            f"*Limit RAM*: {round(cluster_limit, 2)} GiB, "
             f"{round(cluster_limit * 100 / cluster_capacity, 2)}% used or "
             f"{round(cluster_capacity - cluster_limit, 2)} GiB available\n"
         )

@@ -41,6 +41,7 @@ class Rancher2Pods(Rancher2Base):
         return pods_dict
 
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
+        redmine_error_color = "%{color:red}"
         cluster_content.append(
             "|_{min-width:14em}. Pod |_. Pod state |_. Namespace "
             "|_. Container |_. Container state |_. Image |_. Restarts "
@@ -50,6 +51,10 @@ class Rancher2Pods(Rancher2Base):
         for pod in pods_dict.get(node["metadata"]["name"], []):
             # add pod/containers information
             pod_link = f"{cluster_link}/pod/{pod['metadata']['namespace']}/{pod['metadata']['name']}"
+            pod_state = pod["status"]["phase"]
+            if pod_state == "Failed":
+                pod_state = f"{redmine_error_color}{pod_state}%"
+
             resources_dict = {
                 container["name"]: container["resources"]
                 for container in pod["spec"]["containers"]
@@ -61,7 +66,7 @@ class Rancher2Pods(Rancher2Base):
                 requested, limit = self._get_container_memory_data(container, resources_dict)
 
                 cluster_content.append(
-                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod['status']['phase']} "
+                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod_state} "
                     f"| {pod['metadata']['namespace']} | {container['name']} | {container_state} "
                     f"| {container['image']} |>. {container['restart_count']} "
                     f"|>. {requested} |>. {limit} | {start_time} | TODO |"
@@ -118,14 +123,14 @@ class Rancher2Pods(Rancher2Base):
         self.content.append(
             f"\nh3. Cluster: \"{rancher_client.cluster_name}\":{cluster_link}\n"
         )
-        self.content.append(f"*Total RAM*: {cluster_capacity} GiB\n")
+        self.content.append(f"*Total RAM*: {round(cluster_capacity, 2)} GiB\n")
         self.content.append(
-            f"*Reserved RAM*: {cluster_requested} GiB, "
+            f"*Reserved RAM*: {round(cluster_requested, 2)} GiB, "
             f"{round(cluster_requested * 100 / cluster_capacity, 2)}% used or "
             f"{round(cluster_capacity - cluster_requested, 2)} GiB available\n"
         )
         self.content.append(
-            f"*Limit RAM*: {cluster_limit} GiB, "
+            f"*Limit RAM*: {round(cluster_limit, 2)} GiB, "
             f"{round(cluster_limit * 100 / cluster_capacity, 2)}% used or "
             f"{round(cluster_capacity - cluster_limit, 2)} GiB available\n"
         )
