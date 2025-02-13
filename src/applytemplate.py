@@ -23,12 +23,10 @@ from redminelib.exceptions import ResourceNotFoundError, UnknownError
 
 from image_checker import ImageChecker
 from rancher1.addimageinfo import generate_images_text, get_docker_images
-from rancher1.stack_finder import StackFinder
 from rancher2.addimageinfo import (
     generate_images_text_rancher2,
     get_docker_images_rancher2,
 )
-from rancher2.app_finder import Rancher2AppFinder
 
 log = logging.getLogger(__name__)
 
@@ -132,6 +130,31 @@ class Taskman:
         yield from children(name)
 
 
+class StackFinder:
+
+    def __init__(self, stack_wiki_text):
+        self.stacks = stack_wiki_text.splitlines()
+
+    def find(self, url):
+        stack = ""
+        url_no_protocol = url.replace("http://", "").replace("https://", "")
+        #remove \
+        url_no_protocol = url_no_protocol.replace("\\", "")
+
+        regex = re.compile(
+            r" (https?://)?{}/?[^a-z/]".format(url_no_protocol.replace(".", r"\.")),
+            re.IGNORECASE,
+        )
+        stack = list(filter(regex.search, self.stacks))
+        if not stack:
+            stack_name = url_no_protocol.replace(".europa.eu", "").replace(".", "-")
+            stack = [x for x in self.stacks if '|"' + stack_name + '":' in x.lower()]
+
+        regex = re.compile(r'^\|(".+?":.+?) \|.*$')
+        rv = [regex.match(str(st)).group(1) for st in stack]
+        return rv
+
+
 class Wikipage:
 
     def __init__(self, text):
@@ -200,7 +223,7 @@ class Wikipage:
 class Template:
 
     def __init__(
-        self, text, template_project, template_name, stack_wiki_text, image_checker
+        self, text, template_project, template_name, stack_wiki_text, image_checker, rancher2=False
     ):
         wikipage = Wikipage(text)
         self.template_project = template_project
@@ -218,14 +241,8 @@ class Template:
             mapped_s["h3"] = [self._map_section(h3) for h3 in s["h3"]]
             self.sections.append(mapped_s)
 
-        if stack_wiki_text:
-            # rancher1
-            self.app_finder = None
-            self.stack_finder = StackFinder(stack_wiki_text)
-        else:
-            # rancher2
-            self.app_finder = Rancher2AppFinder()
-            self.stack_finder = None
+        self.stack_finder = StackFinder(stack_wiki_text)
+        self.rancher2 = rancher2
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -349,11 +366,7 @@ class Template:
                     f"Could not extract url from {url}, check 'Service location'"
                 )
                 continue
-
-            if self.app_finder:
-                new_stacks.extend(self.app_finder.find(service_location=url))
-            else:
-                new_stacks.extend(self.stack_finder.find(url))
+            new_stacks.extend(self.stack_finder.find(url))
 
         if new_stacks:
             new_fields["Rancher Stack URL"] = new_stacks
@@ -412,7 +425,7 @@ class Template:
 
         deployment_info = (
             get_deployment_info_rancher2(urls, self.image_checker)
-            if self.app_finder
+            if self.rancher2
             else get_deployment_info(urls, self.image_checker)
         )
         if deployment_info is None:
@@ -493,21 +506,19 @@ class FactsheetUpdater:
         todolist_name,
         stackwiki,
         image_checker,
+        rancher2=False,
     ):
         self.taskman = taskman
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(template_project, template_name)
-        stack_wiki_text = (
-            self.taskman.get_wiki(factsheet_project, stackwiki)
-            if stackwiki
-            else None
-        )
+        stack_wiki_text = self.taskman.get_wiki(factsheet_project, stackwiki)
         self.template = Template(
             template_text,
             template_project,
             template_name,
-            stack_wiki_text,  # None if rancher2
+            stack_wiki_text,
             image_checker,
+            rancher2,
         )
         self.todo_map = defaultdict(dict)
         self.seen_pages = set()
@@ -627,8 +638,9 @@ def main(page, config, image_checker):
         template_project=config["template_project"],
         template_name=config["template_name"],
         todolist_name=config["todolist_name"],
-        stackwiki=config.get("stackwiki"),  # None if rancher2
+        stackwiki=config["stackwiki"],
         image_checker=image_checker,
+        rancher2=config.get("rancher2", False),
     )
     log.info("Starting at %s" % page)
     updater.recursive_update(page)

@@ -17,7 +17,9 @@ def run_apply_template(page, dry_run=False):
         todolist_name=os.getenv("TODOLIST_NAME", "IT_service_factsheet_ToDo_list"),
         wiki_server=os.getenv("WIKI_SERVER", ""),
         wiki_apikey=os.getenv("WIKI_APIKEY", ""),
+        stackwiki=os.getenv("WIKI_APPS_PAGE", "Rancher2_apps"),
         dry_run=dry_run,
+        rancher2=True,
     )
 
     assert config["wiki_server"], "Please set WIKI_SERVER env var"

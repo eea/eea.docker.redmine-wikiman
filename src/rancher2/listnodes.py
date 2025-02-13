@@ -25,7 +25,7 @@ class Rancher2Nodes(Rancher2Base):
 
         # add the nodes information
         cluster_content.append(
-            "|_{width:14em}. Name |_. Check_MK "
+            "|_{width:14em}. Name |_. Check_MK |_. Taints "
             "|_. Total RAM |_. Used |_. %Used |_. Available |_. Used pods "
             "|_. IP address |_. Version |_. OS |_. Created date |"
         )
@@ -39,15 +39,19 @@ class Rancher2Nodes(Rancher2Base):
                 f"?start_url=%2Fomdeea%2Fcheck_mk%2Fview.py%3Fview_name%3Dhost%26host%3D"
                 f"{node['metadata']['name'].split('.')[0]}%26site%3Domdeea"
             )
+            taints = ""
+            if node["spec"].get("taints"):
+                taints = [taint["key"] for taint in node["spec"]["taints"]]
+                taints = "\n".join(taints)
 
             cluster_content.append(
                 f"| \"{node['metadata']['name']}\":{node_link} "
-                f"| \"{node['metadata']['name'].split('.')[0]}\":{check_mk_link} "
+                f"| \"{node['metadata']['name'].split('.')[0]}\":{check_mk_link} | {taints} "
                 f"|>. {capacity} |>. {requested} |>. {round(requested * 100 / capacity, 2)} "
                 f"|>. {round(capacity - requested, 2)} "
                 f"|>. {eval(node['metadata']['annotations']['management.cattle.io/pod-requests'])['pods']} "
                 f"| {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} "
-                f"| {node['status']['node_info']['kubelet_version']} "
+                f"| {node['status']['node_info']['container_runtime_version']} "
                 f"| {node['status']['node_info']['os_image']} "
                 f"| {node['metadata']['creation_timestamp']} |"
             )

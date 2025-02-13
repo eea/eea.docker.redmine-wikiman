@@ -43,9 +43,8 @@ class Rancher2Pods(Rancher2Base):
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
         redmine_error_color = "%{color:red}"
         cluster_content.append(
-            "|_{min-width:14em}. Pod |_. Pod state |_. Namespace "
-            "|_. Container |_. Container state |_. Image |_. Restarts "
-            "|_. Reservation |_. Limit |_. Start time |_. Upgrade |"
+            "|_{min-width:14em}. Pod |_. State |_. Namespace |_. Image "
+            "|_. Restarts |_. Reservation |_. Limit |_. Start time |_. Upgrade |"
         )
 
         for pod in pods_dict.get(node["metadata"]["name"], []):
@@ -61,13 +60,12 @@ class Rancher2Pods(Rancher2Base):
             }
 
             for container in pod["status"]["container_statuses"]:
-                container_state = next(iter(container["state"]))
                 start_time = container["state"]["running"]["started_at"] if container["started"] else "-"
                 requested, limit = self._get_container_memory_data(container, resources_dict)
 
                 cluster_content.append(
-                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod_state} "
-                    f"| {pod['metadata']['namespace']} | {container['name']} | {container_state} "
+                    f"| \"{pod['metadata']['name']}\":{pod_link} "
+                    f"| {pod_state} | {pod['metadata']['namespace']} "
                     f"| {container['image']} |>. {container['restart_count']} "
                     f"|>. {requested} |>. {limit} | {start_time} | TODO |"
                 )
@@ -161,7 +159,7 @@ class Rancher2MergePods(Rancher2Base):
                     merged_content[rancher_server_name]["content"].append(line)
                     continue
 
-                image = line.split("|")[6].strip()
+                image = line.split("|")[4].strip()
                 _, update_msg = self.image_checker.check_image_and_base_status(image)
                 merged_content[rancher_server_name]["content"].append(
                     line.replace("TODO", update_msg)

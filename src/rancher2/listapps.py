@@ -51,12 +51,13 @@ class Rancher2Apps(Rancher2Base):
 
         namespaces = self._get_namespaces(rancher_client)
         for namespace in namespaces:
-            apps = self._get_apps(rancher_client, namespace["metadata"]["name"])
+            namespace_id = namespace["metadata"]["name"]
+            apps = self._get_apps(rancher_client, namespace_id)
             if not apps:
                 continue
 
             # add namespace information
-            namespace_link = f"{cluster_link}/namespace/{namespace['metadata']['name']}"
+            namespace_link = f"{cluster_link}/namespace/{namespace_id}"
             self.content.append(
                 f"\nh4. _Namespace: \"{namespace['metadata']['name']}\":{namespace_link}_\n"
             )
@@ -72,14 +73,18 @@ class Rancher2Apps(Rancher2Base):
             )
             description = namespace["metadata"]["annotations"].get("field.cattle.io/description", "")
             app_base_link = (
-                f"{rancher_client.base_url}dashboard/c/{rancher_client.cluster_id}/apps/catalog.cattle.io.app"
+                f"{rancher_client.base_url}dashboard/c/{rancher_client.cluster_id}"
+                f"/apps/catalog.cattle.io.app/{namespace_id}"
             )
             for app in apps:
                 chart_data = self._decode_chart_data(app["data"]["release"])
-                app_link = f"{app_base_link}/{app['metadata']['labels']['name']}"
+                app_name = app["metadata"]["labels"]["name"]
+                app_link = f"{app_base_link}/{app_name}"
+                if namespace_id.endswith("-system"):
+                    app_name = f">. _{app_name}_"
+
                 self.content.append(
-                    f"| \"{app['metadata']['labels']['name']}\":{app_link} "
-                    f"| {app['metadata']['labels']['status']} "
+                    f"|\"{app_name}\":{app_link} | {app['metadata']['labels']['status']} "
                     f"| {chart_data['metadata']['name']} | {chart_data['metadata']['version']} "
                     f"| {app['metadata']['creation_timestamp']} | {description} |"
                 )

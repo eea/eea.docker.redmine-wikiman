@@ -5,11 +5,23 @@ import shutil
 import tarfile
 import yaml
 
-from rancher2.app_finder import Rancher2AppFinder
+from rancher2.auth import RedmineClient
 
 
 ARCHIVES_DIR = "./archives/"
 EXTRACTION_DIR = "./source_files/"
+
+
+def get_chart_version(chart_name):
+    redmineClient = RedmineClient()
+    text = redmineClient.get_page_text(redmineClient.apps_page)
+    for line in text.splitlines():
+        columns = line.split("|")
+        if len(columns) > 3 and chart_name == columns[3].strip():
+            chart_version = columns[4].strip()
+            return chart_version
+
+    return None
 
 
 def extract_non_eea_images(subchart):
@@ -93,13 +105,12 @@ def get_docker_images_rancher2(urls):
 
     docker_images = {}
     charts_dict = yaml.load(response.text, Loader=yaml.FullLoader)["entries"]
-    app_finder = Rancher2AppFinder()
+
     for url in urls:
         # get images for main chart
         all_images = []
-        chart_name = url.rsplit("/", 1)[1]
-        apps = app_finder.find(chart_name=chart_name)
-        chart_version = apps[0]["spec"]["chart"]["metadata"]["version"] if apps else None
+        chart_name = url.rsplit("/", 1)[1].strip()
+        chart_version = get_chart_version(chart_name)
         chart_data_all_versions = charts_dict[chart_name]
         chart_data, images = extract_images(url, chart_data_all_versions, chart_version)
         all_images.extend(images)
