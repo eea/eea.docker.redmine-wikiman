@@ -68,7 +68,7 @@ class Rancher2Apps(Rancher2Base):
 
             # add app information
             self.content.append(
-                "|_{width:14em}. Name |_. State |_. Chart Name |_. Chart Version "
+                "|_{min-width:14em}. Name |_. State |_. Chart Name |_. Chart Version "
                 "|_. Created date |_. Description |"
             )
             description = namespace["metadata"]["annotations"].get("field.cattle.io/description", "")

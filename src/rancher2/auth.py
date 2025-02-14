@@ -53,10 +53,9 @@ class RedmineClient:
 
         :return: True if the content has changed, False otherwise
         """
-        server = self._redmine()
-        page = server.wiki_page.get(page_name, project_id=self.project_id)
+        page = self.redmine_server.wiki_page.get(page_name, project_id=self.project_id)
         old_content = page.text
-        return old_content.split(self.marker)[1] != new_content.split(marker)[1]
+        return old_content.split(self.marker)[1] != new_content.split(self.marker)[1]
 
     def write_page(self, page_name, content):
         """

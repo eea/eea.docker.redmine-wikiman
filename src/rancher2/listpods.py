@@ -18,7 +18,7 @@ class Rancher2Pods(Rancher2Base):
         super().__init__(redmineClient, dryrun)
 
     def _get_container_memory_data(self, container, resources_dict):
-        resources = resources_dict.get(container["name"])
+        resources = resources_dict.get(container["name"], {})
         requested = (
             round(memory_unit_conversion(resources["requests"]["memory"]), 2)
             if resources.get("requests")
@@ -87,7 +87,7 @@ class Rancher2Pods(Rancher2Base):
             cluster_content.append(f"\nh4. Node: \"{node['metadata']['name']}\":{node_link}\n")
             cluster_content.append(f"*Description*: {node.get('description', '-')}\n")
             cluster_content.append(
-                f"*Version*: {node['status']['node_info']['kubelet_version']} &nbsp; &nbsp; "
+                f"*Version*: {node['status']['node_info']['container_runtime_version']} &nbsp; &nbsp; "
                 f"*IP address*: {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} &nbsp; &nbsp; "
                 f"*OS*: {node['status']['node_info']['os_image']} &nbsp; &nbsp; "
                 f"*Created date*: {node['metadata']['creation_timestamp']}\n"

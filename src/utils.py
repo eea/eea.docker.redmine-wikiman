@@ -38,7 +38,6 @@ def memory_unit_conversion(str_to_convert):
 
         return size * conversion_dict[unit]
     else:
-        # TODO add logging here to log the error
         return 0
 
 
@@ -70,5 +69,4 @@ def cpu_unit_conversion(str_to_convert):
 
         return size * conversion_dict[unit]
     else:
-        # TODO add logging here to log the error
         return 0

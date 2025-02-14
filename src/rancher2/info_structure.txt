@@ -3,11 +3,9 @@ Rencher Containers -> Pods_containers
 Server name1
     Cluster X
         Node 1
-            Pod1
-                Container1
-                Container2
-            Pod2
-                Container21
+            Pod1/Container11
+            Pod1/Container12
+            Pod2/Container21
 
 ------------------------------------------------------------
 

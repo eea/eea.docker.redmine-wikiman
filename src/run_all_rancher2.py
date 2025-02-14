@@ -1,4 +1,5 @@
 import os
+import sys
 
 import applytemplate as applytemplate
 from image_checker import ImageChecker
@@ -62,3 +63,17 @@ def run_merge_pods(dry_run=False):
     merged_pods = Rancher2MergePods(dry_run)
     merged_pods.set_content()
     merged_pods.write_page()
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "list":
+        # run on each non-main instance (cluster)
+        run_list_apps()
+        run_list_nodes()
+        run_list_pods()
+
+    if sys.argv[1] == "merge":
+        # run on main instance
+        run_merge_apps()
+        run_merge_nodes()
+        run_merge_pods()

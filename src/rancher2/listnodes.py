@@ -25,7 +25,7 @@ class Rancher2Nodes(Rancher2Base):
 
         # add the nodes information
         cluster_content.append(
-            "|_{width:14em}. Name |_. Check_MK |_. Taints "
+            "|_{min-width:14em}. Name |_. Check_MK |_. Taints "
             "|_. Total RAM |_. Used |_. %Used |_. Available |_. Used pods "
             "|_. IP address |_. Version |_. OS |_. Created date |"
         )

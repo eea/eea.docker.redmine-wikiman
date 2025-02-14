@@ -1,11 +1,6 @@
-import os
 import time
 
-from dotenv import load_dotenv
-
 from utils import memory_unit_conversion
-
-load_dotenv()
 
 
 class Rancher2Base:
@@ -51,8 +46,6 @@ class Rancher2Base:
         return capacity, requested, limit
 
     def write_page(self):
-        # To be added: check if the content has changed
-
         content = "\n".join(self.content)
         if self.dryrun:
             print(f"Would write page {self.pageTitle}")
