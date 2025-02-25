@@ -43,7 +43,7 @@ class Rancher2Pods(Rancher2Base):
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
         redmine_error_color = "%{color:red}"
         cluster_content.append(
-            "|_{min-width:14em}. Pod |_. State |_. Chart |_. Kind |_. Namespace "
+            "|_{min-width:14em}. Pod |_. State |_. Namespace |_. Kind |_. Chart "
             "|_. Image |_. Restarts |_. Reservation |_. Limit |_. Start time |_. Upgrade |"
         )
 
@@ -54,13 +54,13 @@ class Rancher2Pods(Rancher2Base):
             if pod_state == "Failed":
                 pod_state = f"{redmine_error_color}{pod_state}%"
 
-            pod_chart = ""
-            if pod["metadata"].get("labels"):
-                pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "")
-
             pod_kind = ""
             if pod["metadata"].get("owner_references"):
                 pod_kind = pod["metadata"]["owner_references"][0]["kind"]
+
+            pod_chart = ""
+            if pod["metadata"].get("labels"):
+                pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "")
 
             resources_dict = {
                 container["name"]: container["resources"]
@@ -73,7 +73,7 @@ class Rancher2Pods(Rancher2Base):
 
                 cluster_content.append(
                     f"| \"{pod['metadata']['name']}\":{pod_link} | {pod_state} "
-                    f"| {pod['metadata']['namespace']} | {pod_chart} | {pod_kind} "
+                    f"| {pod['metadata']['namespace']} | {pod_kind} | {pod_chart} "
                     f"| {container['image']} |>. {container['restart_count']} "
                     f"|>. {requested} |>. {limit} | {start_time} | TODO |"
                 )
