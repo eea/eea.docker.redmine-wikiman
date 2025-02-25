@@ -97,6 +97,10 @@ def extract_images(url, chart_data_all_versions, version=None):
 
 
 def get_docker_images_rancher2(urls):
+    # create dir for archives (maybe create a docker volume for persistent data)
+    if not os.path.exists(ARCHIVES_DIR):
+        os.makedirs(ARCHIVES_DIR)
+
     # get all EEA helm chart versions here
     response = requests.get("https://eea.github.io/helm-charts/index.yaml")
     if response.status_code != 200:
@@ -111,7 +115,11 @@ def get_docker_images_rancher2(urls):
         all_images = []
         chart_name = url.rsplit("/", 1)[1].strip()
         chart_version = get_chart_version(chart_name)
-        chart_data_all_versions = charts_dict[chart_name]
+        chart_data_all_versions = charts_dict.get(chart_name)
+        if not chart_data_all_versions:
+            print(f"Helm chart {chart_name} not found")
+            continue
+
         chart_data, images = extract_images(url, chart_data_all_versions, chart_version)
         all_images.extend(images)
 
