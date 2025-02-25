@@ -50,11 +50,14 @@ class Rancher2Pods(Rancher2Base):
         for pod in pods_dict.get(node["metadata"]["name"], []):
             # add pod/containers information
             pod_link = f"{cluster_link}/pod/{pod['metadata']['namespace']}/{pod['metadata']['name']}"
-            pod_state = pod["status"]["phase"]
             pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "-")
-            pod_kind = pod["metadata"]["owner_references"][0]["kind"]
+            pod_state = pod["status"]["phase"]
             if pod_state == "Failed":
                 pod_state = f"{redmine_error_color}{pod_state}%"
+
+            pod_kind = ""
+            if pod["metadata"].get("owner_references"):
+                pod_kind = pod["metadata"]["owner_references"][0]["kind"]
 
             resources_dict = {
                 container["name"]: container["resources"]
