@@ -43,14 +43,16 @@ class Rancher2Pods(Rancher2Base):
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
         redmine_error_color = "%{color:red}"
         cluster_content.append(
-            "|_{min-width:14em}. Pod |_. State |_. Namespace |_. Image "
-            "|_. Restarts |_. Reservation |_. Limit |_. Start time |_. Upgrade |"
+            "|_{min-width:14em}. Pod |_. State |_. Chart |_. Kind |_. Namespace "
+            "|_. Image |_. Restarts |_. Reservation |_. Limit |_. Start time |_. Upgrade |"
         )
 
         for pod in pods_dict.get(node["metadata"]["name"], []):
             # add pod/containers information
             pod_link = f"{cluster_link}/pod/{pod['metadata']['namespace']}/{pod['metadata']['name']}"
             pod_state = pod["status"]["phase"]
+            pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "-")
+            pod_kind = pod["metadata"]["owner_references"][0]["kind"]
             if pod_state == "Failed":
                 pod_state = f"{redmine_error_color}{pod_state}%"
 
@@ -64,8 +66,8 @@ class Rancher2Pods(Rancher2Base):
                 requested, limit = self._get_container_memory_data(container, resources_dict)
 
                 cluster_content.append(
-                    f"| \"{pod['metadata']['name']}\":{pod_link} "
-                    f"| {pod_state} | {pod['metadata']['namespace']} "
+                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod_state} "
+                    f"| {pod['metadata']['namespace']} | {pod_chart} | {pod_kind} "
                     f"| {container['image']} |>. {container['restart_count']} "
                     f"|>. {requested} |>. {limit} | {start_time} | TODO |"
                 )
@@ -159,7 +161,7 @@ class Rancher2MergePods(Rancher2Base):
                     merged_content[rancher_server_name]["content"].append(line)
                     continue
 
-                image = line.split("|")[4].strip()
+                image = line.split("|")[6].strip()  # check image column number
                 _, update_msg = self.image_checker.check_image_and_base_status(image)
                 merged_content[rancher_server_name]["content"].append(
                     line.replace("TODO", update_msg)

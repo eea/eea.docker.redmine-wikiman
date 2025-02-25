@@ -77,3 +77,4 @@ if __name__ == "__main__":
         run_merge_apps()
         run_merge_nodes()
         run_merge_pods()
+        # run_apply_template("Climate_Advisory_Board")
