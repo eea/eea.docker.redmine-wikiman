@@ -21,7 +21,7 @@ def get_chart_version(chart_name):
             chart_version = columns[4].strip()
             return chart_version
 
-    return None
+    return ""
 
 
 def extract_non_eea_images(subchart):
@@ -50,7 +50,7 @@ def extract_images(url, chart_data_all_versions, version=None):
     response = requests.get(url, timeout=60)
     if response.status_code != 200:
         print(f"Helm chart not found, skipping {url}")
-        return []
+        return {}, []
 
     # get data for this chart version or get latest
     chart_data = chart_data_all_versions[0]
@@ -67,7 +67,7 @@ def extract_images(url, chart_data_all_versions, version=None):
         response = requests.get(f"https://eea.github.io/helm-charts/{source_files_archive}")
         if response.status_code != 200:
             print(f"Source files archive not found, skipping {url}")
-            return []
+            return {}, []
 
         with open(source_files_archive_path, "wb") as f:
             f.write(response.content)
@@ -113,13 +113,16 @@ def get_docker_images_rancher2(urls):
     for url in urls:
         # get images for main chart
         all_images = []
-        chart_name = url.rsplit("/", 1)[1].strip()
-        chart_version = get_chart_version(chart_name)
+        chart_name = None
+        if len(url.rsplit("/", 1)) > 1:
+            chart_name = url.rsplit("/", 1)[1].strip()
+
         chart_data_all_versions = charts_dict.get(chart_name)
         if not chart_data_all_versions:
-            print(f"Helm chart {chart_name} not found")
+            print(f"Helm chart not found for url {url}")
             continue
 
+        chart_version = get_chart_version(chart_name)
         chart_data, images = extract_images(url, chart_data_all_versions, chart_version)
         all_images.extend(images)
 
