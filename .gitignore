@@ -3,3 +3,5 @@ docker-compose.yml
 # Environments
 venv/
 .envrc
+.env
+.DS_Store

@@ -1,0 +1,683 @@
+{
+    "Rencher Containers -> Pods_containers": {
+        "description": "Get list of clusters => get list of nodes => get list of pods: ",
+        "description2": "In pods => node name + containers list",
+        "/v3/clusters": [
+            {
+                "id": "local",
+                "name": "local",
+                "url": "the rancher access url",
+                "description": "cluster description MEreu",
+                "capacity": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "allocatable": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "requested": {
+                    "cpu": "100m",
+                    "memory": "70Mi",
+                    "pods": "7"
+                },
+                "limits": {
+                    "cpu": "0",
+                    "memory": "170Mi",
+                    "pods": "0"
+                }
+            }
+        ],
+        "/v3/clusters/local/nodes": [
+            {
+                "hostname": "f8fefc18087f",
+                "url": "the rancher access url",
+                "ipAddress": "172.17.0.2",
+                "id": "local:machine-hw5qk",
+                "nodeName": "local-node",
+                "created": "2024-12-16T09:47:45Z",
+                "uuid": "2c268150-2c83-4a25-a2d5-5f6d2a9577f0",
+                "state": "active",
+                "allocatable": {
+                    "cpu": "1",
+                    "ephemeral-storage": "23968624622",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "hugepages-32Mi": "0",
+                    "hugepages-64Ki": "0",
+                    "memory": "4028092Ki",
+                    "pods": "110"
+                },
+                "capacity": {
+                    "cpu": "1",
+                    "ephemeral-storage": "24638800Ki",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "hugepages-32Mi": "0",
+                    "hugepages-64Ki": "0",
+                    "memory": "4028092Ki",
+                    "pods": "110"
+                },
+                "limits": {
+                    "memory": "170Mi"
+                },
+                "requested": {
+                    "cpu": "100m",
+                    "memory": "70Mi",
+                    "pods": "7"
+                }
+            }
+        ],
+        "/v1/pods": {
+            "id": "cattle-fleet-local-system/fleet-agent-0",
+            "name": "fleet-agent-0",
+            "namespace": "cattle-fleet-local-system",
+            "nodeName": "local-node",
+            "schedulerName": "default-scheduler",
+            "state": {
+                "error": true,
+                "message": "containers with incomplete status: [fleet-agent-register]",
+                "name": "init:0/1",
+                "transitioning": false
+            },
+            "labels": {
+                "app": "fleet-agent",
+                "apps.kubernetes.io/pod-index": "0",
+                "controller-revision-hash": "fleet-agent-75dd64d9d6",
+                "statefulset.kubernetes.io/pod-name": "fleet-agent-0"
+            },
+            "containers": [
+                {
+                    "image": "rancher/fleet-agent:v0.11.1",
+                    "name": "fleet-agent",
+                    "command": [
+                        "fleetagent"
+                    ],
+                    "volumeMounts": [
+                        {
+                            "mountPath": "/.kube",
+                            "name": "kube"
+                        },
+                        {
+                            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                            "name": "kube-api-access-l4hts",
+                            "readOnly": true
+                        }
+                    ]
+                }
+            ],
+            "status": {
+                "conditions": [
+                    {
+                        "error": false,
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2024-12-17T09:54:24Z",
+                        "lastUpdateTime": "2024-12-17T09:54:24Z",
+                        "status": "True",
+                        "transitioning": false,
+                        "type": "PodReadyToStartContainers"
+                    },
+                    {
+                        "error": true,
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2024-12-17T09:54:19Z",
+                        "lastUpdateTime": "2024-12-17T09:54:19Z",
+                        "message": "containers with incomplete status: [fleet-agent-register]",
+                        "reason": "ContainersNotInitialized",
+                        "status": "False",
+                        "transitioning": false,
+                        "type": "Initialized"
+                    },
+                    {
+                        "error": false,
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2024-12-17T09:54:19Z",
+                        "lastUpdateTime": "2024-12-17T09:54:19Z",
+                        "message": "containers with unready status: [fleet-agent fleet-agent-clusterstatus]",
+                        "reason": "ContainersNotReady",
+                        "status": "False",
+                        "transitioning": true,
+                        "type": "Ready"
+                    },
+                    {
+                        "error": false,
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2024-12-17T09:54:19Z",
+                        "lastUpdateTime": "2024-12-17T09:54:19Z",
+                        "message": "containers with unready status: [fleet-agent fleet-agent-clusterstatus]",
+                        "reason": "ContainersNotReady",
+                        "status": "False",
+                        "transitioning": false,
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "error": false,
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2024-12-17T09:54:19Z",
+                        "lastUpdateTime": "2024-12-17T09:54:19Z",
+                        "status": "True",
+                        "transitioning": false,
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "image": "rancher/fleet-agent:v0.11.1",
+                        "imageID": "",
+                        "lastState": {},
+                        "name": "fleet-agent",
+                        "ready": false,
+                        "restartCount": 0,
+                        "started": false,
+                        "state": {
+                            "waiting": {
+                                "reason": "PodInitializing"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/.kube",
+                                "name": "kube"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-l4hts",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    },
+                    {
+                        "image": "rancher/fleet-agent:v0.11.1",
+                        "imageID": "",
+                        "lastState": {},
+                        "name": "fleet-agent-clusterstatus",
+                        "ready": false,
+                        "restartCount": 0,
+                        "started": false,
+                        "state": {
+                            "waiting": {
+                                "reason": "PodInitializing"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-l4hts",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "hostIP": "172.17.0.2",
+                "hostIPs": [
+                    {
+                        "ip": "172.17.0.2"
+                    }
+                ],
+                "initContainerStatuses": [
+                    {
+                        "containerID": "containerd://b4a59edccf8398d2e7d353d0f8987d5e97e247eb1a27341dcd9c88f9e30ef972",
+                        "image": "docker.io/rancher/fleet-agent:v0.11.1",
+                        "imageID": "docker.io/rancher/fleet-agent@sha256:84fe0308e6e1d9b4fe0868938c67f2768e5a8dd935b8e1fa479717c35ba2b196",
+                        "lastState": {},
+                        "name": "fleet-agent-register",
+                        "ready": false,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2024-12-17T09:54:24Z"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-l4hts",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "phase": "Pending",
+                "podIP": "10.42.0.22",
+                "podIPs": [
+                    {
+                        "ip": "10.42.0.22"
+                    }
+                ],
+                "qosClass": "BestEffort",
+                "startTime": "2024-12-17T09:54:19Z"
+            }
+        }
+    },
+    "Rancher_Hosts -> nodes": {
+        "description": "Get list of clusters => get list of nodes",
+        "/v3/clusters": [
+            {
+                "id": "local",
+                "name": "local",
+                "created": "2024-12-17T09:43:11Z",
+                "provider": "k3s",
+                "state": "active",
+                "uuid": "edf9e58f-353c-4d7f-b147-756eab036836",
+                "version": {
+                    "buildDate": "2024-09-19T22:54:16Z",
+                    "compiler": "gc",
+                    "gitCommit": "452dbbc14c747a0070fdf007ef2239a6e5d8d934",
+                    "gitTreeState": "clean",
+                    "gitVersion": "v1.31.1+k3s1",
+                    "goVersion": "go1.22.6",
+                    "major": "1",
+                    "minor": "31",
+                    "platform": "linux/arm64",
+                    "type": "/v3/schemas/info"
+                },
+                "labels": {
+                    "provider.cattle.io": "k3s"
+                },
+                "allocatable": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "capacity": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "limits": {
+                    "cpu": "0",
+                    "memory": "170Mi",
+                    "pods": "0"
+                },
+                "requested": {
+                    "cpu": "100m",
+                    "memory": "70Mi",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:13Z",
+                        "status": "True",
+                        "type": "BackingNamespaceCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:14Z",
+                        "status": "True",
+                        "type": "DefaultProjectCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:14Z",
+                        "status": "True",
+                        "type": "SystemProjectCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:15Z",
+                        "status": "True",
+                        "type": "CreatorMadeOwner"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:16Z",
+                        "status": "True",
+                        "type": "Pending"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "Provisioned"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:33Z",
+                        "status": "True",
+                        "type": "Waiting"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:18Z",
+                        "status": "True",
+                        "type": "NoDiskPressure"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:18Z",
+                        "status": "True",
+                        "type": "NoMemoryPressure"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "SecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "ServiceAccountSecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "RKESecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "ACISecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "SystemAccountCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "Updated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "GlobalAdminsSynced"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:27Z",
+                        "status": "True",
+                        "type": "Connected"
+                    }
+                ]
+            }
+        ],
+        "/v3/clusters/local/nodes": [
+            {
+                "hostname": "f8fefc18087f",
+                "ipAddress": "172.17.0.2",
+                "id": "local:machine-hw5qk",
+                "nodeName": "local-node",
+                "created": "2024-12-16T09:47:45Z",
+                "uuid": "2c268150-2c83-4a25-a2d5-5f6d2a9577f0",
+                "state": "active",
+                "worker": false,
+                "allocatable": {
+                    "cpu": "1",
+                    "ephemeral-storage": "23968624622",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "hugepages-32Mi": "0",
+                    "hugepages-64Ki": "0",
+                    "memory": "4028092Ki",
+                    "pods": "110"
+                },
+                "capacity": {
+                    "cpu": "1",
+                    "ephemeral-storage": "24638800Ki",
+                    "hugepages-1Gi": "0",
+                    "hugepages-2Mi": "0",
+                    "hugepages-32Mi": "0",
+                    "hugepages-64Ki": "0",
+                    "memory": "4028092Ki",
+                    "pods": "110"
+                },
+                "limits": {
+                    "memory": "170Mi"
+                },
+                "info": {
+                    "cpu": {
+                        "count": 1
+                    },
+                    "kubernetes": {
+                        "kubeProxyVersion": "v1.31.1+k3s1",
+                        "kubeletVersion": "v1.31.1+k3s1"
+                    },
+                    "memory": {
+                        "memTotalKiB": 4028092
+                    },
+                    "os": {
+                        "dockerVersion": "containerd://1.7.21-k3s2",
+                        "kernelVersion": "5.10.104-linuxkit",
+                        "operatingSystem": "SUSE Linux Enterprise Server 15 SP6"
+                    }
+                },
+                "annotations": {
+                    "alpha.kubernetes.io/provided-node-ip": "172.17.0.2",
+                    "etcd.k3s.cattle.io/local-snapshots-timestamp": "2024-12-16T12:00:04Z",
+                    "etcd.k3s.cattle.io/node-address": "172.17.0.2",
+                    "etcd.k3s.cattle.io/node-name": "local-node-39c181a1",
+                    "flannel.alpha.coreos.com/backend-data": "{\"VNI\":1,\"VtepMAC\":\"aa:3c:76:30:7c:83\"}",
+                    "flannel.alpha.coreos.com/backend-type": "vxlan",
+                    "flannel.alpha.coreos.com/kube-subnet-manager": "true",
+                    "flannel.alpha.coreos.com/public-ip": "172.17.0.2",
+                    "k3s.io/hostname": "f8fefc18087f",
+                    "k3s.io/internal-ip": "172.17.0.2",
+                    "k3s.io/node-args": "[\"server\",\"--cluster-init\",\"--disable\",\"traefik,servicelb,metrics-server,local-storage\",\"--node-name\",\"local-node\",\"--log\",\"./k3s.log\"]",
+                    "k3s.io/node-config-hash": "FPKSMU4HMZ5GTPNRNIQDO472NLJ2KX4VIETHYVRRP6PWTM52RXLQ====",
+                    "k3s.io/node-env": "{}",
+                    "node.alpha.kubernetes.io/ttl": "0",
+                    "volumes.kubernetes.io/controller-managed-attach-detach": "true"
+                },
+                "conditions": [
+                    {
+                        "lastTransitionTime": "2024-12-16 09:46:47 +0000 UTC",
+                        "message": "kubelet is posting ready status",
+                        "reason": "KubeletReady",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "message": "registered with kubernetes",
+                        "status": "True",
+                        "type": "Registered"
+                    },
+                    {
+                        "status": "True",
+                        "type": "Provisioned"
+                    },
+                    {
+                        "lastHeartbeatTime": "2024-12-16T20:09:16Z",
+                        "lastHeartbeatTimeTS": 1734379756000,
+                        "lastTransitionTime": "2024-12-16T09:46:47Z",
+                        "lastTransitionTimeTS": 1734342407000,
+                        "message": "kubelet is posting ready status",
+                        "reason": "KubeletReady",
+                        "status": "True",
+                        "type": "Ready"
+                    }
+                ]
+            }
+        ]
+    },
+    "Rancher_Stacks -> apps": {
+        "/v3/clusters": [
+            {
+                "id": "local",
+                "name": "local",
+                "created": "2024-12-17T09:43:11Z",
+                "provider": "k3s",
+                "state": "active",
+                "uuid": "edf9e58f-353c-4d7f-b147-756eab036836",
+                "version": {
+                    "buildDate": "2024-09-19T22:54:16Z",
+                    "compiler": "gc",
+                    "gitCommit": "452dbbc14c747a0070fdf007ef2239a6e5d8d934",
+                    "gitTreeState": "clean",
+                    "gitVersion": "v1.31.1+k3s1",
+                    "goVersion": "go1.22.6",
+                    "major": "1",
+                    "minor": "31",
+                    "platform": "linux/arm64",
+                    "type": "/v3/schemas/info"
+                },
+                "labels": {
+                    "provider.cattle.io": "k3s"
+                },
+                "allocatable": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "capacity": {
+                    "cpu": "4",
+                    "memory": "8039920Ki",
+                    "pods": "110"
+                },
+                "limits": {
+                    "cpu": "0",
+                    "memory": "170Mi",
+                    "pods": "0"
+                },
+                "requested": {
+                    "cpu": "100m",
+                    "memory": "70Mi",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:13Z",
+                        "status": "True",
+                        "type": "BackingNamespaceCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:14Z",
+                        "status": "True",
+                        "type": "DefaultProjectCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:14Z",
+                        "status": "True",
+                        "type": "SystemProjectCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:15Z",
+                        "status": "True",
+                        "type": "CreatorMadeOwner"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:16Z",
+                        "status": "True",
+                        "type": "Pending"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "Provisioned"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:33Z",
+                        "status": "True",
+                        "type": "Waiting"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:18Z",
+                        "status": "True",
+                        "type": "NoDiskPressure"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:18Z",
+                        "status": "True",
+                        "type": "NoMemoryPressure"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "SecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "ServiceAccountSecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "RKESecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "ACISecretsMigrated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:19Z",
+                        "status": "True",
+                        "type": "SystemAccountCreated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "Updated"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:20Z",
+                        "status": "True",
+                        "type": "GlobalAdminsSynced"
+                    },
+                    {
+                        "lastUpdateTime": "2024-12-17T09:43:27Z",
+                        "status": "True",
+                        "type": "Connected"
+                    }
+                ]
+            }
+        ],
+        " v3/clusters/local/namespaces": [
+            {
+                "created": "2024-12-17T09:43:57Z",
+                "id": "cattle-fleet-clusters-system",
+                "name": "cattle-fleet-clusters-system",
+                "projectId": "local:p-b7kj6",
+                "state": "active",
+                "uuid": "c7e83594-35c0-4c43-9e7c-2b0c0c695e92",
+                "labels": {
+                    "field.cattle.io/projectId": "p-b7kj6",
+                    "kubernetes.io/metadata.name": "cattle-fleet-clusters-system",
+                    "objectset.rio.cattle.io/hash": "4510303f19b6cbafc9031148b1866f16c2be7aaa"
+                }
+            }
+        ],
+        "v1/catalog.cattle.io.apps": [
+            {
+                "id": "cattle-elemental-system/elemental-operator",
+                "name": "elemental-operator",
+                "namespace": "cattle-elemental-system",
+                "version": 1,
+                "creationTimestamp": "2024-12-17T12:57:08Z",
+                "generation": 2,
+                "uid": "ac415f1b-02ae-42f9-bab4-fdb242a114a0",
+                "state": {
+                    "error": false,
+                    "message": "",
+                    "name": "deployed",
+                    "transitioning": false
+                },
+                "status": {
+                    "observedGeneration": 2,
+                    "summary": {
+                        "state": "deployed"
+                    }
+                },
+                "chart": {
+                    "apiVersion": "v2",
+                    "appVersion": "1.6.5",
+                    "description": "Elemental provides Cloud Native OS Management for Cluster Nodes.",
+                    "icon": "https://raw.githubusercontent.com/rancher/elemental/main/logo/icon-elemental.svg",
+                    "name": "elemental",
+                    "version": "105.0.1+up1.6.5"
+                },
+                "helmVersion": 3,
+                "labels": {
+                    "catalog.cattle.io/cluster-repo-name": "rancher-charts",
+                    "objectset.rio.cattle.io/hash": "c290f11bfdfdfa19248cbe37f3c9352085196e61"
+                }
+            }
+        ]
+    }
+}

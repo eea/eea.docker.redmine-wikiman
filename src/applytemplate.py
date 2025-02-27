@@ -5,23 +5,28 @@ Apply the factsheet template to wiki pages
 https://taskman.eionet.europa.eu/projects/netpub/wiki/IT_service_factsheet_template
 """
 
+import argparse
+import io
+import logging
 import os
 import re
-from collections import OrderedDict, defaultdict
-import logging
-import io
-import tempfile
 import subprocess
-import argparse
+import tempfile
 import time
-from datetime import datetime, date
 
-from redminelib import Redmine
-from redminelib.exceptions import ResourceNotFoundError
+from collections import OrderedDict, defaultdict
+from datetime import date, datetime
+
 from more_itertools import peekable
+from redminelib import Redmine
+from redminelib.exceptions import ResourceNotFoundError, UnknownError
 
-import addimageinfo
 from image_checker import ImageChecker
+from rancher1.addimageinfo import generate_images_text, get_docker_images
+from rancher2.addimageinfo import (
+    generate_images_text_rancher2,
+    get_docker_images_rancher2,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,8 +51,8 @@ TOC_CODE = "{{>toc}}"
 def remove_extensions_header(text):
     header_pattern = (
         r'<div id="wiki_extentions_header">\s*'
-        r'{{last_updated_at}} _by_ {{last_updated_by}}\s*'
-        r'</div>'
+        r"{{last_updated_at}} _by_ {{last_updated_by}}\s*"
+        r"</div>"
     )
     return re.sub(header_pattern, "", text).lstrip()
 
@@ -70,12 +75,26 @@ def unescape_html(text):
 
 
 def get_deployment_info(urls, image_checker):
-    docker_images = addimageinfo.get_docker_images(urls)
+    # rancher1
+    docker_images = get_docker_images(urls)
     if not docker_images:
         log.debug("No docker images extracted, will continue")
         return
 
-    update_needed, text = addimageinfo.generate_images_text(docker_images, image_checker)
+    update_needed, text = generate_images_text(docker_images, image_checker)
+    return update_needed, text
+
+
+def get_deployment_info_rancher2(urls, image_checker):
+    # rancher2
+    docker_images = get_docker_images_rancher2(urls)
+    if not docker_images:
+        log.debug("No docker images extracted, will continue")
+        return
+
+    update_needed, text = generate_images_text_rancher2(
+        docker_images, image_checker
+    )
     return update_needed, text
 
 
@@ -91,10 +110,10 @@ class Taskman:
     def save_wiki(self, project_id, name, text):
         try:
             self.redmine.wiki_page.update(name, project_id=project_id, text=text)
-        except redminelib.exceptions.UnknownError:
+        except UnknownError:
             time.sleep(30)
             self.redmine.wiki_page.update(name, project_id=project_id, text=text)
-    
+
     def wiki_children(self, project_id, name):
         project = self.redmine.project.get(project_id)
         children_of = defaultdict(list)
@@ -118,25 +137,18 @@ class StackFinder:
 
     def find(self, url):
         stack = ""
-        url_no_protocol = url.replace('http://', '').replace('https://', '')
+        url_no_protocol = url.replace("http://", "").replace("https://", "")
         #remove \
-        url_no_protocol = url_no_protocol.replace('\\','')
+        url_no_protocol = url_no_protocol.replace("\\", "")
 
         regex = re.compile(
-            r' (https?://)?{}/?[^a-z/]'.format(url_no_protocol.replace('.', r'\.')),
+            r" (https?://)?{}/?[^a-z/]".format(url_no_protocol.replace(".", r"\.")),
             re.IGNORECASE,
         )
         stack = list(filter(regex.search, self.stacks))
         if not stack:
-            stack_name = (
-                url_no_protocol
-                .replace('.europa.eu', '')
-                .replace('.', '-')
-            )
-            stack = [
-                x for x in self.stacks
-                if '|"' + stack_name + '":' in x.lower()
-            ]
+            stack_name = url_no_protocol.replace(".europa.eu", "").replace(".", "-")
+            stack = [x for x in self.stacks if '|"' + stack_name + '":' in x.lower()]
 
         regex = re.compile(r'^\|(".+?":.+?) \|.*$')
         rv = [regex.match(str(st)).group(1) for st in stack]
@@ -171,7 +183,7 @@ class Wikipage:
                     sections.append(current)
 
                 current = {
-                    "title": line[len(hprefix):].strip(),
+                    "title": line[len(hprefix) :].strip(),
                     "lines": [],
                 }
 
@@ -210,7 +222,9 @@ class Wikipage:
 
 class Template:
 
-    def __init__(self, text, template_project, template_name, stack_wiki_text, image_checker):
+    def __init__(
+        self, text, template_project, template_name, stack_wiki_text, image_checker, rancher2=False
+    ):
         wikipage = Wikipage(text)
         self.template_project = template_project
         self.template_name = template_name
@@ -228,6 +242,7 @@ class Template:
             self.sections.append(mapped_s)
 
         self.stack_finder = StackFinder(stack_wiki_text)
+        self.rancher2 = rancher2
 
     def _parse_fields(self, intro_lines):
         for line in intro_lines:
@@ -293,16 +308,16 @@ class Template:
         fields = OrderedDict()
         extra_lines = []
         fields_finished = False
-        
+
         existing_fields = []
         for field in self.fields:
             existing_fields.append(field["label"])
-            
+
         for line in intro_lines:
             if line.strip() == TOC_CODE:
                 continue
 
-            if line.strip() and ':' not in line:
+            if line.strip() and ":" not in line:
                 fields_finished = True
 
             if fields_finished:
@@ -315,7 +330,7 @@ class Template:
             [label, value] = line.strip().split(":", 1)
             label = label.strip()
             value = value.strip()
-            
+
             if "{color:red}ToDo" in value and label.lower() not in existing_fields:
                 log.debug(f"Not keeping the old mandatory field {label!r}")
                 continue
@@ -342,17 +357,19 @@ class Template:
             new_fields[original_case[label]] = value
 
         new_stacks = []
-        for location in new_fields['Service location']:
+        for location in new_fields["Service location"]:
             if not location.strip():
                 continue
-            url = location.strip().split()[0].strip('/')
-            if '(' in url:
-                log.warning(f"Could not extract url from {url}, check 'Service location'")
+            url = location.strip().split()[0].strip("/")
+            if "(" in url:
+                log.warning(
+                    f"Could not extract url from {url}, check 'Service location'"
+                )
                 continue
             new_stacks.extend(self.stack_finder.find(url))
 
         if new_stacks:
-            new_fields['Rancher Stack URL'] = new_stacks
+            new_fields["Rancher Stack URL"] = new_stacks
 
         return (new_fields, extra_lines)
 
@@ -406,7 +423,11 @@ class Template:
         if source_code_section is None:
             return
 
-        deployment_info = get_deployment_info(urls, self.image_checker)
+        deployment_info = (
+            get_deployment_info_rancher2(urls, self.image_checker)
+            if self.rancher2
+            else get_deployment_info(urls, self.image_checker)
+        )
         if deployment_info is None:
             return
 
@@ -454,7 +475,7 @@ class Template:
             content = "\n".join(section["lines"])
             if self._is_todo(content):
                 todo_list.append(f"Section \"{section['title']}\"")
-                if section['title'] == "Components and source code":
+                if section["title"] == "Components and source code":
                     todo_components_and_source = True
 
             h3_template = []
@@ -466,15 +487,27 @@ class Template:
 
         update_needed = self._add_image_info(page, new_fields["DeploymentRepoURL"])
         if update_needed and not todo_components_and_source:
-            todo_list.append("Section \"Components and source code\" **(upgrade available)**")
+            todo_list.append(
+                'Section "Components and source code" **(upgrade available)**'
+            )
 
         return (page.render(), todo_list)
 
 
 class FactsheetUpdater:
 
-    def __init__(self, taskman, dry_run, factsheet_project, template_project,
-                 template_name, todolist_name, stackwiki, image_checker):
+    def __init__(
+        self,
+        taskman,
+        dry_run,
+        factsheet_project,
+        template_project,
+        template_name,
+        todolist_name,
+        stackwiki,
+        image_checker,
+        rancher2=False,
+    ):
         self.taskman = taskman
         self.dry_run = dry_run
         template_text = self.taskman.get_wiki(template_project, template_name)
@@ -485,6 +518,7 @@ class FactsheetUpdater:
             template_name,
             stack_wiki_text,
             image_checker,
+            rancher2,
         )
         self.todo_map = defaultdict(dict)
         self.seen_pages = set()
@@ -520,11 +554,11 @@ class FactsheetUpdater:
         owner = "Unspecified"
         system_owner_match = re.search(r"System owner:\s*(.*)", orig, re.I)
         if system_owner_match:
-            value = system_owner_match.group(1).strip().strip('[]')
+            value = system_owner_match.group(1).strip().strip("[]")
             if not self.template._is_todo(value):
                 owner = value
 
-        self.todo_map[owner][page] = ', '.join(todo_list) or OK_TEXT
+        self.todo_map[owner][page] = ", ".join(todo_list) or OK_TEXT
         self.seen_pages.add(page)
 
     def recursive_update(self, start_page):
@@ -582,11 +616,12 @@ class FactsheetUpdater:
                 lines.append(f"* {link}: {summary}")
             lines.append("")
 
-            todo_page.sections.append({
-                "title": owner,
-                "lines": lines,
-            })
-
+            todo_page.sections.append(
+                {
+                    "title": owner,
+                    "lines": lines,
+                }
+            )
 
         new = todo_page.render()
 
@@ -605,6 +640,7 @@ def main(page, config, image_checker):
         todolist_name=config["todolist_name"],
         stackwiki=config["stackwiki"],
         image_checker=image_checker,
+        rancher2=config.get("rancher2", False),
     )
     log.info("Starting at %s" % page)
     updater.recursive_update(page)
