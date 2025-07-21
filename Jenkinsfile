@@ -59,6 +59,7 @@ pipeline {
             )
           ]) {
             sh '''
+              rm -rf $GIT_NAME
               git clone https://github.com/eea/$GIT_NAME.git
               cd $GIT_NAME
               git checkout $TAG_NAME
@@ -67,6 +68,9 @@ pipeline {
               
               docker build -t "$registry:$TAG_NAME-backup" backup-audit-k8s-app
               docker push "$registry:$TAG_NAME-backup"
+              
+              cd ..
+              rm -rf $GIT_NAME
             '''
           }
         }
