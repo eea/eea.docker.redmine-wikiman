@@ -65,7 +65,8 @@ pipeline {
                 --name="$BUILD_TAG-backup" \
                 -e GIT_BRANCH="$BRANCH_NAME" \
                 -e GIT_NAME="$GIT_NAME" \
-                -e DOCKERHUB_REPO="$registry:backup" \
+                -e DOCKERHUB_REPO="$registry" \
+                -e DOCKERHUB_REPO_SUFIX="-backup" \
                 -e GIT_TOKEN="$GITHUB_TOKEN" \
                 -e DOCKERHUB_USER="$DOCKERHUB_USER" \
                 -e DOCKERHUB_PASS="$DOCKERHUB_PASS" \
