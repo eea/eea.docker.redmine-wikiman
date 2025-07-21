@@ -65,7 +65,7 @@ pipeline {
               
               echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
               
-              docker build -f backup-audit-k8s-app/Dockerfile -t "$registry:$TAG_NAME-backup" .
+              docker build -t "$registry:$TAG_NAME-backup" backup-audit-k8s-app
               docker push "$registry:$TAG_NAME-backup"
             '''
           }
