@@ -43,39 +43,6 @@ pipeline {
         }
       }
     }
-
-    stage('Build backup audit image') {
-      when {
-        buildingTag()
-      }
-      steps {
-        node(label: 'docker') {
-          withCredentials([
-            string(credentialsId: 'eea-jenkins-token', variable: 'GITHUB_TOKEN'),
-            usernamePassword(
-              credentialsId: 'jekinsdockerhub',
-              usernameVariable: 'DOCKERHUB_USER',
-              passwordVariable: 'DOCKERHUB_PASS'
-            )
-          ]) {
-            sh '''
-              rm -rf $GIT_NAME
-              git clone https://github.com/eea/$GIT_NAME.git
-              cd $GIT_NAME
-              git checkout $TAG_NAME
-              
-              echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-              
-              docker build -t "$registry:$TAG_NAME-backup" backup-audit-k8s-app
-              docker push "$registry:$TAG_NAME-backup"
-              
-              cd ..
-              rm -rf $GIT_NAME
-            '''
-          }
-        }
-      }
-    }
   }
 
   post {
