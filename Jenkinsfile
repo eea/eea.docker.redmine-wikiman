@@ -59,20 +59,14 @@ pipeline {
             )
           ]) {
             sh '''
-              docker pull eeacms/gitflow;
-
-              docker run -i --rm \
-                --name="$BUILD_TAG-backup" \
-                -e GIT_BRANCH="$BRANCH_NAME" \
-                -e GIT_NAME="$GIT_NAME" \
-                -e DOCKERHUB_REPO="$registry" \
-                -e DOCKERHUB_REPO_SUFIX="-backup" \
-                -e GIT_TOKEN="$GITHUB_TOKEN" \
-                -e DOCKERHUB_USER="$DOCKERHUB_USER" \
-                -e DOCKERHUB_PASS="$DOCKERHUB_PASS" \
-                -e DOCKERFILE_PATH="backup-audit-k8s-app/Dockerfile" \
-                -e GITFLOW_BEHAVIOR="RUN_ON_TAG" \
-                eeacms/gitflow
+              git clone https://github.com/eea/$GIT_NAME.git
+              cd $GIT_NAME
+              git checkout $TAG_NAME
+              
+              echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+              
+              docker build -f backup-audit-k8s-app/Dockerfile -t "$registry:$TAG_NAME-backup" .
+              docker push "$registry:$TAG_NAME-backup"
             '''
           }
         }
