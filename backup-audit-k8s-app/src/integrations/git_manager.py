@@ -17,12 +17,28 @@ GIT_USER_NAME = os.getenv("GIT_USER_NAME", "audit-logger")
 GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", "audit-logger@kubernetes.local")
 GIT_SSH_KEY_PATH = os.getenv("GIT_SSH_KEY_PATH", "/home/audit/.ssh/id_rsa")
 GIT_HTTPS_TOKEN = os.getenv("GIT_HTTPS_TOKEN", "")
+GIT_USERNAME = os.getenv("GIT_USERNAME", "git")
+GIT_AUTH_METHOD = os.getenv("GIT_AUTH_METHOD", "ssh")
 
 # SSH configuration
 GIT_SSH_HOST = os.getenv("GIT_SSH_HOST", "git.storiette.ro")
 GIT_SSH_HOSTNAME = os.getenv("GIT_SSH_HOSTNAME", "git.storiette.ro")
 GIT_SSH_PORT = os.getenv("GIT_SSH_PORT", "1022")
 GIT_SSH_USER = os.getenv("GIT_SSH_USER", "git")
+
+
+def get_authenticated_git_url(base_url: str) -> str:
+    """Convert Git URL to include authentication if using token method"""
+    if GIT_AUTH_METHOD == "token" and GIT_HTTPS_TOKEN and base_url.startswith("https://"):
+        # Parse the URL to embed credentials
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(base_url)
+        # Create authenticated URL: https://username:token@host/path
+        netloc = f"{GIT_USERNAME}:{GIT_HTTPS_TOKEN}@{parsed.netloc}"
+        auth_url = urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+        logger.info(f"Using token authentication for Git operations")
+        return auth_url
+    return base_url
 
 
 class GitManager:
@@ -53,9 +69,10 @@ class GitManager:
                 # Try to clone if directory is empty and remote is set
                 if GIT_REMOTE_URL and is_empty:
                     try:
+                        auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
                         logger.info(f"Cloning repository from {GIT_REMOTE_URL}")
                         self.repo = git.Repo.clone_from(
-                            GIT_REMOTE_URL, self.storage_path, branch=GIT_BRANCH
+                            auth_url, self.storage_path, branch=GIT_BRANCH
                         )
                         logger.info("Successfully cloned repository")
                         self._remote_configured = True
@@ -94,7 +111,8 @@ class GitManager:
                     pass
 
                 try:
-                    self.repo.create_remote("origin", GIT_REMOTE_URL)
+                    auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
+                    self.repo.create_remote("origin", auth_url)
                     logger.info(f"Configured remote origin: {GIT_REMOTE_URL}")
 
                     # Align local branch to remote
