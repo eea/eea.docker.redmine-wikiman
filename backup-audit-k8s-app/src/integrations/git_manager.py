@@ -21,21 +21,35 @@ GIT_USERNAME = os.getenv("GIT_USERNAME", "git")
 GIT_AUTH_METHOD = os.getenv("GIT_AUTH_METHOD", "ssh")
 
 # SSH configuration
-GIT_SSH_HOST = os.getenv("GIT_SSH_HOST", "git.storiette.ro")
-GIT_SSH_HOSTNAME = os.getenv("GIT_SSH_HOSTNAME", "git.storiette.ro")
+GIT_SSH_HOST = os.getenv("GIT_SSH_HOST", "")
+GIT_SSH_HOSTNAME = os.getenv("GIT_SSH_HOSTNAME", "")
 GIT_SSH_PORT = os.getenv("GIT_SSH_PORT", "1022")
 GIT_SSH_USER = os.getenv("GIT_SSH_USER", "git")
 
 
 def get_authenticated_git_url(base_url: str) -> str:
     """Convert Git URL to include authentication if using token method"""
-    if GIT_AUTH_METHOD == "token" and GIT_HTTPS_TOKEN and base_url.startswith("https://"):
+    if (
+        GIT_AUTH_METHOD == "token"
+        and GIT_HTTPS_TOKEN
+        and base_url.startswith("https://")
+    ):
         # Parse the URL to embed credentials
         from urllib.parse import urlparse, urlunparse
+
         parsed = urlparse(base_url)
         # Create authenticated URL: https://username:token@host/path
         netloc = f"{GIT_USERNAME}:{GIT_HTTPS_TOKEN}@{parsed.netloc}"
-        auth_url = urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+        auth_url = urlunparse(
+            (
+                parsed.scheme,
+                netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
         logger.info(f"Using token authentication for Git operations")
         return auth_url
     return base_url
@@ -118,12 +132,12 @@ class GitManager:
                     # Align local branch to remote
                     try:
                         self.repo.git.fetch("origin")
-                        self.repo.git.reset("--hard", "origin/master")
+                        self.repo.git.reset("--hard", f"origin/{GIT_BRANCH}")
                         self.repo.git.branch(
-                            "--set-upstream-to=origin/master", "master"
+                            f"--set-upstream-to=origin/{GIT_BRANCH}", GIT_BRANCH
                         )
                         logger.info(
-                            "Aligned local repo with origin/master and set upstream"
+                            f"Aligned local repo with origin/{GIT_BRANCH} and set upstream"
                         )
                         self._remote_configured = True
                     except Exception as e:
@@ -154,7 +168,7 @@ class GitManager:
                             "No local commits found, pulling initial content..."
                         )
                         try:
-                            self.repo.git.pull("origin", "master")
+                            self.repo.git.pull("origin", GIT_BRANCH)
                             logger.info(
                                 "Successfully pulled initial content from remote"
                             )
@@ -164,28 +178,28 @@ class GitManager:
 
                     # Check if we're behind the remote
                     try:
-                        # Check if origin/master exists
-                        if self.repo and "origin/master" in self.repo.refs:
+                        # Check if origin branch exists
+                        if self.repo and f"origin/{GIT_BRANCH}" in self.repo.refs:
                             # Get the current commit hash
                             current_commit = self.repo.head.commit.hexsha
 
                             # Get the remote commit hash
-                            origin_master_ref = self.repo.refs["origin/master"]
-                            remote_commit = origin_master_ref.commit.hexsha
+                            origin_branch_ref = self.repo.refs[f"origin/{GIT_BRANCH}"]
+                            remote_commit = origin_branch_ref.commit.hexsha
 
                             if current_commit != remote_commit:
                                 logger.info("Pulling latest changes from remote...")
-                                self.repo.git.pull("origin", "master", "--rebase")
+                                self.repo.git.pull("origin", GIT_BRANCH, "--rebase")
                                 logger.info("Successfully pulled latest changes")
                             else:
                                 logger.info("Already up to date with remote")
                         else:
                             logger.info(
-                                "No remote master branch found (new repository)"
+                                f"No remote {GIT_BRANCH} branch found (new repository)"
                             )
                             # Try to pull anyway
                             try:
-                                self.repo.git.pull("origin", "master")
+                                self.repo.git.pull("origin", GIT_BRANCH)
                                 logger.info("Successfully pulled from remote")
                             except Exception as e2:
                                 logger.debug(f"Could not pull from remote: {e2}")
@@ -194,7 +208,7 @@ class GitManager:
                         # Try a simple pull
                         try:
                             if self.repo:
-                                self.repo.git.pull("origin", "master")
+                                self.repo.git.pull("origin", GIT_BRANCH)
                                 logger.info("Successfully pulled latest changes")
                         except Exception as e2:
                             logger.debug(f"Could not pull from remote: {e2}")
@@ -238,9 +252,9 @@ class GitManager:
                         # Set upstream after first commit
                         try:
                             self.repo.git.branch(
-                                "--set-upstream-to=origin/master", "master"
+                                f"--set-upstream-to=origin/{GIT_BRANCH}", GIT_BRANCH
                             )
-                            logger.info("Set upstream branch to origin/master")
+                            logger.info(f"Set upstream branch to origin/{GIT_BRANCH}")
                         except Exception as e:
                             logger.debug(f"Could not set upstream branch: {e}")
                     else:
@@ -264,15 +278,15 @@ class GitManager:
                         # Get the current branch
                         current_branch = self.repo.active_branch.name
 
-                        # Check if origin/master exists
+                        # Check if origin branch exists
                         try:
-                            if self.repo and "origin/master" in self.repo.refs:
-                                origin_master = self.repo.refs["origin/master"]
+                            if self.repo and f"origin/{GIT_BRANCH}" in self.repo.refs:
+                                origin_branch = self.repo.refs[f"origin/{GIT_BRANCH}"]
                                 # Check if we're ahead of origin
                                 ahead_count = len(
                                     list(
                                         self.repo.iter_commits(
-                                            f"origin/master..{current_branch}"
+                                            f"origin/{GIT_BRANCH}..{current_branch}"
                                         )
                                     )
                                 )
@@ -286,17 +300,17 @@ class GitManager:
                                 else:
                                     logger.info("No commits to push")
                             else:
-                                # origin/master doesn't exist, this is the first push
+                                # origin branch doesn't exist, this is the first push
                                 logger.info("First push to remote...")
-                                self.repo.git.push("--set-upstream", "origin", "master")
+                                self.repo.git.push("--set-upstream", "origin", GIT_BRANCH)
                                 logger.info(
                                     "Successfully pushed initial commit to remote"
                                 )
 
                         except (KeyError, IndexError):
-                            # origin/master doesn't exist, this is the first push
+                            # origin branch doesn't exist, this is the first push
                             logger.info("First push to remote...")
-                            self.repo.git.push("--set-upstream", "origin", "master")
+                            self.repo.git.push("--set-upstream", "origin", GIT_BRANCH)
                             logger.info("Successfully pushed initial commit to remote")
 
                     except git.exc.GitCommandError as e:
@@ -304,7 +318,7 @@ class GitManager:
                             # Set upstream and push
                             try:
                                 logger.info("Setting upstream and pushing...")
-                                self.repo.git.push("--set-upstream", "origin", "master")
+                                self.repo.git.push("--set-upstream", "origin", GIT_BRANCH)
                                 logger.info(
                                     "Successfully pushed changes to remote (set upstream)"
                                 )
