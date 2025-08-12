@@ -93,21 +93,47 @@ class KubernetesManager:
         self.networking_v1 = client.NetworkingV1Api()  # type: ignore[attr-defined]
 
     def check_chart_exists_in_repository(self, chart_name: str, repo_org: str, repo_name: str = "helm-charts", charts_dir: str = "charts") -> bool:
-        """Check if a chart exists in a GitHub repository"""
+        """Check if a chart exists in a repository"""
         try:
-            # Check if chart directory exists in the repository
-            url = f"https://api.github.com/repos/{repo_org}/{repo_name}/contents/{charts_dir}/{chart_name}"
-            
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                logger.debug(f"Chart '{chart_name}' found in {repo_org}/{repo_name}/{charts_dir}")
-                return True
-            elif response.status_code == 404:
-                logger.debug(f"Chart '{chart_name}' not found in {repo_org}/{repo_name}/{charts_dir}")
-                return False
+            # For EEA helm-charts, use the GitHub Pages hosted repository
+            if repo_org == "eea" and repo_name == "helm-charts":
+                # Check if chart exists in the hosted Helm repository
+                url = f"https://eea.github.io/helm-charts/{chart_name}-*.tgz"
+                # Try to get the index.yaml to check for the chart
+                index_url = "https://eea.github.io/helm-charts/index.yaml"
+                
+                response = requests.get(index_url, timeout=10)
+                if response.status_code == 200:
+                    # Parse the index.yaml to check if chart exists
+                    try:
+                        import yaml
+                        index_data = yaml.safe_load(response.text)
+                        if "entries" in index_data and chart_name in index_data["entries"]:
+                            logger.debug(f"Chart '{chart_name}' found in eea.github.io/helm-charts")
+                            return True
+                        else:
+                            logger.debug(f"Chart '{chart_name}' not found in eea.github.io/helm-charts")
+                            return False
+                    except Exception as e:
+                        logger.warning(f"Failed to parse index.yaml from eea.github.io/helm-charts: {e}")
+                        return False
+                else:
+                    logger.warning(f"Failed to fetch index.yaml from eea.github.io/helm-charts: {response.status_code}")
+                    return False
             else:
-                logger.warning(f"Unexpected response {response.status_code} when checking {repo_org}/{repo_name}/{charts_dir} for chart '{chart_name}'")
-                return False
+                # For other repositories, use GitHub API
+                url = f"https://api.github.com/repos/{repo_org}/{repo_name}/contents/{charts_dir}/{chart_name}"
+                
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    logger.debug(f"Chart '{chart_name}' found in {repo_org}/{repo_name}/{charts_dir}")
+                    return True
+                elif response.status_code == 404:
+                    logger.debug(f"Chart '{chart_name}' not found in {repo_org}/{repo_name}/{charts_dir}")
+                    return False
+                else:
+                    logger.warning(f"Unexpected response {response.status_code} when checking {repo_org}/{repo_name}/{charts_dir} for chart '{chart_name}'")
+                    return False
                 
         except requests.RequestException as e:
             logger.warning(f"Failed to check chart '{chart_name}' in {repo_org}/{repo_name}/{charts_dir}: {e}")
