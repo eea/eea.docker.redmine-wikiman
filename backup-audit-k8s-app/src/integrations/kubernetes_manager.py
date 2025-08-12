@@ -4,7 +4,8 @@ import os
 import logging
 import base64
 import gzip
-from typing import List, Dict, Any
+import requests
+from typing import List, Dict, Any, Optional
 
 try:
     from kubernetes import client, config  # type: ignore[import]
@@ -90,6 +91,59 @@ class KubernetesManager:
         self.apps_v1 = client.AppsV1Api()  # type: ignore[attr-defined]
         self.batch_v1 = client.BatchV1Api()  # type: ignore[attr-defined]
         self.networking_v1 = client.NetworkingV1Api()  # type: ignore[attr-defined]
+
+    def check_chart_exists_in_repository(self, chart_name: str, repo_org: str, repo_name: str = "helm-charts", charts_dir: str = "charts") -> bool:
+        """Check if a chart exists in a GitHub repository"""
+        try:
+            # Check if chart directory exists in the repository
+            url = f"https://api.github.com/repos/{repo_org}/{repo_name}/contents/{charts_dir}/{chart_name}"
+            
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                logger.debug(f"Chart '{chart_name}' found in {repo_org}/{repo_name}/{charts_dir}")
+                return True
+            elif response.status_code == 404:
+                logger.debug(f"Chart '{chart_name}' not found in {repo_org}/{repo_name}/{charts_dir}")
+                return False
+            else:
+                logger.warning(f"Unexpected response {response.status_code} when checking {repo_org}/{repo_name}/{charts_dir} for chart '{chart_name}'")
+                return False
+                
+        except requests.RequestException as e:
+            logger.warning(f"Failed to check chart '{chart_name}' in {repo_org}/{repo_name}/{charts_dir}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error checking chart '{chart_name}' in {repo_org}/{repo_name}/{charts_dir}: {e}")
+            return False
+
+    def find_chart_repository(self, chart_name: str) -> Optional[Dict[str, str]]:
+        """Search for a chart across known repositories, starting with EEA"""
+        # Define repositories to search in priority order with their specific directory structures
+        repositories = [
+            {"org": "eea", "name": "helm-charts", "url": "https://github.com/eea/helm-charts", "charts_dir": "sources"},
+            {"org": "bitnami", "name": "charts", "url": "https://github.com/bitnami/charts", "charts_dir": "charts"},
+            {"org": "prometheus-community", "name": "helm-charts", "url": "https://github.com/prometheus-community/helm-charts", "charts_dir": "charts"},
+            {"org": "jetstack", "name": "cert-manager", "url": "https://github.com/jetstack/cert-manager", "charts_dir": "charts"},
+            {"org": "kubernetes", "name": "ingress-nginx", "url": "https://github.com/kubernetes/ingress-nginx", "charts_dir": "charts"},
+        ]
+        
+        for repo in repositories:
+            try:
+                charts_dir = repo.get("charts_dir", "charts")
+                if self.check_chart_exists_in_repository(chart_name, repo["org"], repo["name"], charts_dir):
+                    logger.info(f"Found chart '{chart_name}' in {repo['org']}/{repo['name']}/{charts_dir}")
+                    return {
+                        "repository": f"{repo['org']}/{repo['name']}",
+                        "repository_url": repo["url"],
+                        "org": repo["org"],
+                        "repo_name": repo["name"]
+                    }
+            except Exception as e:
+                logger.warning(f"Error searching for chart '{chart_name}' in {repo['org']}/{repo['name']}: {e}")
+                continue
+        
+        logger.warning(f"Chart '{chart_name}' not found in any known repositories")
+        return None
 
     def decode_helm_release(self, release_data: str) -> dict:
         """Decode Helm release data (handles double base64 encoding and gzip, then YAML)"""
@@ -424,7 +478,56 @@ class KubernetesManager:
             deployment_info["chart_version"] = metadata.get("version", "unknown")
             deployment_info["app_version"] = metadata.get("appVersion", "unknown")
 
-            # Try to extract repository info from annotations
+            # Try to extract repository info from sources array first
+            sources = metadata.get("sources", [])
+            if sources and isinstance(sources, list):
+                # Look for the main chart repository with priority order
+                eea_helm_repo_url = None
+                chart_repo_url = None
+                primary_repo_url = None
+                
+                for source_url in sources:
+                    if isinstance(source_url, str) and "github.com" in source_url:
+                        # First priority: EEA helm-charts repository
+                        if "github.com/eea/helm-charts" in source_url:
+                            eea_helm_repo_url = source_url
+                            break
+                        # Second priority: helm chart repositories (containing -helm)
+                        elif "-helm" in source_url:
+                            chart_repo_url = source_url
+                        # Otherwise, keep the first GitHub URL as fallback
+                        elif not primary_repo_url:
+                            primary_repo_url = source_url
+                
+                # Use EEA repo first, then chart repo, then primary repo URL
+                repo_url = eea_helm_repo_url or chart_repo_url or primary_repo_url
+                
+                if repo_url:
+                    deployment_info["repository_url"] = repo_url
+                    
+                    # Extract org/repo from GitHub URL
+                    parts = repo_url.split("github.com/")
+                    if len(parts) > 1:
+                        repo_path = parts[1].rstrip("/")  # Remove trailing slash
+                        # Extract organization/repository name
+                        path_parts = repo_path.split("/")
+                        if len(path_parts) >= 2:
+                            org_name = path_parts[0]
+                            repo_name = path_parts[1]
+                            deployment_info["repository"] = f"{org_name}/{repo_name}"
+                            
+                            # For Helm charts, use the organization name as the repo prefix
+                            if release_name and namespace:
+                                deployment_info["deploy_command"] = (
+                                    f"helm install {release_name} {org_name}/{deployment_info['chart_name']} --namespace {namespace}"
+                                )
+                            else:
+                                deployment_info["deploy_command"] = (
+                                    f"helm install {deployment_info['chart_name']} {org_name}/{deployment_info['chart_name']}"
+                                )
+                            return deployment_info
+
+            # Try to extract repository info from annotations (fallback)
             if "annotations" in metadata:
                 repo_url = metadata["annotations"].get("artifacthub.io/source-url")
                 if repo_url:
@@ -435,17 +538,22 @@ class KubernetesManager:
                     # Extract org/repo from GitHub URL
                     parts = repo_url.split("github.com/")
                     if len(parts) > 1:
-                        org_repo = parts[1].split("/")[0]  # Get organization name
-                        deployment_info["repository"] = org_repo
-                        if release_name and namespace:
-                            deployment_info["deploy_command"] = (
-                                f"helm install {release_name} {org_repo}/{deployment_info['chart_name']} --namespace {namespace}"
-                            )
-                        else:
-                            deployment_info["deploy_command"] = (
-                                f"helm install {deployment_info['chart_name']} {org_repo}/{deployment_info['chart_name']}"
-                            )
-                        return deployment_info
+                        repo_path = parts[1].rstrip("/")  # Remove trailing slash
+                        path_parts = repo_path.split("/")
+                        if len(path_parts) >= 2:
+                            org_name = path_parts[0]
+                            repo_name = path_parts[1]
+                            deployment_info["repository"] = f"{org_name}/{repo_name}"
+                            
+                            if release_name and namespace:
+                                deployment_info["deploy_command"] = (
+                                    f"helm install {release_name} {org_name}/{deployment_info['chart_name']} --namespace {namespace}"
+                                )
+                            else:
+                                deployment_info["deploy_command"] = (
+                                    f"helm install {deployment_info['chart_name']} {org_name}/{deployment_info['chart_name']}"
+                                )
+                            return deployment_info
 
             # Try to extract repository from chart name
             chart_name = deployment_info["chart_name"]
@@ -461,36 +569,49 @@ class KubernetesManager:
                         f"helm install {chart_name_only} {repo_name}/{chart_name_only}"
                     )
             elif chart_name:
-                # For charts without repository prefix, try to infer from common repositories
-                common_repos = [
-                    "bitnami",
-                    "stable",
-                    "incubator",
-                    "jetstack",
-                    "prometheus-community",
-                ]
-                for repo in common_repos:
-                    # This is a heuristic - in practice, you might want to check the actual repository
-                    deployment_info["repository"] = repo
+                # For charts without repository prefix, search for the chart in known repositories
+                logger.info(f"No repository info found in metadata, searching for chart '{chart_name}' in known repositories")
+                
+                chart_repo_info = self.find_chart_repository(chart_name)
+                if chart_repo_info:
+                    # Found the chart in a repository
+                    deployment_info["repository"] = chart_repo_info["repository"]
+                    deployment_info["repository_url"] = chart_repo_info["repository_url"]
+                    
+                    org_name = chart_repo_info["org"]
                     if release_name and namespace:
                         deployment_info["deploy_command"] = (
-                            f"helm install {release_name} {repo}/{chart_name} --namespace {namespace}"
+                            f"helm install {release_name} {org_name}/{chart_name} --namespace {namespace}"
                         )
                     else:
                         deployment_info["deploy_command"] = (
-                            f"helm install {chart_name} {repo}/{chart_name}"
+                            f"helm install {chart_name} {org_name}/{chart_name}"
                         )
-                    break
+                    logger.info(f"Chart '{chart_name}' located in {chart_repo_info['repository']}")
                 else:
-                    deployment_info["repository"] = "custom"
+                    # Chart not found in any known repository, fall back to EEA as default
+                    logger.warning(f"Chart '{chart_name}' not found in any repository, defaulting to EEA")
+                    deployment_info["repository"] = "eea"
+                    deployment_info["repository_url"] = "https://github.com/eea/helm-charts"
+                    
                     if release_name and namespace:
                         deployment_info["deploy_command"] = (
-                            f"helm install {release_name} {chart_name} --namespace {namespace}"
+                            f"helm install {release_name} eea/{chart_name} --namespace {namespace}"
                         )
                     else:
                         deployment_info["deploy_command"] = (
-                            f"helm install {chart_name} {chart_name}"
+                            f"helm install {chart_name} eea/{chart_name}"
                         )
+            else:
+                deployment_info["repository"] = "custom"
+                if release_name and namespace:
+                    deployment_info["deploy_command"] = (
+                        f"helm install {release_name} {chart_name} --namespace {namespace}"
+                    )
+                else:
+                    deployment_info["deploy_command"] = (
+                        f"helm install {chart_name} {chart_name}"
+                    )
 
             # Use the enhanced values extraction
             deployment_info["values"] = self.extract_helm_values_from_secret(secret)
