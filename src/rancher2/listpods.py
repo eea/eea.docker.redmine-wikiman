@@ -19,15 +19,21 @@ class Rancher2Pods(Rancher2Base):
 
     def _get_container_memory_data(self, container, resources_dict):
         resources = resources_dict.get(container["name"], {})
-        requested = (
-            round(memory_unit_conversion(resources["requests"]["memory"]), 2)
-            if resources.get("requests")
-            else 0
+        requested = round(
+            memory_unit_conversion(
+                resources.get("requests", {}).get("memory", 0)
+                if resources.get("requests")
+                else 0
+            ),
+            2,
         )
-        limit = (
-            round(memory_unit_conversion(resources["limits"]["memory"]), 2)
-            if resources.get("limits")
-            else 0
+        limit = round(
+            memory_unit_conversion(
+                resources.get("limits", {}).get("memory", 0)
+                if resources.get("limits")
+                else 0
+            ),
+            2,
         )
 
         return requested, limit
@@ -68,11 +74,17 @@ class Rancher2Pods(Rancher2Base):
             }
 
             for container in pod["status"]["container_statuses"]:
-                start_time = container["state"]["running"]["started_at"] if container["started"] else "-"
-                requested, limit = self._get_container_memory_data(container, resources_dict)
+                start_time = (
+                    container["state"]["running"]["started_at"]
+                    if container["started"]
+                    else "-"
+                )
+                requested, limit = self._get_container_memory_data(
+                    container, resources_dict
+                )
 
                 cluster_content.append(
-                    f"| \"{pod['metadata']['name']}\":{pod_link} | {pod_state} "
+                    f'| "{pod["metadata"]["name"]}":{pod_link} | {pod_state} '
                     f"| {pod['metadata']['namespace']} | {pod_kind} | {pod_chart} "
                     f"| {container['image']} |>. {container['restart_count']} "
                     f"|>. {requested} |>. {limit} | {start_time} | TODO |"
@@ -92,7 +104,9 @@ class Rancher2Pods(Rancher2Base):
         for node in nodes:
             # add node information
             node_link = f"{cluster_link}/node/{node['metadata']['name']}"
-            cluster_content.append(f"\nh4. Node: \"{node['metadata']['name']}\":{node_link}\n")
+            cluster_content.append(
+                f'\nh4. Node: "{node["metadata"]["name"]}":{node_link}\n'
+            )
             cluster_content.append(f"*Description*: {node.get('description', '-')}\n")
             cluster_content.append(
                 f"*Version*: {node['status']['node_info']['container_runtime_version']} &nbsp; &nbsp; "
@@ -127,7 +141,7 @@ class Rancher2Pods(Rancher2Base):
 
         # add the cluster information
         self.content.append(
-            f"\nh3. Cluster: \"{rancher_client.cluster_name}\":{cluster_link}\n"
+            f'\nh3. Cluster: "{rancher_client.cluster_name}":{cluster_link}\n'
         )
         self.content.append(f"*Total RAM*: {round(cluster_capacity, 2)} GiB\n")
         self.content.append(
