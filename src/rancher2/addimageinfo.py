@@ -80,7 +80,8 @@ def extract_images(url, chart_data_all_versions, version=None):
     values_file_path = f"{EXTRACTION_DIR}{chart_name}/values.yaml"
     with open(values_file_path) as values_file:
         values_dict = yaml.load(values_file.read(), Loader=yaml.FullLoader)
-        images = [f"{values_dict['image']['repository']}:{chart_data['appVersion']}"]
+        app_version = chart_data.get('appVersion', chart_data.get('version', 'version-unknown'))
+        images = [f"{values_dict['image']['repository']}:{app_version}"]
 
     # get all images found in templates/
     templates_dir = f"{EXTRACTION_DIR}{chart_name}/templates/"
