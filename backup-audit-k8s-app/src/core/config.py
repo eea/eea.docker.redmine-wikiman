@@ -9,6 +9,8 @@ class Config:
         self.helm_tracking = os.getenv("HELM_TRACKING", "true").lower() == "true"
         self.log_level = os.getenv("LOG_LEVEL", "INFO").upper()
         self.port = int(os.getenv("PORT", "8080"))
+        self.enable_sync_job = os.getenv("ENABLE_SYNC_JOB", "true").lower() == "true"
+        self.sync_interval = int(os.getenv("SYNC_INTERVAL", "300"))
 
     def get_excluded_namespaces(self) -> Set[str]:
         """Get list of excluded namespaces"""

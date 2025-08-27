@@ -118,9 +118,7 @@ class AuditScheduler:
                 # Only run cleanup if initial sync is complete
                 if self.initial_sync_complete:
                     try:
-                        # Always write new configs first
-                        # self.sync_manager.run_initial_sync()
-                        # Then archive missing items
+                        # Archive missing items
                         self.sync_manager.run_cleanup()
                         # Commit and Push changes to upstream
                         logger.info("Committing changes to git...")
@@ -149,6 +147,58 @@ class AuditScheduler:
             logger.info(f"Cleanup job scheduled (every {cleanup_interval} seconds)")
         except Exception as e:
             logger.error(f"Failed to schedule cleanup job: {e}")
+
+    def start_sync_job(self):
+        """Schedule sync job if enabled"""
+        if not self.config.enable_sync_job:
+            logger.info("Sync job disabled by ENABLE_SYNC_JOB configuration")
+            return
+            
+        try:
+            sync_interval = self.config.sync_interval
+
+            def run_sync_job():
+                # Only run sync if initial sync is complete and no other sync is in progress
+                if self.initial_sync_complete and not self.is_sync_in_progress():
+                    try:
+                        with self.sync_lock:  # Lock during sync process
+                            logger.info("Running scheduled sync...")
+                            
+                            # Pull latest changes from Git
+                            self.git_manager.setup_git_repository()
+                            
+                            # Run sync to update storage with current state
+                            self.sync_manager.run_sync()
+                            
+                            # Commit and push changes
+                            logger.info("Committing sync changes to git...")
+                            try:
+                                self.git_manager.commit_changes()
+                                logger.info("Git commit completed successfully")
+                            except Exception as e:
+                                logger.error(f"Git commit failed: {e}")
+
+                            try:
+                                self.git_manager.push_to_remote()
+                                logger.info("Git push completed successfully")
+                            except Exception as e:
+                                logger.error(f"Git push failed: {e}")
+                                
+                            logger.info("Scheduled sync completed successfully")
+                    except Exception as e:
+                        logger.error(f"Scheduled sync failed: {e}")
+                        # Don't let sync failures crash the application
+
+            self.scheduler.add_job(
+                func=run_sync_job,
+                trigger=IntervalTrigger(seconds=sync_interval),
+                id="sync_job",
+                name="Sync Kubernetes state",
+                replace_existing=True,
+            )
+            logger.info(f"Sync job scheduled (every {sync_interval} seconds)")
+        except Exception as e:
+            logger.error(f"Failed to schedule sync job: {e}")
 
     def stop(self):
         """Stop the scheduler"""
