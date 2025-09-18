@@ -41,7 +41,8 @@ def extract_non_eea_images(subchart):
             chart_data = version_data
             break
 
-    image = f"{subchart['name']}:{chart_data['appVersion']}"
+    app_version = chart_data.get('appVersion', chart_data.get('version', 'version-unknown'))
+    image = f"{subchart['name']}:{app_version}"
     return [image]
 
 
