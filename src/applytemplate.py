@@ -369,7 +369,17 @@ class Template:
             new_stacks.extend(self.stack_finder.find(url))
 
         if new_stacks:
-            new_fields["Rancher Stack URL"] = new_stacks
+            existing_values = [
+                v for v in new_fields.get("Rancher Stack URL", []) if v.strip()
+            ]
+            combined = []
+            seen = set()
+            for value in existing_values + new_stacks:
+                if value in seen:
+                    continue
+                combined.append(value)
+                seen.add(value)
+            new_fields["Rancher Stack URL"] = combined
 
         return (new_fields, extra_lines)
 
