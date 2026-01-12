@@ -331,6 +331,9 @@ class Template:
             label = label.strip()
             value = value.strip()
 
+            if "http" in label:
+                continue
+
             if "{color:red}ToDo" in value and label.lower() not in existing_fields:
                 log.debug(f"Not keeping the old mandatory field {label!r}")
                 continue
