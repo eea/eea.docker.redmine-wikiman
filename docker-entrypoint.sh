@@ -25,8 +25,7 @@ if [[ "$@" == "run" ]]; then
 
       if [ -n "$RANCHER_CONFIG" ] && [ -n "$WIKI_PAGE" ]; then
         echo "List Rancher1 data"
-        flag="${flag} -p ${WIKI_PAGE}"
-        timeout $TIMEOUT python /run_all.py $flag 2>&1
+        timeout $TIMEOUT python /run_all.py $flag -p "$WIKI_PAGE" 2>&1
       fi
     fi
 
