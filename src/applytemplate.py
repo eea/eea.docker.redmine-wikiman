@@ -142,7 +142,7 @@ class StackFinder:
         url_no_protocol = url_no_protocol.replace("\\", "")
 
         regex = re.compile(
-            r" (https?://)?{}/?[^a-z/]".format(url_no_protocol.replace(".", r"\.")),
+            r" (https?://)?{}/?[^a-z/]".format(re.escape(url_no_protocol)),
             re.IGNORECASE,
         )
         stack = list(filter(regex.search, self.stacks))
