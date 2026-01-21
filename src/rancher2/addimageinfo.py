@@ -85,7 +85,7 @@ def extract_images(url, chart_data_all_versions, version=None):
 
         image_cfg = values_dict.get("image")
         if not image_cfg or "repository" not in image_cfg:
-            return [], []
+            return {}, []
 
         images = [f"{image_cfg['repository']}:{app_version}"]
 
