@@ -2,17 +2,17 @@ import logging
 import os
 import sys
 
+# Force logging setup before any module can silently activate lastResort
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.root.addHandler(_handler)
+logging.root.setLevel(logging.INFO)
+
 import applytemplate as applytemplate
 from image_checker import ImageChecker
 from rancher2.listapps import Rancher2Apps, Rancher2MergeApps
 from rancher2.listnodes import Rancher2MergeNodes, Rancher2Nodes
 from rancher2.listpods import Rancher2MergePods, Rancher2Pods
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stdout,
-)
 
 log = logging.getLogger(__name__)
 
