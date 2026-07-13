@@ -11,9 +11,13 @@ from rancher2.listpods import Rancher2MergePods, Rancher2Pods
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
 )
 
 log = logging.getLogger(__name__)
+
+print("Rancher2 pipeline starting (logging configured)", flush=True)
+log.info("Rancher2 pipeline logging ready")
 
 
 def run_apply_template(page, dry_run=False):
