@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 
@@ -7,6 +8,8 @@ from redminelib import Redmine
 from redminelib.exceptions import ResourceNotFoundError
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
 
 
 class RancherClient:
@@ -53,9 +56,13 @@ class RedmineClient:
 
         :return: True if the content has changed, False otherwise
         """
-        page = self.redmine_server.wiki_page.get(page_name, project_id=self.project_id)
-        old_content = page.text
-        return old_content.split(self.marker)[1] != new_content.split(self.marker)[1]
+        try:
+            page = self.redmine_server.wiki_page.get(page_name, project_id=self.project_id)
+            old_content = page.text
+            return old_content.split(self.marker)[1] != new_content.split(self.marker)[1]
+        except Exception:
+            log.exception("Failed to check if page %s has changed", page_name)
+            return True
 
     def write_page(self, page_name, content):
         """
@@ -63,12 +70,15 @@ class RedmineClient:
         :param page_name: The name of the page
         :param content: The content of the page
         """
-
-        self.redmine_server.wiki_page.update(
-            page_name,
-            project_id=self.project_id,
-            text=content,
-        )
+        try:
+            self.redmine_server.wiki_page.update(
+                page_name,
+                project_id=self.project_id,
+                text=content,
+            )
+            log.info("Wrote page %s", page_name)
+        except Exception:
+            log.exception("Failed to write page %s", page_name)
 
     def get_page_text(self, page_name):
         try:
@@ -76,12 +86,12 @@ class RedmineClient:
                 page_name, project_id=self.project_id
             ).text
         except ResourceNotFoundError:
-            print(f"Page {page_name} does not exist")
+            log.warning("Page %s does not exist", page_name)
             return ""
 
         today = time.strftime("%d %B %Y")
         if today not in text:
-            print(f"Page {page_name} was not updated")
+            log.warning("Page %s was not updated today (%s)", page_name, today)
             return ""
 
         return text.split(self.marker)[1]

@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -6,6 +8,8 @@ from rancher2.auth import RancherClient, RedmineClient
 from rancher2.base import Rancher2Base
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
 
 
 class Rancher2Nodes(Rancher2Base):
@@ -32,33 +36,56 @@ class Rancher2Nodes(Rancher2Base):
 
         nodes = self._get_nodes(rancher_client)
         for node in nodes:
-            capacity, requested, limit = self._get_memory_data(node)
-            node_link = f"{cluster_link}/node/{node['metadata']['name']}"
-            check_mk_link = (
-                f"https://goldeneye.eea.europa.eu/omdeea/check_mk/index.py"
-                f"?start_url=%2Fomdeea%2Fcheck_mk%2Fview.py%3Fview_name%3Dhost%26host%3D"
-                f"{node['metadata']['name'].split('.')[0]}%26site%3Domdeea"
-            )
-            taints = ""
-            if node["spec"].get("taints"):
-                taints = [taint["key"] for taint in node["spec"]["taints"]]
-                taints = "\n".join(taints)
+            try:
+                node_name = node.get("metadata", {}).get("name", "unknown")
+                capacity, requested, limit = self._get_memory_data(node)
+                node_link = f"{cluster_link}/node/{node_name}"
+                check_mk_link = (
+                    f"https://goldeneye.eea.europa.eu/omdeea/check_mk/index.py"
+                    f"?start_url=%2Fomdeea%2Fcheck_mk%2Fview.py%3Fview_name%3Dhost%26host%3D"
+                    f"{node_name.split('.')[0]}%26site%3Domdeea"
+                )
+                taints = ""
+                if node.get("spec", {}).get("taints"):
+                    taints = [taint["key"] for taint in node["spec"]["taints"]]
+                    taints = "\n".join(taints)
 
-            cluster_content.append(
-                f"| \"{node['metadata']['name']}\":{node_link} "
-                f"| \"{node['metadata']['name'].split('.')[0]}\":{check_mk_link} | {taints} "
-                f"|>. {capacity} |>. {requested} |>. {round(requested * 100 / capacity, 2)} "
-                f"|>. {round(capacity - requested, 2)} "
-                f"|>. {eval(node['metadata']['annotations']['management.cattle.io/pod-requests'])['pods']} "
-                f"| {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} "
-                f"| {node['status']['node_info']['container_runtime_version']} "
-                f"| {node['status']['node_info']['os_image']} "
-                f"| {node['metadata']['creation_timestamp']} |"
-            )
+                try:
+                    pods_raw = node.get("metadata", {}).get("annotations", {}).get(
+                        "management.cattle.io/pod-requests", "{}"
+                    )
+                    pods_used = json.loads(pods_raw).get("pods", "-")
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    log.warning("Node %s: failed to parse pod-requests for pod count: %s", node_name, e)
+                    pods_used = "-"
 
-            cluster_capacity += capacity
-            cluster_requested += requested
-            cluster_limit += limit
+                node_ip = node.get("metadata", {}).get("annotations", {}).get(
+                    "alpha.kubernetes.io/provided-node-ip", "-"
+                )
+                node_version = node.get("status", {}).get("node_info", {}).get(
+                    "container_runtime_version", "-"
+                )
+                node_os = node.get("status", {}).get("node_info", {}).get("os_image", "-")
+                node_created = node.get("metadata", {}).get("creation_timestamp", "-")
+
+                cluster_content.append(
+                    f"| \"{node_name}\":{node_link} "
+                    f"| \"{node_name.split('.')[0]}\":{check_mk_link} | {taints} "
+                    f"|>. {capacity} |>. {requested} |>. {round(requested * 100 / capacity, 2)} "
+                    f"|>. {round(capacity - requested, 2)} "
+                    f"|>. {pods_used} "
+                    f"| {node_ip} "
+                    f"| {node_version} "
+                    f"| {node_os} "
+                    f"| {node_created} |"
+                )
+
+                cluster_capacity += capacity
+                cluster_requested += requested
+                cluster_limit += limit
+            except Exception:
+                node_name = node.get("metadata", {}).get("name", "unknown")
+                log.exception("Failed to process node %s", node_name)
 
         # add the cluster information
         self.content.append(
@@ -88,15 +115,26 @@ class Rancher2MergeNodes(Rancher2Base):
     def set_content(self):
         merged_content = {}
         for cluster_data in self.clusters_to_merge:
-            rancher_url, rancher_server_name, cluster = cluster_data.split(",")
+            try:
+                rancher_url, rancher_server_name, cluster = cluster_data.split(",")
+            except ValueError:
+                log.error("Invalid RANCHER2_CLUSTERS_TO_MERGE entry: %s", cluster_data)
+                continue
+
             if rancher_server_name not in merged_content:
                 merged_content[rancher_server_name] = {
                     "title": f'h2. "{rancher_server_name}":{rancher_url}dashboard',
                     "content": [],
                 }
 
-            text = self.redmineClient.get_page_text(f"{self.pageTitle}_{cluster}")
-            merged_content[rancher_server_name]["content"].extend(text.splitlines())
+            try:
+                page_key = f"{self.pageTitle}_{cluster}"
+                text = self.redmineClient.get_page_text(page_key)
+                if not text:
+                    log.warning("No text found for page %s", page_key)
+                merged_content[rancher_server_name]["content"].extend(text.splitlines())
+            except Exception:
+                log.exception("Failed to get page text for cluster %s", cluster)
 
         for server_content in merged_content.values():
             self.content.append(f"\n{server_content['title']}\n")
