@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 from collections import defaultdict
 
@@ -9,6 +11,8 @@ from rancher2.base import Rancher2Base
 from utils import memory_unit_conversion
 
 load_dotenv()
+
+log = logging.getLogger(__name__)
 
 
 class Rancher2Pods(Rancher2Base):
@@ -40,11 +44,22 @@ class Rancher2Pods(Rancher2Base):
 
     def _get_pods(self, rancher_client):
         pods_dict = defaultdict(list)
-        pods_response = rancher_client.v1.list_pod_for_all_namespaces()
-        for pod in pods_response.to_dict()["items"]:
-            pods_dict[pod["spec"]["node_name"]].append(pod)
-
-        return pods_dict
+        try:
+            pods_response = rancher_client.v1.list_pod_for_all_namespaces()
+            items = pods_response.to_dict().get("items", [])
+            log.info("Found %d pods across all namespaces", len(items))
+            for pod in items:
+                try:
+                    node_name = pod.get("spec", {}).get("node_name", "")
+                    if node_name:
+                        pods_dict[node_name].append(pod)
+                except Exception:
+                    pod_name = pod.get("metadata", {}).get("name", "unknown")
+                    log.exception("Failed to process pod %s", pod_name)
+            return pods_dict
+        except Exception:
+            log.exception("Failed to list pods from Rancher API")
+            return pods_dict
 
     def _add_pods_data(self, cluster_content, cluster_link, node, pods_dict):
         redmine_error_color = "%{color:red}"
@@ -53,42 +68,65 @@ class Rancher2Pods(Rancher2Base):
             "|_. Image |_. Restarts |_. Reservation |_. Limit |_. Start time |_. Upgrade |"
         )
 
-        for pod in pods_dict.get(node["metadata"]["name"], []):
-            # add pod/containers information
-            pod_link = f"{cluster_link}/pod/{pod['metadata']['namespace']}/{pod['metadata']['name']}"
-            pod_state = pod["status"]["phase"]
-            if pod_state == "Failed":
-                pod_state = f"{redmine_error_color}{pod_state}%"
+        node_name = node.get("metadata", {}).get("name", "unknown")
+        pods = pods_dict.get(node_name, [])
+        log.info("Node %s: processing %d pods", node_name, len(pods))
 
-            pod_kind = ""
-            if pod["metadata"].get("owner_references"):
-                pod_kind = pod["metadata"]["owner_references"][0]["kind"]
+        for pod in pods:
+            try:
+                pod_name = pod.get("metadata", {}).get("name", "unknown")
+                pod_namespace = pod.get("metadata", {}).get("namespace", "unknown")
+                # add pod/containers information
+                pod_link = f"{cluster_link}/pod/{pod_namespace}/{pod_name}"
+                pod_state = pod.get("status", {}).get("phase", "Unknown")
+                if pod_state == "Failed":
+                    pod_state = f"{redmine_error_color}{pod_state}%"
 
-            pod_chart = ""
-            if pod["metadata"].get("labels"):
-                pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "")
+                pod_kind = ""
+                if pod.get("metadata", {}).get("owner_references"):
+                    pod_kind = pod["metadata"]["owner_references"][0]["kind"]
 
-            resources_dict = {
-                container["name"]: container["resources"]
-                for container in pod["spec"]["containers"]
-            }
+                pod_chart = ""
+                if pod.get("metadata", {}).get("labels"):
+                    pod_chart = pod["metadata"]["labels"].get("app.kubernetes.io/name", "")
 
-            for container in pod["status"]["container_statuses"]:
-                start_time = (
-                    container["state"]["running"]["started_at"]
-                    if container["started"]
-                    else "-"
-                )
-                requested, limit = self._get_container_memory_data(
-                    container, resources_dict
-                )
+                resources_dict = {
+                    container["name"]: container.get("resources", {})
+                    for container in pod.get("spec", {}).get("containers") or []
+                }
 
-                cluster_content.append(
-                    f'| "{pod["metadata"]["name"]}":{pod_link} | {pod_state} '
-                    f"| {pod['metadata']['namespace']} | {pod_kind} | {pod_chart} "
-                    f"| {container['image']} |>. {container['restart_count']} "
-                    f"|>. {requested} |>. {limit} | {start_time} | TODO |"
-                )
+                for container in pod.get("status", {}).get("container_statuses") or []:
+                    try:
+                        start_time = "-"
+                        if container.get("started"):
+                            start_time = container.get("state", {}).get("running", {}).get(
+                                "started_at", "-"
+                            )
+
+                        requested, limit = self._get_container_memory_data(
+                            container, resources_dict
+                        )
+
+                        container_image = container.get("image", "unknown")
+                        restart_count = container.get("restart_count", 0)
+
+                        cluster_content.append(
+                            f'| "{pod_name}":{pod_link} | {pod_state} '
+                            f"| {pod_namespace} | {pod_kind} | {pod_chart} "
+                            f"| {container_image} |>. {restart_count} "
+                            f"|>. {requested} |>. {limit} | {start_time} | TODO |"
+                        )
+                    except Exception:
+                        log.exception(
+                            "Failed to process container %s in pod %s/%s",
+                            container.get("name", "unknown"),
+                            pod_namespace,
+                            pod_name,
+                        )
+            except Exception:
+                pod_name = pod.get("metadata", {}).get("name", "unknown")
+                pod_namespace = pod.get("metadata", {}).get("namespace", "unknown")
+                log.exception("Failed to process pod %s/%s", pod_namespace, pod_name)
 
     def set_content(self):
         rancher_client = RancherClient()
@@ -101,43 +139,59 @@ class Rancher2Pods(Rancher2Base):
 
         pods_dict = self._get_pods(rancher_client)
         nodes = self._get_nodes(rancher_client)
+        log.info("Processing %d nodes for pods data", len(nodes))
         for node in nodes:
-            # add node information
-            node_link = f"{cluster_link}/node/{node['metadata']['name']}"
-            cluster_content.append(
-                f'\nh4. Node: "{node["metadata"]["name"]}":{node_link}\n'
-            )
-            cluster_content.append(f"*Description*: {node.get('description', '-')}\n")
-            cluster_content.append(
-                f"*Version*: {node['status']['node_info']['container_runtime_version']} &nbsp; &nbsp; "
-                f"*IP address*: {node['metadata']['annotations']['alpha.kubernetes.io/provided-node-ip']} &nbsp; &nbsp; "
-                f"*OS*: {node['status']['node_info']['os_image']} &nbsp; &nbsp; "
-                f"*Created date*: {node['metadata']['creation_timestamp']}\n"
-            )
+            try:
+                node_name = node.get("metadata", {}).get("name", "unknown")
+                # add node information
+                node_link = f"{cluster_link}/node/{node_name}"
+                cluster_content.append(
+                    f'\nh4. Node: "{node_name}":{node_link}\n'
+                )
+                cluster_content.append(f"*Description*: {node.get('description', '-')}\n")
+                cluster_content.append(
+                    f"*Version*: {node.get('status', {}).get('node_info', {}).get('container_runtime_version', '-')} &nbsp; &nbsp; "
+                    f"*IP address*: {node.get('metadata', {}).get('annotations', {}).get('alpha.kubernetes.io/provided-node-ip', '-')} &nbsp; &nbsp; "
+                    f"*OS*: {node.get('status', {}).get('node_info', {}).get('os_image', '-')} &nbsp; &nbsp; "
+                    f"*Created date*: {node.get('metadata', {}).get('creation_timestamp', '-')}\n"
+                )
 
-            # add the memory information
-            capacity, requested, limit = self._get_memory_data(node)
-            cluster_content.append(f"*Total RAM*: {capacity} GiB\n")
-            cluster_content.append(
-                f"*Used RAM*: {requested} GiB, "
-                f"{round(requested * 100 / capacity, 2)}% used or "
-                f"{round(capacity - requested, 2)} GiB available\n"
-            )
-            cluster_content.append(
-                f"*Limit RAM*: {limit} GiB, "
-                f"{round(limit * 100 / capacity, 2)}% used or "
-                f"{round(capacity - limit, 2)} GiB available\n"
-            )
-            cluster_content.append(
-                f"\n*Used Pods*: {eval(node['metadata']['annotations']['management.cattle.io/pod-requests'])['pods']}\n"
-            )
+                # add the memory information
+                capacity, requested, limit = self._get_memory_data(node)
+                cluster_content.append(f"*Total RAM*: {capacity} GiB\n")
+                cluster_content.append(
+                    f"*Used RAM*: {requested} GiB, "
+                    f"{round(requested * 100 / capacity, 2)}% used or "
+                    f"{round(capacity - requested, 2)} GiB available\n"
+                )
+                cluster_content.append(
+                    f"*Limit RAM*: {limit} GiB, "
+                    f"{round(limit * 100 / capacity, 2)}% used or "
+                    f"{round(capacity - limit, 2)} GiB available\n"
+                )
 
-            # add pods information
-            self._add_pods_data(cluster_content, cluster_link, node, pods_dict)
+                try:
+                    pod_requests_raw = node.get("metadata", {}).get("annotations", {}).get(
+                        "management.cattle.io/pod-requests", "{}"
+                    )
+                    pods_used = json.loads(pod_requests_raw).get("pods", "-")
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    log.warning("Node %s: failed to parse pod-requests for pod count: %s", node_name, e)
+                    pods_used = "-"
 
-            cluster_capacity += capacity
-            cluster_requested += requested
-            cluster_limit += limit
+                cluster_content.append(
+                    f"\n*Used Pods*: {pods_used}\n"
+                )
+
+                # add pods information
+                self._add_pods_data(cluster_content, cluster_link, node, pods_dict)
+
+                cluster_capacity += capacity
+                cluster_requested += requested
+                cluster_limit += limit
+            except Exception:
+                node_name = node.get("metadata", {}).get("name", "unknown")
+                log.exception("Failed to process node %s", node_name)
 
         # add the cluster information
         self.content.append(
@@ -168,24 +222,41 @@ class Rancher2MergePods(Rancher2Base):
     def set_content(self):
         merged_content = {}
         for cluster_data in self.clusters_to_merge:
-            rancher_url, rancher_server_name, cluster = cluster_data.split(",")
+            try:
+                rancher_url, rancher_server_name, cluster = cluster_data.split(",")
+            except ValueError:
+                log.error("Invalid RANCHER2_CLUSTERS_TO_MERGE entry: %s", cluster_data)
+                continue
+
             if rancher_server_name not in merged_content:
                 merged_content[rancher_server_name] = {
                     "title": f'h2. "{rancher_server_name}":{rancher_url}dashboard',
                     "content": [],
                 }
 
-            text = self.redmineClient.get_page_text(f"{self.pageTitle}_{cluster}")
+            try:
+                page_key = f"{self.pageTitle}_{cluster}"
+                text = self.redmineClient.get_page_text(page_key)
+                if not text:
+                    log.warning("No text found for page %s", page_key)
+            except Exception:
+                log.exception("Failed to get page text for cluster %s", cluster)
+                continue
+
             for line in text.splitlines():
                 if "TODO" not in line:
                     merged_content[rancher_server_name]["content"].append(line)
                     continue
 
-                image = line.split("|")[6].strip()  # check image column number
-                _, update_msg = self.image_checker.check_image_and_base_status(image)
-                merged_content[rancher_server_name]["content"].append(
-                    line.replace("TODO", update_msg)
-                )
+                try:
+                    image = line.split("|")[6].strip()  # check image column number
+                    _, update_msg = self.image_checker.check_image_and_base_status(image)
+                    merged_content[rancher_server_name]["content"].append(
+                        line.replace("TODO", update_msg)
+                    )
+                except (IndexError, Exception):
+                    log.exception("Failed to check image status for line: %s", line[:80])
+                    merged_content[rancher_server_name]["content"].append(line)
 
         for server_content in merged_content.values():
             self.content.append(f"\n{server_content['title']}\n")
