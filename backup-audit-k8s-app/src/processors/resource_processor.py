@@ -12,9 +12,13 @@ logger = logging.getLogger(__name__)
 class ResourceProcessor:
     """Handles Kubernetes resource processing and storage"""
 
-    def __init__(self, storage_path: str, config):
+    def __init__(self, storage_path: str, config, storage_lock=None):
         self.storage_path = storage_path
         self.config = config
+        # Shared with ArchiveManager (same lock instance) so writing a
+        # resource can't interleave with a concurrent archive/move/delete of
+        # the same directory tree - see save_resource().
+        self.storage_lock = storage_lock
 
     def clean_resource(self, resource: Dict[str, Any]) -> Dict[str, Any]:
         """Remove managed fields from resource"""
@@ -31,6 +35,11 @@ class ResourceProcessor:
                     "generation",
                     "resourceVersion",
                     "uid",
+                    "selfLink",
+                    "finalizers",
+                    "generateName",
+                    "deletionTimestamp",
+                    "deletionGracePeriodSeconds",
                 ]:
                     metadata.pop(field, None)
         return cleaned
@@ -207,13 +216,25 @@ class ResourceProcessor:
         cleaned_resource = self.clean_resource(resource)
         file_path = self.get_resource_path(cleaned_resource, release)
 
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        def _write():
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        logger.info(f"Writing resource to {file_path}")
-        with open(file_path, "w") as f:
-            yaml.dump(
-                cleaned_resource, f, default_flow_style=False, sort_keys=False, indent=2
-            )
+            logger.info(f"Writing resource to {file_path}")
+            with open(file_path, "w") as f:
+                yaml.dump(
+                    cleaned_resource,
+                    f,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    indent=2,
+                )
 
-        logger.debug(f"Saved resource: {file_path}")
+            logger.debug(f"Saved resource: {file_path}")
+
+        if self.storage_lock:
+            with self.storage_lock:
+                _write()
+        else:
+            _write()
+
         return file_path

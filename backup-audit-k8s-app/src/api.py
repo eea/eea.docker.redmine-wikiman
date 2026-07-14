@@ -111,9 +111,11 @@ def initialize_components():
     storage_manager = StorageManager(storage_path)
     archive_manager = ArchiveManager(storage_path, git_manager, archive_lock, config)
 
-    # Initialize processors
-    resource_processor = ResourceProcessor(storage_path, config)
-    helm_processor = HelmProcessor(k8s_manager, storage_path)
+    # Initialize processors. ResourceProcessor shares archive_lock with
+    # ArchiveManager so a resource write can't interleave with a concurrent
+    # archive/move/delete of the same directory tree.
+    resource_processor = ResourceProcessor(storage_path, config, archive_lock)
+    helm_processor = HelmProcessor(k8s_manager, storage_path, archive_lock)
 
     # Initialize event processor directly with git_manager
     event_processor = EventProcessor(

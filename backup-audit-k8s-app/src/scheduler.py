@@ -117,21 +117,26 @@ class AuditScheduler:
                 # Only run cleanup if initial sync is complete
                 if self.initial_sync_complete:
                     try:
-                        # Archive missing items
-                        self.sync_manager.run_cleanup()
-                        # Commit and Push changes to upstream
-                        logger.info("Committing changes to git...")
-                        try:
-                            self.git_manager.commit_changes()
-                            logger.info("Git commit completed successfully")
-                        except Exception as e:
-                            logger.error(f"Git commit failed: {e}")
+                        # Hold sync_lock (same lock start_initial_sync and
+                        # run_sync_job use) so cleanup's archive/move/delete
+                        # of a namespace or release directory can't overlap
+                        # with a sync job actively writing resources into it.
+                        with self.sync_lock:
+                            # Archive missing items
+                            self.sync_manager.run_cleanup()
+                            # Commit and Push changes to upstream
+                            logger.info("Committing changes to git...")
+                            try:
+                                self.git_manager.commit_changes()
+                                logger.info("Git commit completed successfully")
+                            except Exception as e:
+                                logger.error(f"Git commit failed: {e}")
 
-                        try:
-                            self.git_manager.push_to_remote()
-                            logger.info("Git push completed successfully")
-                        except Exception as e:
-                            logger.error(f"Git push failed: {e}")
+                            try:
+                                self.git_manager.push_to_remote()
+                                logger.info("Git push completed successfully")
+                            except Exception as e:
+                                logger.error(f"Git push failed: {e}")
                     except Exception as e:
                         logger.error(f"Cleanup job failed: {e}")
                         # Don't let cleanup failures crash the application

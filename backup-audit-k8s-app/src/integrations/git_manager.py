@@ -74,122 +74,132 @@ class GitManager:
             logger.debug("Git repository already setup, skipping")
             return
 
-        try:
-            git_path = os.path.join(self.storage_path, ".git")
+        # Held for the whole method (not just the read-only checks) so this
+        # can't interleave with a concurrent commit_changes()/push_to_remote()
+        # call from another thread - both take git_lock too.
+        with self.git_lock:
+            try:
+                git_path = os.path.join(self.storage_path, ".git")
 
-            if not os.path.exists(git_path):
-                logger.info("Setting up Git repository...")
+                if not os.path.exists(git_path):
+                    logger.info("Setting up Git repository...")
 
-                is_empty = not os.listdir(self.storage_path)
+                    is_empty = not os.listdir(self.storage_path)
 
-                # Try to clone if directory is empty and remote is set
-                if GIT_REMOTE_URL and is_empty:
-                    try:
-                        auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
-                        logger.info(f"Cloning repository from {GIT_REMOTE_URL}")
-                        self.repo = git.Repo.clone_from(
-                            auth_url, self.storage_path, branch=GIT_BRANCH
-                        )
-                        logger.info("Successfully cloned repository")
-                        self._remote_configured = True
-                    except Exception as e:
-                        logger.warning(f"Failed to clone repository: {e}")
-                        logger.info("Falling back to repository initialization")
+                    # Try to clone if directory is empty and remote is set
+                    if GIT_REMOTE_URL and is_empty:
+                        try:
+                            auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
+                            logger.info(f"Cloning repository from {GIT_REMOTE_URL}")
+                            self.repo = git.Repo.clone_from(
+                                auth_url, self.storage_path, branch=GIT_BRANCH
+                            )
+                            logger.info("Successfully cloned repository")
+                            self._remote_configured = True
+                        except Exception as e:
+                            logger.warning(f"Failed to clone repository: {e}")
+                            logger.info("Falling back to repository initialization")
+                            self.repo = git.Repo.init(self.storage_path)
+                    else:
                         self.repo = git.Repo.init(self.storage_path)
                 else:
-                    self.repo = git.Repo.init(self.storage_path)
-            else:
-                logger.info("Git repository already exists")
-                self.repo = git.Repo(self.storage_path)
+                    logger.info("Git repository already exists")
+                    self.repo = git.Repo(self.storage_path)
 
-            # --- Configure Git user info ---
-            if self.repo:
-                try:
-                    with self.repo.git.custom_environment(
-                        GIT_AUTHOR_NAME=GIT_USER_NAME, GIT_AUTHOR_EMAIL=GIT_USER_EMAIL
-                    ):
-                        self.repo.config_writer().set_value(
-                            "user", "name", GIT_USER_NAME
-                        ).release()
-                        self.repo.config_writer().set_value(
-                            "user", "email", GIT_USER_EMAIL
-                        ).release()
-                except Exception as e:
-                    logger.error(f"Failed to configure Git: {e}")
-
-            # --- Configure Git remote and reset to upstream ---
-            if GIT_REMOTE_URL and self.repo:
-                try:
-                    if "origin" in self.repo.remotes:
-                        logger.debug("Removing existing origin remote")
-                        self.repo.delete_remote("origin")
-                except Exception:
-                    pass
-
-                try:
-                    auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
-                    self.repo.create_remote("origin", auth_url)
-                    logger.info(f"Configured remote origin: {GIT_REMOTE_URL}")
-
-                    # Align local branch to remote
+                # --- Configure Git user info ---
+                if self.repo:
                     try:
-                        # Fetch first: origin/<branch> was just wiped by the
-                        # delete_remote() above and only exists locally again
-                        # after this fetch, so any "are we ahead of origin"
-                        # check must happen after it, not before.
-                        self.repo.git.fetch("origin")
-
-                        # Warn about (and try to save) any unpushed local
-                        # commits before the hard reset below discards them.
-                        # This repo may be recovering from a stuck
-                        # merge/rebase state, so the reset itself is not
-                        # optional - this is best-effort only and must not
-                        # block reaching a working state.
-                        try:
-                            ahead = self.repo.git.rev_list(
-                                f"origin/{GIT_BRANCH}..HEAD", "--count"
-                            )
-                            if int(ahead) > 0:
-                                logger.warning(
-                                    f"Hard reset to origin/{GIT_BRANCH} will "
-                                    f"discard {ahead} unpushed local commit(s)"
-                                )
-                                try:
-                                    self.repo.git.push(
-                                        "origin", f"HEAD:{GIT_BRANCH}"
-                                    )
-                                    logger.info(
-                                        "Saved previously unpushed commits to "
-                                        "remote before reset"
-                                    )
-                                except Exception as push_e:
-                                    logger.warning(
-                                        f"Could not push unpushed commits "
-                                        f"before reset, they will be "
-                                        f"discarded: {push_e}"
-                                    )
-                        except Exception:
-                            # HEAD or origin/<branch> may not exist yet
-                            # (fresh repo/remote) - nothing to lose
-                            pass
-
-                        self.repo.git.reset("--hard", f"origin/{GIT_BRANCH}")
-                        self.repo.git.branch(
-                            f"--set-upstream-to=origin/{GIT_BRANCH}", GIT_BRANCH
-                        )
-                        logger.info(
-                            f"Aligned local repo with origin/{GIT_BRANCH} and set upstream"
-                        )
-                        self._remote_configured = True
+                        with self.repo.git.custom_environment(
+                            GIT_AUTHOR_NAME=GIT_USER_NAME,
+                            GIT_AUTHOR_EMAIL=GIT_USER_EMAIL,
+                        ):
+                            self.repo.config_writer().set_value(
+                                "user", "name", GIT_USER_NAME
+                            ).release()
+                            self.repo.config_writer().set_value(
+                                "user", "email", GIT_USER_EMAIL
+                            ).release()
                     except Exception as e:
-                        logger.warning(f"Failed to align with remote: {e}")
-                except Exception as e:
-                    logger.error(f"Failed to configure remote: {e}")
+                        logger.error(f"Failed to configure Git: {e}")
 
-            self._setup_complete = True
+                # --- Configure Git remote and reset to upstream ---
+                if GIT_REMOTE_URL and self.repo:
+                    try:
+                        if "origin" in self.repo.remotes:
+                            logger.debug("Removing existing origin remote")
+                            self.repo.delete_remote("origin")
+                    except Exception:
+                        pass
 
-        except Exception as e:
-            logger.error(f"Failed to setup Git repository: {e}")
+                    try:
+                        auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
+                        self.repo.create_remote("origin", auth_url)
+                        logger.info(f"Configured remote origin: {GIT_REMOTE_URL}")
+
+                        # Align local branch to remote
+                        try:
+                            # Fetch first: origin/<branch> was just wiped by
+                            # the delete_remote() above and only exists
+                            # locally again after this fetch, so any "are we
+                            # ahead of origin" check must happen after it,
+                            # not before.
+                            self.repo.git.fetch("origin")
+
+                            # Warn about (and try to save) any unpushed local
+                            # commits before the hard reset below discards
+                            # them. This repo may be recovering from a stuck
+                            # merge/rebase state, so the reset itself is not
+                            # optional - this is best-effort only and must
+                            # not block reaching a working state.
+                            try:
+                                ahead = self.repo.git.rev_list(
+                                    f"origin/{GIT_BRANCH}..HEAD", "--count"
+                                )
+                                if int(ahead) > 0:
+                                    logger.warning(
+                                        f"Hard reset to origin/{GIT_BRANCH} "
+                                        f"will discard {ahead} unpushed "
+                                        f"local commit(s)"
+                                    )
+                                    try:
+                                        self.repo.git.push(
+                                            "origin", f"HEAD:{GIT_BRANCH}"
+                                        )
+                                        logger.info(
+                                            "Saved previously unpushed "
+                                            "commits to remote before reset"
+                                        )
+                                        self._record_push_success()
+                                    except Exception as push_e:
+                                        logger.warning(
+                                            f"Could not push unpushed "
+                                            f"commits before reset, they "
+                                            f"will be discarded: {push_e}"
+                                        )
+                                        self._record_push_error(str(push_e))
+                            except Exception:
+                                # HEAD or origin/<branch> may not exist yet
+                                # (fresh repo/remote) - nothing to lose
+                                pass
+
+                            self.repo.git.reset("--hard", f"origin/{GIT_BRANCH}")
+                            self.repo.git.branch(
+                                f"--set-upstream-to=origin/{GIT_BRANCH}",
+                                GIT_BRANCH,
+                            )
+                            logger.info(
+                                f"Aligned local repo with origin/{GIT_BRANCH} and set upstream"
+                            )
+                            self._remote_configured = True
+                        except Exception as e:
+                            logger.warning(f"Failed to align with remote: {e}")
+                    except Exception as e:
+                        logger.error(f"Failed to configure remote: {e}")
+
+                self._setup_complete = True
+
+            except Exception as e:
+                logger.error(f"Failed to setup Git repository: {e}")
 
     def pull_latest_changes(self) -> None:
         """Pull latest changes from remote"""
@@ -311,8 +321,12 @@ class GitManager:
             logger.error(f"Failed to commit changes: {e}")
 
     def _record_push_success(self) -> None:
-        self.last_push_success = datetime.now()
+        # Clear the error before setting the new success timestamp (not
+        # after): a concurrent get_health_status() read between these two
+        # statements should at worst see "no error yet, old success time"
+        # rather than "fresh success time, stale error still set".
         self.last_push_error = None
+        self.last_push_success = datetime.now()
 
     def _record_push_error(self, error: str) -> None:
         self.last_push_error = error
