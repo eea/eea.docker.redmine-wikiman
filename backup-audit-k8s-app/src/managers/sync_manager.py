@@ -140,6 +140,17 @@ class SyncManager:
                     resource_name = resource.get("metadata", {}).get("name", "unknown")
                     logger.debug(f"Processing resource: {resource_kind} {resource_name}")
 
+                    # Apply the same exclusions the webhook event path uses
+                    # (kube-root-ca.crt, default/service-account tokens, Helm
+                    # release secrets, etc.) - previously only the live
+                    # webhook path filtered these, so a full sync would
+                    # capture them all.
+                    if self.resource_processor.should_skip_resource(resource):
+                        logger.debug(
+                            f"Skipping excluded resource: {resource_kind} {resource_name}"
+                        )
+                        continue
+
                     release = ""
                     if self.config.helm_tracking:
                         release = self.resource_processor.get_helm_release_name(resource)

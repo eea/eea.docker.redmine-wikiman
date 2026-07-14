@@ -254,6 +254,11 @@ def startup_sequence():
         if scheduler:
             scheduler.start_initial_sync()
             scheduler.start_cleanup_job()
+            # Periodic full resync, gated by ENABLE_SYNC_JOB (default on).
+            # Without this, a resource that disappears and reappears while
+            # the service is running is only picked back up by a live
+            # webhook event or a restart - this closes that gap.
+            scheduler.start_sync_job()
         else:
             logger.error("Scheduler not initialized")
             return
