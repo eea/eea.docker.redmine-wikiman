@@ -35,14 +35,60 @@ storage_path = "/app/logs"
 startup_complete = False
 webhook_queue = queue.Queue()
 startup_lock = threading.Lock()
+process_start_time = time.time()
 
 # Initialize components directly
 event_processor = None
 scheduler = None
 
+# Healthcheck tuning: how long to give initial sync before /health starts
+# failing, and how many missed cleanup cycles of git push failures to
+# tolerate before treating the service as unhealthy (one blip shouldn't flip
+# the probe, sustained failure should).
+HEALTH_STARTUP_GRACE_SECONDS = int(os.getenv("HEALTH_STARTUP_GRACE_SECONDS", "120"))
+CLEANUP_INTERVAL = int(os.getenv("CLEANUP_INTERVAL", "120"))
+HEALTH_PUSH_FAILURE_GRACE_CYCLES = 2
+
+
+def get_health_status():
+    """Determine whether the service is actually able to do its job, not
+    just whether the HTTP listener is up. Returns (is_healthy, reason)."""
+    elapsed = time.time() - process_start_time
+
+    if event_processor is None or scheduler is None:
+        return False, "components not initialized"
+
+    if not startup_complete:
+        if elapsed < HEALTH_STARTUP_GRACE_SECONDS:
+            return True, None  # still within startup grace period
+        return False, f"startup did not complete within {HEALTH_STARTUP_GRACE_SECONDS}s"
+
+    git_manager = getattr(scheduler, "git_manager", None)
+    if git_manager is not None and git_manager.last_push_error:
+        push_failure_threshold = CLEANUP_INTERVAL * HEALTH_PUSH_FAILURE_GRACE_CYCLES
+        last_success = git_manager.last_push_success
+        seconds_since_success = (
+            (time.time() - last_success.timestamp())
+            if last_success
+            else float("inf")
+        )
+        if seconds_since_success > push_failure_threshold:
+            return False, (
+                f"git push failing since "
+                f"{last_success.isoformat() if last_success else 'startup'}: "
+                f"{git_manager.last_push_error}"
+            )
+
+    return True, None
+
 
 def initialize_components():
-    """Initialize event processor and scheduler directly"""
+    """Initialize event processor and scheduler with one shared set of
+    managers. GitManager/ArchiveManager (and their locks) must be shared
+    between the webhook event path and the scheduler's sync/cleanup jobs -
+    building two independent sets here previously let both paths run git
+    operations concurrently against the same working tree with no real
+    mutual exclusion between them."""
     global event_processor, scheduler
 
     from core.config import Config
@@ -78,8 +124,17 @@ def initialize_components():
         git_manager,
     )
 
-    # Initialize scheduler
-    scheduler = AuditScheduler(storage_path)
+    # Initialize scheduler against the same shared managers
+    scheduler = AuditScheduler(
+        storage_path,
+        config,
+        git_manager,
+        k8s_manager,
+        storage_manager,
+        archive_manager,
+        resource_processor,
+        helm_processor,
+    )
 
     logger.info("Components initialized successfully")
 
@@ -93,10 +148,16 @@ class AuditWebhookHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle health check requests"""
         if self.path == "/health":
-            self.send_response(200)
+            is_healthy, reason = get_health_status()
+            self.send_response(200 if is_healthy else 503)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            response = {"status": "healthy", "timestamp": time.time()}
+            response = {
+                "status": "healthy" if is_healthy else "unhealthy",
+                "timestamp": time.time(),
+            }
+            if reason:
+                response["reason"] = reason
             self.wfile.write(json.dumps(response).encode())
         else:
             self.send_response(404)

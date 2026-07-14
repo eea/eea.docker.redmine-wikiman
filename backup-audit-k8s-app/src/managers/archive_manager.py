@@ -69,79 +69,83 @@ class ArchiveManager:
                 f"{kind}-{name}-{timestamp}.yaml",
             )
 
-        os.makedirs(os.path.dirname(archived_path), exist_ok=True)
+        with self.archive_lock:
+            os.makedirs(os.path.dirname(archived_path), exist_ok=True)
 
-        # Copy and enrich the resource
-        archived_resource = resource.copy()
-        archived_resource["_archived"] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "operation": "DELETE",
-            "user": user,
-            "original_path": original_path,
-        }
+            # Copy and enrich the resource
+            archived_resource = resource.copy()
+            archived_resource["_archived"] = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "operation": "DELETE",
+                "user": user,
+                "original_path": original_path,
+            }
 
-        # Write to archive
-        with open(archived_path, "w") as f:
-            yaml.dump(
-                archived_resource,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
-                indent=2,
-            )
+            # Write to archive
+            with open(archived_path, "w") as f:
+                yaml.dump(
+                    archived_resource,
+                    f,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    indent=2,
+                )
 
-        # Remove original file
-        if os.path.exists(original_path):
-            os.remove(original_path)
-            logger.info(f"Removed from active storage: {original_path}")
+            # Remove original file
+            if os.path.exists(original_path):
+                os.remove(original_path)
+                logger.info(f"Removed from active storage: {original_path}")
 
         return archived_path
 
     def archive_missing_namespaces(self, k8s_namespaces: Set[str]):
         """Archive namespaces that don't exist in Kubernetes"""
         try:
-            storage_namespaces = set()
+            with self.archive_lock:
+                storage_namespaces = set()
 
-            if os.path.exists(self.storage_path):
-                for item in os.listdir(self.storage_path):
-                    item_path = os.path.join(self.storage_path, item)
-                    if (
-                        os.path.isdir(item_path)
-                        and not item.startswith("archived")
-                        and item != ".git"
-                    ):
-                        # Check if it's a valid namespace folder
-                        has_resources = os.path.isdir(
-                            os.path.join(item_path, "standalone-resources")
-                        )
-                        has_releases = any(
-                            os.path.isfile(
-                                os.path.join(item_path, subdir, "values.yaml")
+                if os.path.exists(self.storage_path):
+                    for item in os.listdir(self.storage_path):
+                        item_path = os.path.join(self.storage_path, item)
+                        if (
+                            os.path.isdir(item_path)
+                            and not item.startswith("archived")
+                            and item != ".git"
+                        ):
+                            # Check if it's a valid namespace folder
+                            has_resources = os.path.isdir(
+                                os.path.join(item_path, "standalone-resources")
                             )
-                            for subdir in os.listdir(item_path)
-                            if os.path.isdir(os.path.join(item_path, subdir))
-                        )
+                            has_releases = any(
+                                os.path.isfile(
+                                    os.path.join(item_path, subdir, "values.yaml")
+                                )
+                                for subdir in os.listdir(item_path)
+                                if os.path.isdir(os.path.join(item_path, subdir))
+                            )
 
-                        if has_resources or has_releases:
-                            storage_namespaces.add(item)
+                            if has_resources or has_releases:
+                                storage_namespaces.add(item)
 
-            missing_namespaces = storage_namespaces - k8s_namespaces
+                missing_namespaces = storage_namespaces - k8s_namespaces
 
-            for ns_name in missing_namespaces:
-                if ns_name in self.config.get_excluded_namespaces():
-                    continue
+                for ns_name in missing_namespaces:
+                    if ns_name in self.config.get_excluded_namespaces():
+                        continue
 
-                logger.info(f"Archiving missing namespace: {ns_name}")
+                    logger.info(f"Archiving missing namespace: {ns_name}")
 
-                source_path = os.path.join(self.storage_path, ns_name)
-                archived_path = os.path.join(self.storage_path, "archived", ns_name)
+                    source_path = os.path.join(self.storage_path, ns_name)
+                    archived_path = os.path.join(
+                        self.storage_path, "archived", ns_name
+                    )
 
-                if os.path.exists(source_path):
-                    try:
-                        self._move_files(source_path, archived_path)
-                        logger.info(f"Merged and archived namespace: {ns_name}")
-                    except Exception as e:
-                        logger.error(f"Failed to archive {ns_name}: {e}")
+                    if os.path.exists(source_path):
+                        try:
+                            self._move_files(source_path, archived_path)
+                            logger.info(f"Merged and archived namespace: {ns_name}")
+                        except Exception as e:
+                            logger.error(f"Failed to archive {ns_name}: {e}")
 
         except Exception as e:
             logger.error(f"Failed to archive missing namespaces: {e}")
@@ -149,53 +153,60 @@ class ArchiveManager:
     def archive_missing_releases(self, k8s_releases_by_namespace: Dict[str, Set[str]]):
         """Archive releases that don't exist in Kubernetes"""
         try:
-            for ns_name, k8s_releases in k8s_releases_by_namespace.items():
-                ns_path = os.path.join(self.storage_path, ns_name)
-                if not os.path.exists(ns_path):
-                    continue
+            with self.archive_lock:
+                for ns_name, k8s_releases in k8s_releases_by_namespace.items():
+                    ns_path = os.path.join(self.storage_path, ns_name)
+                    if not os.path.exists(ns_path):
+                        continue
 
-                storage_releases = set()
-                for item in os.listdir(ns_path):
-                    item_path = os.path.join(ns_path, item)
-                    if os.path.isdir(item_path) and not item.startswith("archived"):
-                        values_path = os.path.join(item_path, "values.yaml")
-                        if os.path.exists(values_path):
-                            storage_releases.add(item)
+                    storage_releases = set()
+                    for item in os.listdir(ns_path):
+                        item_path = os.path.join(ns_path, item)
+                        if os.path.isdir(item_path) and not item.startswith(
+                            "archived"
+                        ):
+                            values_path = os.path.join(item_path, "values.yaml")
+                            if os.path.exists(values_path):
+                                storage_releases.add(item)
 
-                missing_releases = storage_releases - k8s_releases
+                    missing_releases = storage_releases - k8s_releases
 
-                for release_name in missing_releases:
-                    logger.info(
-                        f"Archiving missing release: {release_name} in {ns_name}"
-                    )
+                    for release_name in missing_releases:
+                        logger.info(
+                            f"Archiving missing release: {release_name} in {ns_name}"
+                        )
 
-                    source_path = os.path.join(ns_path, release_name)
-                    archived_path = os.path.join(
-                        self.storage_path, "archived", ns_name, release_name
-                    )
+                        source_path = os.path.join(ns_path, release_name)
+                        archived_path = os.path.join(
+                            self.storage_path, "archived", ns_name, release_name
+                        )
 
-                    if os.path.exists(source_path):
-                        os.makedirs(os.path.dirname(archived_path), exist_ok=True)
-                        try:
-                            if os.path.exists(archived_path):
-                                subprocess.run(["rm", "-rf", archived_path], check=True)
-                                logger.info(
-                                    f"Removed existing archived release: {archived_path}"
+                        if os.path.exists(source_path):
+                            os.makedirs(
+                                os.path.dirname(archived_path), exist_ok=True
+                            )
+                            try:
+                                if os.path.exists(archived_path):
+                                    subprocess.run(
+                                        ["rm", "-rf", archived_path], check=True
+                                    )
+                                    logger.info(
+                                        f"Removed existing archived release: {archived_path}"
+                                    )
+                                subprocess.run(
+                                    ["mv", source_path, archived_path], check=True
                                 )
-                            subprocess.run(
-                                ["mv", source_path, archived_path], check=True
-                            )
-                            logger.info(
-                                f"Moved release {release_name} in {ns_name} to archived"
-                            )
-                        except subprocess.CalledProcessError as e:
-                            logger.error(
-                                f"Failed to move release {release_name} to archived: {e}"
-                            )
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to move release {release_name} to archived: {e}"
-                            )
+                                logger.info(
+                                    f"Moved release {release_name} in {ns_name} to archived"
+                                )
+                            except subprocess.CalledProcessError as e:
+                                logger.error(
+                                    f"Failed to move release {release_name} to archived: {e}"
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to move release {release_name} to archived: {e}"
+                                )
 
         except Exception as e:
             logger.error(f"Failed to archive missing releases: {e}")

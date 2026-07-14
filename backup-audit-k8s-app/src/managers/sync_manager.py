@@ -59,34 +59,87 @@ class SyncManager:
         if ns_name in self.config.get_excluded_namespaces():
             return
 
+        # (storage key, client attr, list method, apiVersion, Kind) - apiVersion
+        # and Kind are passed explicitly because list responses don't come
+        # back with either populated on each item (a Kubernetes client
+        # quirk), and they must match real API values (singular, correctly
+        # cased) for should_skip_resource()'s kind-based exclusions
+        # (Helm release secrets, default tokens, kube-root-ca.crt) to work.
         resource_kinds = [
-            ("pods", "v1", "list_namespaced_pod"),
-            ("services", "v1", "list_namespaced_service"),
-            ("configmaps", "v1", "list_namespaced_config_map"),
-            ("secrets", "v1", "list_namespaced_secret"),
-            ("persistentvolumeclaims", "v1", "list_namespaced_persistent_volume_claim"),
-            ("deployments", "apps_v1", "list_namespaced_deployment"),
-            ("statefulsets", "apps_v1", "list_namespaced_stateful_set"),
-            ("daemonsets", "apps_v1", "list_namespaced_daemon_set"),
-            ("replicasets", "apps_v1", "list_namespaced_replica_set"),
-            ("jobs", "batch_v1", "list_namespaced_job"),
-            ("cronjobs", "batch_v1", "list_namespaced_cron_job"),
-            ("ingresses", "networking_v1", "list_namespaced_ingress"),
-            ("networkpolicies", "networking_v1", "list_namespaced_network_policy"),
+            ("pods", "v1", "list_namespaced_pod", "v1", "Pod"),
+            ("services", "v1", "list_namespaced_service", "v1", "Service"),
+            ("configmaps", "v1", "list_namespaced_config_map", "v1", "ConfigMap"),
+            ("secrets", "v1", "list_namespaced_secret", "v1", "Secret"),
+            (
+                "persistentvolumeclaims",
+                "v1",
+                "list_namespaced_persistent_volume_claim",
+                "v1",
+                "PersistentVolumeClaim",
+            ),
+            (
+                "deployments",
+                "apps_v1",
+                "list_namespaced_deployment",
+                "apps/v1",
+                "Deployment",
+            ),
+            (
+                "statefulsets",
+                "apps_v1",
+                "list_namespaced_stateful_set",
+                "apps/v1",
+                "StatefulSet",
+            ),
+            (
+                "daemonsets",
+                "apps_v1",
+                "list_namespaced_daemon_set",
+                "apps/v1",
+                "DaemonSet",
+            ),
+            (
+                "replicasets",
+                "apps_v1",
+                "list_namespaced_replica_set",
+                "apps/v1",
+                "ReplicaSet",
+            ),
+            ("jobs", "batch_v1", "list_namespaced_job", "batch/v1", "Job"),
+            (
+                "cronjobs",
+                "batch_v1",
+                "list_namespaced_cron_job",
+                "batch/v1",
+                "CronJob",
+            ),
+            (
+                "ingresses",
+                "networking_v1",
+                "list_namespaced_ingress",
+                "networking.k8s.io/v1",
+                "Ingress",
+            ),
+            (
+                "networkpolicies",
+                "networking_v1",
+                "list_namespaced_network_policy",
+                "networking.k8s.io/v1",
+                "NetworkPolicy",
+            ),
         ]
 
         resources = self.k8s_manager.get_namespace_resources(ns_name, resource_kinds)
         logger.info(f"Processing {len(resources)} resource types in namespace {ns_name}")
-        
+
         for kind, resource_list in resources.items():
             logger.info(f"Processing {len(resource_list)} {kind} resources in namespace {ns_name}")
             for resource in resource_list:
                 try:
-                    # FIXED: Add debugging for resource processing
                     resource_kind = resource.get("kind", "Unknown")
                     resource_name = resource.get("metadata", {}).get("name", "unknown")
                     logger.debug(f"Processing resource: {resource_kind} {resource_name}")
-                    
+
                     release = ""
                     if self.config.helm_tracking:
                         release = self.resource_processor.get_helm_release_name(resource)
@@ -94,13 +147,7 @@ class SyncManager:
                             logger.debug(f"Found Helm release '{release}' for {resource_kind} {resource_name}")
                         else:
                             logger.debug(f"No Helm release found for {resource_kind} {resource_name}")
-                    
-                    # FIXED: Ensure the resource kind is preserved
-                    if resource_kind == "Unknown" or resource_kind is None:
-                        # Use the kind from the resource_kinds list as fallback
-                        resource["kind"] = kind.title()  # Convert 'deployments' to 'Deployment'
-                        logger.debug(f"Fixed resource kind from 'Unknown' to '{resource['kind']}' for {resource_name}")
-                    
+
                     self.resource_processor.save_resource(resource, release)
                 except Exception as e:
                     logger.error(f"Error saving {kind} in {ns_name}: {e}")

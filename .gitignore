@@ -5,3 +5,4 @@ venv/
 .envrc
 .env
 .DS_Store
+backup-audit-k8s-app/PLAN.md

@@ -64,6 +64,8 @@ class GitManager:
         self.repo: Optional[git.Repo] = None
         self._setup_complete = False
         self._remote_configured = False
+        self.last_push_success: Optional[datetime] = None
+        self.last_push_error: Optional[str] = None
         self.setup_git_repository()
 
     def setup_git_repository(self) -> None:
@@ -131,7 +133,46 @@ class GitManager:
 
                     # Align local branch to remote
                     try:
+                        # Fetch first: origin/<branch> was just wiped by the
+                        # delete_remote() above and only exists locally again
+                        # after this fetch, so any "are we ahead of origin"
+                        # check must happen after it, not before.
                         self.repo.git.fetch("origin")
+
+                        # Warn about (and try to save) any unpushed local
+                        # commits before the hard reset below discards them.
+                        # This repo may be recovering from a stuck
+                        # merge/rebase state, so the reset itself is not
+                        # optional - this is best-effort only and must not
+                        # block reaching a working state.
+                        try:
+                            ahead = self.repo.git.rev_list(
+                                f"origin/{GIT_BRANCH}..HEAD", "--count"
+                            )
+                            if int(ahead) > 0:
+                                logger.warning(
+                                    f"Hard reset to origin/{GIT_BRANCH} will "
+                                    f"discard {ahead} unpushed local commit(s)"
+                                )
+                                try:
+                                    self.repo.git.push(
+                                        "origin", f"HEAD:{GIT_BRANCH}"
+                                    )
+                                    logger.info(
+                                        "Saved previously unpushed commits to "
+                                        "remote before reset"
+                                    )
+                                except Exception as push_e:
+                                    logger.warning(
+                                        f"Could not push unpushed commits "
+                                        f"before reset, they will be "
+                                        f"discarded: {push_e}"
+                                    )
+                        except Exception:
+                            # HEAD or origin/<branch> may not exist yet
+                            # (fresh repo/remote) - nothing to lose
+                            pass
+
                         self.repo.git.reset("--hard", f"origin/{GIT_BRANCH}")
                         self.repo.git.branch(
                             f"--set-upstream-to=origin/{GIT_BRANCH}", GIT_BRANCH
@@ -231,20 +272,25 @@ class GitManager:
                     # Add all files (including untracked)
                     self.repo.git.add(".")
 
-                    # Check if there are any staged changes
-                    if self.repo.index.diff("HEAD") or self.repo.untracked_files:
-                        # Check if this is the first commit
-                        try:
-                            # Try to get HEAD commit
-                            self.repo.head.commit  # Just check if it exists
-                            commit_message = (
-                                f"Audit logger changes - {datetime.now().isoformat()}"
-                            )
-                        except ValueError:
-                            # This is the first commit
-                            commit_message = (
-                                f"Initial commit - {datetime.now().isoformat()}"
-                            )
+                    # On a brand-new repo HEAD is "unborn" (no commits yet) -
+                    # index.diff("HEAD") raises in that case instead of
+                    # returning a diff, which previously made the very first
+                    # commit silently fail forever (nothing to push, nothing
+                    # ever fixes it). Treat unborn HEAD as "there are staged
+                    # changes" instead of asking HEAD to diff against itself.
+                    head_is_valid = self.repo.head.is_valid()
+                    has_changes = (
+                        not head_is_valid
+                        or bool(self.repo.index.diff("HEAD"))
+                        or bool(self.repo.untracked_files)
+                    )
+
+                    if has_changes:
+                        commit_message = (
+                            f"Initial commit - {datetime.now().isoformat()}"
+                            if not head_is_valid
+                            else f"Audit logger changes - {datetime.now().isoformat()}"
+                        )
 
                         self.repo.index.commit(commit_message)
                         logger.info(f"Committed changes to git: {commit_message}")
@@ -263,6 +309,13 @@ class GitManager:
                     logger.error(f"Failed to commit changes: {e}")
         except Exception as e:
             logger.error(f"Failed to commit changes: {e}")
+
+    def _record_push_success(self) -> None:
+        self.last_push_success = datetime.now()
+        self.last_push_error = None
+
+    def _record_push_error(self, error: str) -> None:
+        self.last_push_error = error
 
     def push_to_remote(self) -> None:
         """Push changes to remote repository"""
@@ -297,8 +350,10 @@ class GitManager:
                                     )
                                     self.repo.git.push("origin", current_branch)
                                     logger.info("Successfully pushed changes to remote")
+                                    self._record_push_success()
                                 else:
                                     logger.info("No commits to push")
+                                    self._record_push_success()
                             else:
                                 # origin branch doesn't exist, this is the first push
                                 logger.info("First push to remote...")
@@ -306,12 +361,14 @@ class GitManager:
                                 logger.info(
                                     "Successfully pushed initial commit to remote"
                                 )
+                                self._record_push_success()
 
                         except (KeyError, IndexError):
                             # origin branch doesn't exist, this is the first push
                             logger.info("First push to remote...")
                             self.repo.git.push("--set-upstream", "origin", GIT_BRANCH)
                             logger.info("Successfully pushed initial commit to remote")
+                            self._record_push_success()
 
                     except git.exc.GitCommandError as e:
                         if "no upstream branch" in str(e):
@@ -322,14 +379,19 @@ class GitManager:
                                 logger.info(
                                     "Successfully pushed changes to remote (set upstream)"
                                 )
+                                self._record_push_success()
                             except Exception as e2:
                                 logger.error(f"Failed to push with upstream: {e2}")
+                                self._record_push_error(str(e2))
                         else:
                             logger.error(f"Failed to push to remote: {e}")
+                            self._record_push_error(str(e))
                 except Exception as e:
                     logger.error(f"Failed to push to remote: {e}")
+                    self._record_push_error(str(e))
         except Exception as e:
             logger.error(f"Failed to push to remote: {e}")
+            self._record_push_error(str(e))
 
     def remove_changes(self, path: str) -> None:
         """Remove path from Git tracking and commit"""

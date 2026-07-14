@@ -31,8 +31,18 @@ USER audit
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+# The server only ever serves HTTPS (it exits at startup if webhook certs
+# aren't mounted), so the probe must speak TLS too. Cert verification is
+# skipped since the cert's CN/SANs are for the admission-webhook hostname,
+# not "localhost".
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD python -c "\
+import ssl, sys, urllib.request; \
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT); \
+ctx.check_hostname = False; \
+ctx.verify_mode = ssl.CERT_NONE; \
+resp = urllib.request.urlopen('https://localhost:8080/health', context=ctx, timeout=5); \
+sys.exit(0 if resp.status == 200 else 1)"
 
 # Default command
 CMD ["python", "api.py"] 

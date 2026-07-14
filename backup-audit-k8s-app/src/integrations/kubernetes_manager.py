@@ -338,7 +338,7 @@ class KubernetesManager:
         """Get all resources of specified kinds in a namespace"""
         resources = {}
 
-        for kind, api_version, method_name in resource_kinds:
+        for kind, api_version, method_name, group_version, kind_name in resource_kinds:
             try:
                 if api_version == "v1":
                     api = self.v1
@@ -355,29 +355,19 @@ class KubernetesManager:
                 method = getattr(api, method_name)
                 result = method(namespace)
 
-                # Convert to dict format
+                # Serialize each item the same way the Kubernetes client
+                # serializes objects for the API itself (sanitize_for_
+                # serialization), so whatever fields the kind actually has
+                # (data/stringData for Secrets and ConfigMaps, spec/status
+                # for workloads, etc.) are captured, instead of assuming
+                # every kind has spec/status. List items don't come back
+                # with apiVersion/kind populated on them (a client quirk),
+                # so those are set explicitly from what was requested.
                 resource_list = []
                 for item in result.items:
-                    resource_dict = {
-                        "apiVersion": item.api_version,
-                        "kind": item.kind,
-                        "metadata": {
-                            "name": item.metadata.name,
-                            "namespace": item.metadata.namespace,
-                            "labels": dict(item.metadata.labels)
-                            if item.metadata.labels
-                            else {},
-                            "annotations": dict(item.metadata.annotations)
-                            if item.metadata.annotations
-                            else {},
-                        },
-                        "spec": item.spec.to_dict()
-                        if hasattr(item, "spec") and item.spec
-                        else {},
-                        "status": item.status.to_dict()
-                        if hasattr(item, "status") and item.status
-                        else {},
-                    }
+                    resource_dict = api.api_client.sanitize_for_serialization(item)
+                    resource_dict["apiVersion"] = group_version
+                    resource_dict["kind"] = kind_name
                     resource_list.append(resource_dict)
 
                 resources[kind] = resource_list

@@ -11,7 +11,22 @@ logger = logging.getLogger(__name__)
 
 
 class AuditScheduler:
-    def __init__(self, storage_path: str):
+    def __init__(
+        self,
+        storage_path: str,
+        config,
+        git_manager,
+        k8s_manager,
+        storage_manager,
+        archive_manager,
+        resource_processor,
+        helm_processor,
+    ):
+        """Schedule sync/cleanup jobs against the already-constructed, shared
+        managers (built once in api.py) rather than creating a second,
+        independent set. Sharing the same GitManager/ArchiveManager instances
+        (and their locks) with the webhook event path is what keeps git
+        operations serialized instead of racing on the same working tree."""
         self.storage_path = storage_path
         self.scheduler = BackgroundScheduler()
         self.scheduler.start()
@@ -19,31 +34,15 @@ class AuditScheduler:
         self.initial_sync_thread = None
         self.sync_lock = threading.Lock()  # Add sync lock
 
-        # Load managers directly
-        from core.config import Config
-        from integrations.git_manager import GitManager
-        from integrations.kubernetes_manager import KubernetesManager
-        from managers.storage_manager import StorageManager
-        from managers.archive_manager import ArchiveManager
         from managers.sync_manager import SyncManager
-        from processors.resource_processor import ResourceProcessor
-        from processors.helm_processor import HelmProcessor
 
-        # Initialize configuration and managers
-        self.config = Config()
-        self.archive_lock = threading.Lock()
-
-        # Initialize managers directly
-        self.git_manager = GitManager(storage_path)
-        self.k8s_manager = KubernetesManager()
-        self.storage_manager = StorageManager(storage_path)
-        self.archive_manager = ArchiveManager(
-            storage_path, self.git_manager, self.archive_lock, self.config
-        )
-
-        # Initialize processors
-        self.resource_processor = ResourceProcessor(storage_path, self.config)
-        self.helm_processor = HelmProcessor(self.k8s_manager, storage_path)
+        self.config = config
+        self.git_manager = git_manager
+        self.k8s_manager = k8s_manager
+        self.storage_manager = storage_manager
+        self.archive_manager = archive_manager
+        self.resource_processor = resource_processor
+        self.helm_processor = helm_processor
 
         # Initialize sync manager
         self.sync_manager = SyncManager(
