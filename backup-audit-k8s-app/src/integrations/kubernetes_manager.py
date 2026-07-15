@@ -378,73 +378,90 @@ class KubernetesManager:
 
         return resources
 
+    def _deep_merge_values(self, base: dict, override: dict) -> dict:
+        """Deep-merge two Helm value dicts the way Helm itself does when
+        rendering a release: override wins, nested dicts merge recursively,
+        anything else (including lists) is replaced wholesale by override."""
+        if not isinstance(base, dict):
+            return dict(override) if isinstance(override, dict) else {}
+        if not isinstance(override, dict):
+            return dict(base)
+
+        merged = dict(base)
+        for key, override_val in override.items():
+            base_val = merged.get(key)
+            if isinstance(base_val, dict) and isinstance(override_val, dict):
+                merged[key] = self._deep_merge_values(base_val, override_val)
+            else:
+                merged[key] = override_val
+        return merged
+
+    def _extract_override_values(self, release_data: dict) -> dict:
+        """Locate the release's user-supplied override values (what was
+        passed via -f/--set), trying different possible locations across
+        Helm storage format variants."""
+        values = {}
+
+        # Method 1: Try the standard "config" field
+        if "config" in release_data:
+            values = release_data["config"] or {}
+            logger.debug(f"Found override values in 'config' field: {len(values)} keys")
+
+        # Method 2: Try "values" field
+        elif "values" in release_data:
+            values = release_data["values"] or {}
+            logger.debug(f"Found override values in 'values' field: {len(values)} keys")
+
+        # Method 3: Try "info" -> "values" field
+        elif "info" in release_data and isinstance(release_data["info"], dict):
+            info = release_data["info"]
+            if "values" in info:
+                values = info["values"] or {}
+                logger.debug(
+                    f"Found override values in 'info.values' field: {len(values)} keys"
+                )
+
+        # Method 4: Try "manifest" field (older Helm versions)
+        elif "manifest" in release_data:
+            logger.debug(
+                "Found 'manifest' field, but values extraction from manifest not implemented"
+            )
+
+        # Method 5: Try "hooks" field
+        elif "hooks" in release_data:
+            logger.debug("Found 'hooks' field, checking for values")
+            hooks = release_data["hooks"]
+            if isinstance(hooks, list):
+                for hook in hooks:
+                    if isinstance(hook, dict) and "manifest" in hook:
+                        logger.debug("Found hook with manifest")
+
+        return values if isinstance(values, dict) else {}
+
     def extract_helm_values_from_secret(self, secret) -> Dict[str, Any]:
-        """Extract Helm values from a secret"""
+        """Extract the full effective values Helm used to render this
+        release: the chart's default values (chart.values) deep-merged with
+        the release's override config, override wins - equivalent to
+        `helm get values --all`, not just the override snippet."""
         try:
             release_data = self.decode_helm_release(secret.data["release"])
 
-            # Add detailed debug logging
             logger.debug(
                 f"Helm release data keys: {list(release_data.keys()) if isinstance(release_data, dict) else 'Not a dict'}"
             )
 
-            # Try different possible locations for values
-            values = {}
+            chart = release_data.get("chart", {}) if isinstance(release_data, dict) else {}
+            chart_values = chart.get("values", {}) if isinstance(chart, dict) else {}
+            if not isinstance(chart_values, dict):
+                chart_values = {}
+            logger.debug(f"Chart default values: {len(chart_values)} keys")
 
-            # Method 1: Try the standard "config" field
-            if "config" in release_data:
-                values = release_data["config"]
-                logger.debug(f"Found values in 'config' field: {len(values)} keys")
-                logger.debug(
-                    f"Config keys: {list(values.keys()) if isinstance(values, dict) else 'Not a dict'}"
-                )
+            override_values = self._extract_override_values(
+                release_data if isinstance(release_data, dict) else {}
+            )
+            logger.debug(f"Override values: {len(override_values)} keys")
 
-            # Method 2: Try "values" field
-            elif "values" in release_data:
-                values = release_data["values"]
-                logger.debug(f"Found values in 'values' field: {len(values)} keys")
-                logger.debug(
-                    f"Values keys: {list(values.keys()) if isinstance(values, dict) else 'Not a dict'}"
-                )
-
-            # Method 3: Try "chart" -> "values" field
-            elif "chart" in release_data and isinstance(release_data["chart"], dict):
-                chart = release_data["chart"]
-                if "values" in chart:
-                    values = chart["values"]
-                    logger.debug(
-                        f"Found values in 'chart.values' field: {len(values)} keys"
-                    )
-                    logger.debug(
-                        f"Chart values keys: {list(values.keys()) if isinstance(values, dict) else 'Not a dict'}"
-                    )
-
-            # Method 4: Try "info" -> "values" field
-            elif "info" in release_data and isinstance(release_data["info"], dict):
-                info = release_data["info"]
-                if "values" in info:
-                    values = info["values"]
-                    logger.debug(
-                        f"Found values in 'info.values' field: {len(values)} keys"
-                    )
-                    logger.debug(
-                        f"Info values keys: {list(values.keys()) if isinstance(values, dict) else 'Not a dict'}"
-                    )
-
-            # Method 5: Try "manifest" field (older Helm versions)
-            elif "manifest" in release_data:
-                logger.debug(
-                    "Found 'manifest' field, but values extraction from manifest not implemented"
-                )
-
-            # Method 6: Try "hooks" field
-            elif "hooks" in release_data:
-                logger.debug("Found 'hooks' field, checking for values")
-                hooks = release_data["hooks"]
-                if isinstance(hooks, list):
-                    for hook in hooks:
-                        if isinstance(hook, dict) and "manifest" in hook:
-                            logger.debug("Found hook with manifest")
+            values = self._deep_merge_values(chart_values, override_values)
 
             if not values:
                 logger.warning(

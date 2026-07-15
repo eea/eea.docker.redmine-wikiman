@@ -162,8 +162,14 @@ class AuditScheduler:
             sync_interval = self.config.sync_interval
 
             def run_sync_job():
-                # Only run sync if initial sync is complete and no other sync is in progress
-                if self.initial_sync_complete and not self.is_sync_in_progress():
+                # Only run once initial sync is complete. Block on sync_lock
+                # rather than pre-checking is_sync_in_progress() and
+                # skipping if busy: cleanup_job now also holds sync_lock, so
+                # a skip-if-locked check here would let cleanup (running on
+                # its own schedule) starve this job out indefinitely if
+                # their intervals happen to keep colliding - waiting for the
+                # lock is safe since sync is idempotent.
+                if self.initial_sync_complete:
                     try:
                         with self.sync_lock:  # Lock during sync process
                             logger.info("Running scheduled sync...")
