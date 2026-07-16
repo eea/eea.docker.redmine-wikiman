@@ -19,6 +19,15 @@ import yaml
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# find_chart_repository() makes live outbound HTTPS calls (up to 5 hosts,
+# 10s timeout each) to guess a chart's source repo for deploy_command
+# metadata. This is enrichment only, not backup data - a mission-critical
+# backup service must not depend on internet egress to make sync progress.
+# Off by default; sync stalling here past HEALTH_STARTUP_GRACE_SECONDS is
+# what causes readiness-probe failures and restart loops when egress is
+# restricted.
+ENABLE_CHART_REPO_LOOKUP = os.getenv("ENABLE_CHART_REPO_LOOKUP", "false").lower() == "true"
+
 # Helm tracking configuration
 HELM_TRACKING = os.getenv("HELM_TRACKING", "true").lower() == "true"
 
@@ -144,6 +153,13 @@ class KubernetesManager:
 
     def find_chart_repository(self, chart_name: str) -> Optional[Dict[str, str]]:
         """Search for a chart across known repositories, starting with EEA"""
+        if not ENABLE_CHART_REPO_LOOKUP:
+            logger.debug(
+                f"Skipping external repository lookup for chart '{chart_name}' "
+                "(ENABLE_CHART_REPO_LOOKUP is disabled)"
+            )
+            return None
+
         # Define repositories to search in priority order with their specific directory structures
         repositories = [
             {"org": "eea", "name": "helm-charts", "url": "https://github.com/eea/helm-charts", "charts_dir": "sources"},
