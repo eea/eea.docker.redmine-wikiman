@@ -23,10 +23,15 @@ class SyncManager:
         self.storage_manager = storage_manager
         self.config = config
 
-    def run_sync(self):
-        """Run initial sync for active namespaces"""
+    def run_sync(self, is_initial: bool = True):
+        """Sync active namespaces. Also used for periodic resyncs (is_initial=False)
+        to catch drift - those must NOT touch latest-changes.json: that file
+        tracks the latest real change to a namespace (written by
+        event_processor from actual webhook events), and blindly overwriting
+        it with an INITIAL_SYNC marker on every resync cycle would clobber
+        that real record even when nothing had changed."""
         try:
-            logger.info("Starting initial sync...")
+            logger.info("Starting initial sync..." if is_initial else "Starting sync...")
 
             k8s_namespaces = set(self.k8s_manager.get_namespaces())
             logger.info(f"Found {len(k8s_namespaces)} active namespaces")
@@ -45,10 +50,10 @@ class SyncManager:
                 # Process resources
                 self.process_namespace_resources(ns_name)
 
-                # Update latest changes
-                self.storage_manager.update_namespace_latest_changes(ns_name)
+                if is_initial:
+                    self.storage_manager.update_namespace_latest_changes(ns_name)
 
-            logger.info("Initial sync completed")
+            logger.info("Initial sync completed" if is_initial else "Sync completed")
 
         except Exception as e:
             logger.error(f"Initial sync failed: {e}")

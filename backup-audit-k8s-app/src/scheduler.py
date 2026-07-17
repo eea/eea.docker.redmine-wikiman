@@ -178,7 +178,7 @@ class AuditScheduler:
                             self.git_manager.setup_git_repository()
                             
                             # Run sync to update storage with current state
-                            self.sync_manager.run_sync()
+                            self.sync_manager.run_sync(is_initial=False)
                             
                             # Commit and push changes
                             logger.info("Committing sync changes to git...")
