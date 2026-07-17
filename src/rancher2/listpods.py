@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from image_checker import ImageChecker
 from rancher2.auth import RancherClient, RedmineClient
 from rancher2.base import Rancher2Base
-from utils import memory_unit_conversion
+from utils import memory_unit_conversion, retry_call
 
 load_dotenv()
 
@@ -45,7 +45,7 @@ class Rancher2Pods(Rancher2Base):
     def _get_pods(self, rancher_client):
         pods_dict = defaultdict(list)
         try:
-            pods_response = rancher_client.v1.list_pod_for_all_namespaces()
+            pods_response = retry_call(rancher_client.v1.list_pod_for_all_namespaces, _request_timeout=30)
             items = pods_response.to_dict().get("items", [])
             log.info("Found %d pods across all namespaces", len(items))
             for pod in items:

@@ -2,7 +2,7 @@ import json
 import logging
 import time
 
-from utils import memory_unit_conversion
+from utils import memory_unit_conversion, retry_call
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class Rancher2Base:
 
     def _get_nodes(self, rancher_client):
         try:
-            nodes_response = rancher_client.v1.list_node()
+            nodes_response = retry_call(rancher_client.v1.list_node, _request_timeout=30)
             nodes_list = nodes_response.to_dict()["items"]
             log.info("Found %d nodes", len(nodes_list))
             return nodes_list

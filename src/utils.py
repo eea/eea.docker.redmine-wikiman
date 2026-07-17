@@ -1,4 +1,30 @@
+import logging
 import re
+import time
+
+log = logging.getLogger(__name__)
+
+
+def retry_call(fn, *args, retries=2, backoff_seconds=5, **kwargs):
+    """Call fn(*args, **kwargs), retrying on exception up to `retries` extra
+    times with a fixed backoff. Re-raises the last exception if all attempts
+    fail, so callers keep their existing error handling."""
+    attempt = 0
+    while True:
+        try:
+            return fn(*args, **kwargs)
+        except Exception:
+            attempt += 1
+            if attempt > retries:
+                raise
+            log.warning(
+                "%s failed (attempt %d/%d), retrying in %ds",
+                getattr(fn, "__name__", repr(fn)),
+                attempt,
+                retries + 1,
+                backoff_seconds,
+            )
+            time.sleep(backoff_seconds)
 
 
 def memory_unit_conversion(str_to_convert):

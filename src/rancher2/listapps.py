@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from rancher2.auth import RancherClient, RedmineClient
 from rancher2.base import Rancher2Base
+from utils import retry_call
 
 load_dotenv()
 
@@ -35,7 +36,7 @@ class Rancher2Apps(Rancher2Base):
 
     def _get_namespaces(self, rancher_client):
         try:
-            namespaces_response = rancher_client.v1.list_namespace()
+            namespaces_response = retry_call(rancher_client.v1.list_namespace, _request_timeout=30)
             namespaces_list = namespaces_response.to_dict().get("items", [])
             log.info("Found %d namespaces", len(namespaces_list))
             return namespaces_list
@@ -45,8 +46,11 @@ class Rancher2Apps(Rancher2Base):
 
     def _get_apps(self, rancher_client, namespace_id):
         try:
-            apps_response = rancher_client.v1.list_namespaced_secret(
-                namespace_id, label_selector="owner=helm,status=deployed"
+            apps_response = retry_call(
+                rancher_client.v1.list_namespaced_secret,
+                namespace_id,
+                label_selector="owner=helm,status=deployed",
+                _request_timeout=30,
             )
             apps_list = apps_response.to_dict().get("items", [])
             return apps_list
