@@ -240,7 +240,7 @@ class RancherInstances(object):
         opener = urllib.request.build_opener(auth_handler)
         urllib.request.install_opener(opener)
         logging.debug("Opening: %s", url)
-        f = urllib.request.urlopen(url)
+        f = urllib.request.urlopen(url, timeout=30)
         rawdata = f.read()
         f.close()
         return json.loads(rawdata)

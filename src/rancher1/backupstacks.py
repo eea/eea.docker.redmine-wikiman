@@ -27,7 +27,7 @@ def get_operation(rancherUrl, rancherAccessKey, rancherSecretKey, url):
     )
     opener = urllib.request.build_opener(auth_handler)
     urllib.request.install_opener(opener)
-    f = urllib.request.urlopen(url)
+    f = urllib.request.urlopen(url, timeout=30)
     rawdata = f.read()
     f.close()
     return json.loads(rawdata)
@@ -43,7 +43,7 @@ def get_raw(rancherUrl, rancherAccessKey, rancherSecretKey, url):
     opener = urllib.request.build_opener(auth_handler)
     urllib.request.install_opener(opener)
     try:
-        f = urllib.request.urlopen(url)
+        f = urllib.request.urlopen(url, timeout=30)
         rawdata = f.read()
         f.close()
     except urllib.error.HTTPError as exception:
@@ -58,7 +58,7 @@ def get_raw(rancherUrl, rancherAccessKey, rancherSecretKey, url):
     except urllib.error.URLError as exception:
         if "Operation timed out" in exception:
             logging.warning(exception)
-            f = urllib.request.urlopen(url)
+            f = urllib.request.urlopen(url, timeout=30)
             rawdata = f.read()
             f.close()
         else:
