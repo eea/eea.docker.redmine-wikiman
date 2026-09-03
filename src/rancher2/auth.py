@@ -38,7 +38,9 @@ class RedmineClient:
         self.apikey = os.getenv("WIKI_APIKEY", "")
         self.project_id = os.getenv("WIKI_PROJECT", "")
         self.redmine_server = Redmine(
-            self.base_url, key=self.apikey, requests={"verify": True}
+            self.base_url,
+            key=self.apikey,
+            requests={"verify": True, "timeout": int(os.getenv("WIKI_REQUEST_TIMEOUT", "30"))},
         )
 
         self.apps_page = os.getenv("WIKI_APPS_PAGE", "")
