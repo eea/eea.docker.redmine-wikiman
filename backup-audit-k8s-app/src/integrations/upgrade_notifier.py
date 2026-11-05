@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 RELEASE_SECRET_RE = re.compile(r"^sh\.helm\.release\.v\d+\.(.+)\.v(\d+)$")
 IMAGE_RE = re.compile(r"image:\s*[\"']?([^\"'\s]+)[\"']?")
-ACTION_EMOJI = {"install": "🆕", "upgrade": "⬆️", "rollback": "↩️"}
+ACTION_LABEL = {"install": "INSTALL", "upgrade": "UPGRADE", "rollback": "ROLLBACK"}
+NOTES_MAX_CHARS = 400
 
 
 class ReleaseSnapshot:
@@ -41,6 +42,7 @@ class ReleaseSnapshot:
         "app_version",
         "images",
         "link",
+        "notes",
     )
 
     def __init__(self, **kwargs):
@@ -74,17 +76,20 @@ class ReleaseSnapshot:
             app_version=metadata.get("appVersion", ""),
             images=images,
             link=link,
+            notes=info.get("notes", ""),
         )
 
 
 class UpgradeNotifier:
     """Daemon thread that scans Helm releases and posts upgrade notifications."""
 
-    def __init__(self, k8s_manager, config, webhook_url: str, cluster: str, interval: int = 60):
+    def __init__(self, k8s_manager, config, webhook_url: str, cluster: str, interval: int = 60,
+                 cluster_url: str = ""):
         self.k8s_manager = k8s_manager
         self.config = config
         self.webhook_url = webhook_url
         self.cluster = cluster
+        self.cluster_url = cluster_url
         self.interval = max(10, int(interval))
         # (namespace, release) -> ReleaseSnapshot of the last notified deployed rev
         self.baseline = {}
@@ -227,32 +232,27 @@ class UpgradeNotifier:
             return value or "?"
         if old == value:
             return f"{value or '?'} (unchanged)"
-        return f"{old} -> {value or '?'}"
+        return f"{old} → {value or '?'}"
 
     def _render(self, action: str, prev, new: ReleaseSnapshot) -> str:
-        title = f"{ACTION_EMOJI.get(action, '')} {action.capitalize()} — {new.release}".strip()
         lines = [
-            f"#### {title}",
-            f"**Cluster:** {self.cluster}  ",
-            f"**Namespace:** `{new.namespace}`  ",
-            f"**Application:** `{new.release}`  ",
-            f"**App version:** {self._fmt_version(prev, 'app_version', new.app_version)}  ",
-            f"**Chart version:** {self._fmt_version(prev, 'chart_version', new.chart_version)}  ",
+            f"[{ACTION_LABEL.get(action, action.upper())}] {new.release}",
+            f"Cluster: {self.cluster}",
+            f"Namespace: {new.namespace}",
+            f"App version: {self._fmt_version(prev, 'app_version', new.app_version)}",
+            f"Chart version: {self._fmt_version(prev, 'chart_version', new.chart_version)}",
         ]
-        if new.images:
-            old_image = prev.images[0] if (prev and prev.images) else ""
-            new_image = new.images[0]
-            if old_image and old_image != new_image:
-                lines.append(f"**Image:** `{old_image}` -> `{new_image}`  ")
-            else:
-                lines.append(f"**Image:** `{new_image}`  ")
-        when = (new.last_deployed or "")[:19].replace("T", " ")
-        if when:
-            lines.append(f"**When:** {when} UTC  ")
-        if new.link:
-            lines.append(f"[Chart]({new.link})  ")
-        lines.append(f"_helm revision {prev.revision if prev else 0} -> {new.revision}_")
-        return "\n".join(lines)
+        if self.cluster_url:
+            lines.append(f"[{self.cluster_url}]({self.cluster_url})")
+        notes = " ".join((new.notes or "").split())
+        if notes:
+            if len(notes) > NOTES_MAX_CHARS:
+                notes = notes[:NOTES_MAX_CHARS].rstrip() + "…"
+            lines.append("Release notes:")
+            lines.append(notes)
+        # Two trailing spaces per line: hard breaks, since the webhook renders
+        # the body with python-markdown without nl2br.
+        return "  \n".join(lines)
 
     def _post(self, action: str, prev, new: ReleaseSnapshot) -> bool:
         text = self._render(action, prev, new)

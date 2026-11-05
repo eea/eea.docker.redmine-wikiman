@@ -20,7 +20,7 @@ from integrations.upgrade_notifier import UpgradeNotifier  # noqa: E402
 
 def make_release_payload(name, rev, status, description, app_version="", chart_version="",
                          image=None, deployed="2026-11-05T12:00:00.000000000Z",
-                         chart_name=None, sources=None):
+                         chart_name=None, sources=None, notes=""):
     metadata = {
         "name": chart_name or f"chart-{name}",
         "version": chart_version,
@@ -35,6 +35,7 @@ def make_release_payload(name, rev, status, description, app_version="", chart_v
             "status": status,
             "description": description,
             "last_deployed": deployed,
+            "notes": notes,
         },
         "chart": {"metadata": metadata},
         "manifest": f"image: {image}\n" if image else "",
@@ -91,10 +92,11 @@ class FakePost:
         return FakeResp(self.status)
 
 
-def make_notifier(releases_by_ns, namespaces=("app",), post=None):
+def make_notifier(releases_by_ns, namespaces=("app",), post=None, cluster_url=""):
     k8s = FakeK8s(namespaces, releases_by_ns)
     notifier = UpgradeNotifier(
-        k8s, FakeConfig(), "http://webhook.local/?key=k&room_id=!room", "01dev", 60
+        k8s, FakeConfig(), "http://webhook.local/?key=k&room_id=!room", "01dev", 60,
+        cluster_url=cluster_url
     )
     if post is None:
         post = FakePost()
@@ -154,10 +156,11 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertEqual(len(post.calls), 1)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 3)
         body = post.calls[0]["body"]
-        self.assertIn("Upgrade — onyx", body)
-        self.assertIn("**App version:** 1.1 -> 1.2", body)
-        self.assertIn("**Chart version:** 0.1.0 -> 0.2.0", body)
-        self.assertIn("`eeacms/onyx:1.1` -> `eeacms/onyx:1.2`", body)
+        self.assertIn("[UPGRADE] onyx", body)
+        self.assertIn("Cluster: 01dev", body)
+        self.assertIn("Namespace: app", body)
+        self.assertIn("App version: 1.1 → 1.2", body)
+        self.assertIn("Chart version: 0.1.0 → 0.2.0", body)
 
         # no change: no further posts
         self._run(notifier, post)
@@ -215,9 +218,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
         body = post.calls[0]["body"]
-        self.assertIn("Rollback — onyx", body)
-        self.assertIn("**App version:** 1.1 (unchanged)", body)
-        self.assertIn("_helm revision 2 -> 4_", body)
+        self.assertIn("[ROLLBACK] onyx", body)
+        self.assertIn("App version: 1.1 (unchanged)", body)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 4)
 
     def test_uninstall_drops_baseline_silently(self):
@@ -280,8 +282,10 @@ class UpgradeNotifierTest(unittest.TestCase):
         }
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
-        self.assertIn("Install — newapp", post.calls[0]["body"])
-        self.assertIn("_helm revision 0 -> 1_", post.calls[0]["body"])
+        body = post.calls[0]["body"]
+        self.assertIn("[INSTALL] newapp", body)
+        self.assertIn("App version: 2.0", body)
+        self.assertIn("Chart version: 1.0.0", body)
 
     def test_excluded_namespace_ignored(self):
         p1 = make_release_payload("x", 1, "deployed", "Install complete")
@@ -316,11 +320,14 @@ class UpgradeNotifierTest(unittest.TestCase):
             app_version="6.1.4-24", chart_version="2.3.1",
             image="eeacms/bise-backend:6.1.4-24",
             deployed="2026-11-05T11:59:59.000000000Z",
-            sources=["https://github.com/eea/helm-charts/"])
+            sources=["https://github.com/eea/helm-charts/"],
+            notes="Bise backend deployed with the new schema. " * 3)
         releases = {"bise": {"bise-backend": [
             (1, fake_secret("sh.helm.release.v1.bise-backend.v1", p1)),
         ]}}
-        notifier, post = make_notifier(releases, namespaces=("bise",))
+        notifier, post = make_notifier(
+            releases, namespaces=("bise",),
+            cluster_url="https://01dev.eea.europa.eu")
         self._run(notifier, post, seed=True)
         p1s = make_release_payload(
             "bise-backend", 1, "superseded", "Install complete",
@@ -333,12 +340,43 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("**Cluster:** 01dev", body)
-        self.assertIn("**Namespace:** `bise`", body)
-        self.assertIn("**Application:** `bise-backend`", body)
-        self.assertIn("**Chart version:** 2.3.1 (unchanged)", body)
-        self.assertIn("**When:** 2026-11-05 11:59:59 UTC", body)
-        self.assertIn("[Chart](https://github.com/eea/helm-charts/)", body)
+        self.assertIn("[UPGRADE] bise-backend", body)
+        self.assertIn("Cluster: 01dev", body)
+        self.assertIn("Namespace: bise", body)
+        self.assertIn("App version: 6.1.4-23 → 6.1.4-24", body)
+        self.assertIn("Chart version: 2.3.1 (unchanged)", body)
+        self.assertIn("[https://01dev.eea.europa.eu](https://01dev.eea.europa.eu)", body)
+        self.assertIn("Release notes:", body)
+        self.assertIn("Bise backend deployed with the new schema.", body)
+
+    def test_message_omits_url_and_notes_when_absent(self):
+        p1 = make_release_payload(
+            "onyx", 1, "deployed", "Install complete",
+            app_version="6.1.4-23", chart_version="2.3.1",
+            image="eeacms/onyx:6.1.4-23")
+        releases = {"app": {"onyx": [
+            (1, fake_secret("sh.helm.release.v1.onyx.v1", p1)),
+        ]}}
+        notifier, post = make_notifier(releases)
+        self._run(notifier, post, seed=True)
+        p1s = make_release_payload(
+            "onyx", 1, "superseded", "Install complete",
+            app_version="6.1.4-23", chart_version="2.3.1",
+            image="eeacms/onyx:6.1.4-23")
+        p2 = make_release_payload(
+            "onyx", 2, "deployed", "Upgrade complete",
+            app_version="6.1.4-24", chart_version="2.3.2",
+            image="eeacms/onyx:6.1.4-24")
+        releases["app"]["onyx"] = [
+            (2, fake_secret("sh.helm.release.v1.onyx.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.onyx.v1", p1s)),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("[UPGRADE] onyx", body)
+        self.assertIn("Chart version: 2.3.1 → 2.3.2", body)
+        self.assertNotIn("Release notes:", body)
+        self.assertNotIn("https://", body)
 
 
 class ListReleaseRevisionsTest(unittest.TestCase):

@@ -150,6 +150,7 @@ def initialize_components():
             config.upgrade_notify_webhook_url,
             config.upgrade_notify_cluster,
             config.upgrade_notify_interval,
+            config.upgrade_notify_cluster_url,
         )
         logger.info("Upgrade notifier enabled (starts after initial sync)")
     elif config.upgrade_notify_enabled:
