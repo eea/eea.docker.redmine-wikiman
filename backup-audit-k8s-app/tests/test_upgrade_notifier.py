@@ -225,6 +225,19 @@ class UpgradeNotifierTest(unittest.TestCase):
         releases = {"app": {"onyx": [(1, fake_secret("sh.helm.release.v1.onyx.v1", p1))]}}
         notifier, post = make_notifier(releases)
         self._run(notifier, post, seed=True)
+        # helm uninstall: the release key disappears from the namespace
+        releases["app"] = {}
+        self._run(notifier, post)
+        self.assertEqual(len(post.calls), 0)
+        self.assertNotIn(("app", "onyx"), notifier.baseline)
+
+    def test_uninstall_with_only_failed_revisions_drops_silently(self):
+        p1 = make_release_payload("onyx", 1, "deployed", "Install complete")
+        releases = {"app": {"onyx": [(1, fake_secret("sh.helm.release.v1.onyx.v1", p1))]}}
+        notifier, post = make_notifier(releases)
+        self._run(notifier, post, seed=True)
+        # key present but no deployed revision left (edge: revs gone but not
+        # yet fully pruned from the list)
         releases["app"]["onyx"] = []
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 0)

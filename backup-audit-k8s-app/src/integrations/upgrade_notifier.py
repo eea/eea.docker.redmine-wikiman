@@ -120,7 +120,7 @@ class UpgradeNotifier:
             except Exception as e:
                 logger.error(f"Upgrade notifier: scan cycle failed: {e}")
 
-    def _cycle(self, seed: bool):
+    def _cycle(self, seed: bool = False):
         excluded = self.config.get_excluded_namespaces()
         for namespace in self.k8s_manager.get_namespaces():
             if namespace in excluded:
@@ -138,6 +138,17 @@ class UpgradeNotifier:
                     self._check_release(namespace, release, revs, seed)
                 except Exception as e:
                     logger.error(f"Upgrade notifier: error checking {namespace}/{release}: {e}")
+            # A release that vanished from the namespace entirely (helm
+            # uninstall) is not in `revisions`, so _check_release never sees
+            # it - drop its baseline here instead.
+            if not seed:
+                known = set(revisions.keys())
+                for key in list(self.baseline):
+                    if key[0] == namespace and key[1] not in known:
+                        self.baseline.pop(key)
+                        logger.info(
+                            f"Upgrade notifier: {key[0]}/{key[1]} uninstalled, baseline dropped"
+                        )
 
     def _check_release(self, namespace: str, release: str, revs: list, seed: bool):
         new, _ = self._latest_deployed(namespace, revs)
