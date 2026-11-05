@@ -11,6 +11,14 @@ class Config:
         self.port = int(os.getenv("PORT", "8080"))
         self.enable_sync_job = os.getenv("ENABLE_SYNC_JOB", "true").lower() == "true"
         self.sync_interval = int(os.getenv("SYNC_INTERVAL", "300"))
+        # Upgrade notifications (#310015): off by default so the chart change
+        # is safe to ship before per-cluster values are set.
+        self.upgrade_notify_enabled = (
+            os.getenv("UPGRADE_NOTIFY_ENABLED", "false").lower() == "true"
+        )
+        self.upgrade_notify_webhook_url = os.getenv("UPGRADE_NOTIFY_WEBHOOK_URL", "")
+        self.upgrade_notify_cluster = os.getenv("UPGRADE_NOTIFY_CLUSTER", "")
+        self.upgrade_notify_interval = int(os.getenv("UPGRADE_NOTIFY_INTERVAL", "60"))
 
     def get_excluded_namespaces(self) -> Set[str]:
         """Get list of excluded namespaces"""

@@ -40,6 +40,7 @@ process_start_time = time.time()
 # Initialize components directly
 event_processor = None
 scheduler = None
+upgrade_notifier = None
 
 # Healthcheck tuning: how long to give initial sync before /health starts
 # failing, and how many missed cleanup cycles of git push failures to
@@ -89,7 +90,7 @@ def initialize_components():
     building two independent sets here previously let both paths run git
     operations concurrently against the same working tree with no real
     mutual exclusion between them."""
-    global event_processor, scheduler
+    global event_processor, scheduler, upgrade_notifier
 
     from core.config import Config
     from integrations.git_manager import GitManager
@@ -137,6 +138,25 @@ def initialize_components():
         resource_processor,
         helm_processor,
     )
+
+    # Upgrade notifier (#310015): best-effort background loop, out of the
+    # admission hot path. Inert unless enabled AND a webhook URL is set.
+    if config.upgrade_notify_enabled and config.upgrade_notify_webhook_url:
+        from integrations.upgrade_notifier import UpgradeNotifier
+
+        upgrade_notifier = UpgradeNotifier(
+            k8s_manager,
+            config,
+            config.upgrade_notify_webhook_url,
+            config.upgrade_notify_cluster,
+            config.upgrade_notify_interval,
+        )
+        logger.info("Upgrade notifier enabled (starts after initial sync)")
+    elif config.upgrade_notify_enabled:
+        logger.warning(
+            "UPGRADE_NOTIFY_ENABLED is true but UPGRADE_NOTIFY_WEBHOOK_URL is empty; "
+            "upgrade notifications stay disabled"
+        )
 
     logger.info("Components initialized successfully")
 
@@ -246,7 +266,7 @@ def process_queued_requests():
 
 def startup_sequence():
     """Perform startup sequence: git operations and initial sync"""
-    global startup_complete, scheduler
+    global startup_complete, scheduler, upgrade_notifier
 
     try:
         logger.info("Starting startup sequence...")
@@ -276,6 +296,13 @@ def startup_sequence():
         # Mark startup as complete
         startup_complete = True
         logger.info("Startup sequence completed successfully")
+
+        # Start the upgrade notifier only once the initial sync is done, so
+        # its cluster-wide scans don't stack API load on top of the sync.
+        # Its first (seed) cycle is silent, so no notification replays on
+        # restart.
+        if upgrade_notifier:
+            upgrade_notifier.start()
 
     except Exception as e:
         logger.error(f"Startup sequence failed: {e}")
@@ -319,6 +346,8 @@ def main():
     except KeyboardInterrupt:
         logger.info("Shutting down server...")
         server.shutdown()
+        if upgrade_notifier:
+            upgrade_notifier.stop()
         if scheduler:
             scheduler.shutdown()
 

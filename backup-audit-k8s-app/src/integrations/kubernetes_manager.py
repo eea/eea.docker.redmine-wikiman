@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import logging
 import base64
 import gzip
@@ -30,6 +31,10 @@ ENABLE_CHART_REPO_LOOKUP = os.getenv("ENABLE_CHART_REPO_LOOKUP", "false").lower(
 
 # Helm tracking configuration
 HELM_TRACKING = os.getenv("HELM_TRACKING", "true").lower() == "true"
+
+# Helm release revision secrets, all storage major versions (Helm 3 = v1,
+# Helm 4 = v2; v3 kept for forward compatibility).
+RELEASE_REVISION_RE = re.compile(r"^sh\.helm\.release\.v\d+\.(.+)\.v(\d+)$")
 
 print(f"Running as user: {getpass.getuser()}")
 print(f"Current working directory: {os.getcwd()}")
@@ -347,6 +352,34 @@ class KubernetesManager:
         except Exception as e:
             logger.error(f"Failed to get Helm releases for namespace {namespace}: {e}")
             return []
+
+    def list_release_revisions(self, namespace: str) -> Dict[str, List]:
+        """All Helm release revisions in a namespace, newest first (#310015).
+
+        Returns {release_name: [(revision, secret), ...]} with full secret
+        objects (data included) for sh.helm.release.v{1,2,3}.<name>.v<N>
+        secrets. Unlike get_helm_releases() this keeps every revision (the
+        upgrade notifier needs the previous deployed one for old->new) and
+        lets API errors raise so the caller can tell "list failed" from
+        "no releases" and keep its baseline."""
+        revisions: Dict[str, List] = {}
+        secrets = self.v1.list_namespaced_secret(namespace).items  # type: ignore[attr-defined]
+
+        for secret in secrets:
+            if secret is None or not hasattr(secret, "metadata") or secret.metadata is None:
+                continue
+            name = secret.metadata.name
+            if not name:
+                continue
+            match = RELEASE_REVISION_RE.match(name)
+            if not match:
+                continue
+            release_name, revision = match.group(1), int(match.group(2))
+            revisions.setdefault(release_name, []).append((revision, secret))
+
+        for revs in revisions.values():
+            revs.sort(key=lambda item: item[0], reverse=True)
+        return revisions
 
     def get_namespace_resources(
         self, namespace: str, resource_kinds: List[tuple]
