@@ -18,6 +18,7 @@ import re
 import threading
 
 import requests
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,8 @@ class ReleaseSnapshot:
         "images",
         "link",
         "notes",
+        "urls",
+        "sources",
     )
 
     def __init__(self, **kwargs):
@@ -50,6 +53,10 @@ class ReleaseSnapshot:
             setattr(self, slot, kwargs.get(slot))
         if not self.images:
             self.images = []
+        if not self.urls:
+            self.urls = []
+        if not self.sources:
+            self.sources = []
 
     @classmethod
     def from_release_data(cls, release: dict, namespace: str, revision: int) -> "ReleaseSnapshot":
@@ -64,6 +71,17 @@ class ReleaseSnapshot:
         link = ""
         if isinstance(sources, list) and sources and isinstance(sources[0], str):
             link = sources[0]
+        urls = []
+        try:
+            for doc in yaml.safe_load_all(manifest):
+                if not isinstance(doc, dict) or doc.get("kind") != "Ingress":
+                    continue
+                for rule in ((doc.get("spec") or {}).get("rules") or []):
+                    host = rule.get("host") if isinstance(rule, dict) else None
+                    if host and host not in urls:
+                        urls.append(host)
+        except yaml.YAMLError:
+            pass
         return cls(
             release=release.get("name", "?"),
             namespace=namespace,
@@ -77,6 +95,8 @@ class ReleaseSnapshot:
             images=images,
             link=link,
             notes=info.get("notes", ""),
+            urls=urls,
+            sources=[s for s in sources if isinstance(s, str)] if isinstance(sources, list) else [],
         )
 
 
@@ -84,12 +104,13 @@ class UpgradeNotifier:
     """Daemon thread that scans Helm releases and posts upgrade notifications."""
 
     def __init__(self, k8s_manager, config, webhook_url: str, cluster: str, interval: int = 60,
-                 cluster_url: str = ""):
+                 cluster_url: str = "", notes_resolver=None):
         self.k8s_manager = k8s_manager
         self.config = config
         self.webhook_url = webhook_url
         self.cluster = cluster
         self.cluster_url = cluster_url
+        self.notes_resolver = notes_resolver
         self.interval = max(10, int(interval))
         # (namespace, release) -> ReleaseSnapshot of the last notified deployed rev
         self.baseline = {}
@@ -234,7 +255,7 @@ class UpgradeNotifier:
             return f"{value or '?'} (unchanged)"
         return f"{old} → {value or '?'}"
 
-    def _render(self, action: str, prev, new: ReleaseSnapshot) -> str:
+    def _render(self, action: str, prev, new: ReleaseSnapshot, notes_info=None) -> str:
         lines = [
             f"[{ACTION_LABEL.get(action, action.upper())}] {new.release}",
             f"Cluster: {self.cluster}",
@@ -244,18 +265,36 @@ class UpgradeNotifier:
         ]
         if self.cluster_url:
             lines.append(f"[{self.cluster_url}]({self.cluster_url})")
-        notes = " ".join((new.notes or "").split())
-        if notes:
-            if len(notes) > NOTES_MAX_CHARS:
-                notes = notes[:NOTES_MAX_CHARS].rstrip() + "…"
-            lines.append("Release notes:")
-            lines.append(notes)
+        if new.urls:
+            url = "https://" + new.urls[0]
+            if len(new.urls) > 1:
+                url += f" (+{len(new.urls) - 1} more)"
+            lines.append(f"URL: {url}")
+        if notes_info:
+            lines.append(
+                f"Release notes: {notes_info['text']} ({notes_info['sha']})"
+            )
+        else:
+            notes = " ".join((new.notes or "").split())
+            if notes:
+                if len(notes) > NOTES_MAX_CHARS:
+                    notes = notes[:NOTES_MAX_CHARS].rstrip() + "…"
+                lines.append("Release notes:")
+                lines.append(notes)
         # Two trailing spaces per line: hard breaks, since the webhook renders
         # the body with python-markdown without nl2br.
         return "  \n".join(lines)
 
     def _post(self, action: str, prev, new: ReleaseSnapshot) -> bool:
-        text = self._render(action, prev, new)
+        notes_info = None
+        if self.notes_resolver is not None:
+            try:
+                notes_info = self.notes_resolver.resolve(
+                    new.app_version, new.images, new.sources
+                )
+            except Exception as e:
+                logger.warning(f"Upgrade notifier: release-notes resolution failed: {e}")
+        text = self._render(action, prev, new, notes_info)
         logger.info(
             f"Upgrade notifier: {action} detected for {new.namespace}/{new.release} "
             f"(rev {prev.revision if prev else 0} -> {new.revision}), posting"

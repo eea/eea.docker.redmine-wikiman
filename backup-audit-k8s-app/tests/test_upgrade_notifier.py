@@ -18,9 +18,23 @@ sys.path.insert(0, SRC)
 from integrations.upgrade_notifier import UpgradeNotifier  # noqa: E402
 
 
+INGRESS_TMPL = """
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {name}
+spec:
+  rules:
+    - host: {host}
+      http:
+        paths:
+          - path: /
+"""
+
+
 def make_release_payload(name, rev, status, description, app_version="", chart_version="",
                          image=None, deployed="2026-11-05T12:00:00.000000000Z",
-                         chart_name=None, sources=None, notes=""):
+                         chart_name=None, sources=None, notes="", ingress_host=None):
     metadata = {
         "name": chart_name or f"chart-{name}",
         "version": chart_version,
@@ -28,6 +42,9 @@ def make_release_payload(name, rev, status, description, app_version="", chart_v
     }
     if sources:
         metadata["sources"] = sources
+    manifest = f"image: {image}\n" if image else ""
+    if ingress_host:
+        manifest += INGRESS_TMPL.format(name=name, host=ingress_host)
     return {
         "name": name,
         "version": rev,
@@ -38,7 +55,7 @@ def make_release_payload(name, rev, status, description, app_version="", chart_v
             "notes": notes,
         },
         "chart": {"metadata": metadata},
-        "manifest": f"image: {image}\n" if image else "",
+        "manifest": manifest,
     }
 
 
@@ -92,11 +109,22 @@ class FakePost:
         return FakeResp(self.status)
 
 
-def make_notifier(releases_by_ns, namespaces=("app",), post=None, cluster_url=""):
+class FakeNotesResolver:
+    def __init__(self, result=None):
+        self.result = result
+        self.calls = []
+
+    def resolve(self, app_version, images, sources):
+        self.calls.append((app_version, images, sources))
+        return self.result
+
+
+def make_notifier(releases_by_ns, namespaces=("app",), post=None, cluster_url="",
+                  notes_resolver=None):
     k8s = FakeK8s(namespaces, releases_by_ns)
     notifier = UpgradeNotifier(
         k8s, FakeConfig(), "http://webhook.local/?key=k&room_id=!room", "01dev", 60,
-        cluster_url=cluster_url
+        cluster_url=cluster_url, notes_resolver=notes_resolver
     )
     if post is None:
         post = FakePost()
@@ -377,6 +405,50 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertIn("Chart version: 2.3.1 → 2.3.2", body)
         self.assertNotIn("Release notes:", body)
         self.assertNotIn("https://", body)
+
+    def test_card_shows_ingress_url_and_git_release_notes(self):
+        resolver = FakeNotesResolver({
+            "repo": "eea/danswer", "tag": "v4.3.9-eea.0.0.120-patch.5",
+            "sha": "66c1a9f", "kind": "commit",
+            "url": "https://github.com/eea/danswer/commit/66c1a9f",
+            "text": "fix(web): bump Next.js to 16.4.3",
+        })
+        p1 = make_release_payload(
+            "onyx", 1, "deployed", "Install complete",
+            app_version="v4.3.9-eea.0.0.119", chart_version="0.38.0",
+            image="eeacms/danswer:backend-v4.3.9-eea.0.0.119",
+            sources=["https://github.com/onyx-dot-app/onyx"],
+            ingress_host="aihub-latest.01dev.eea.europa.eu")
+        releases = {"gptlab2": {"onyx": [
+            (1, fake_secret("sh.helm.release.v1.onyx.v1", p1)),
+        ]}}
+        notifier, post = make_notifier(releases, namespaces=("gptlab2",),
+                                       notes_resolver=resolver)
+        self._run(notifier, post, seed=True)
+        p2 = make_release_payload(
+            "onyx", 2, "deployed", "Upgrade complete",
+            app_version="v4.3.9-eea.0.0.120-patch.5", chart_version="0.38.0",
+            image="eeacms/danswer:backend-v4.3.9-eea.0.0.120-patch.5",
+            sources=["https://github.com/onyx-dot-app/onyx"],
+            ingress_host="aihub-latest.01dev.eea.europa.eu")
+        p1s = make_release_payload(
+            "onyx", 1, "superseded", "Install complete",
+            app_version="v4.3.9-eea.0.0.119", chart_version="0.38.0",
+            image="eeacms/danswer:backend-v4.3.9-eea.0.0.119",
+            sources=["https://github.com/onyx-dot-app/onyx"],
+            ingress_host="aihub-latest.01dev.eea.europa.eu")
+        releases["gptlab2"]["onyx"] = [
+            (2, fake_secret("sh.helm.release.v1.onyx.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.onyx.v1", p1s)),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("URL: https://aihub-latest.01dev.eea.europa.eu", body)
+        self.assertIn("Release notes: fix(web): bump Next.js to 16.4.3 (66c1a9f)", body)
+        self.assertEqual(len(resolver.calls), 1)
+        self.assertEqual(resolver.calls[0][0], "v4.3.9-eea.0.0.120-patch.5")
+        self.assertIn("eeacms/danswer:backend-v4.3.9-eea.0.0.120-patch.5",
+                      resolver.calls[0][1])
 
 
 class ListReleaseRevisionsTest(unittest.TestCase):

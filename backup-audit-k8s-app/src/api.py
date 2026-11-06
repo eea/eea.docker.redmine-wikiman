@@ -144,6 +144,11 @@ def initialize_components():
     if config.upgrade_notify_enabled and config.upgrade_notify_webhook_url:
         from integrations.upgrade_notifier import UpgradeNotifier
 
+        notes_resolver = None
+        if config.upgrade_notify_release_notes:
+            from integrations.release_notes import ReleaseNotesResolver
+
+            notes_resolver = ReleaseNotesResolver(config.github_token)
         upgrade_notifier = UpgradeNotifier(
             k8s_manager,
             config,
@@ -151,6 +156,7 @@ def initialize_components():
             config.upgrade_notify_cluster,
             config.upgrade_notify_interval,
             config.upgrade_notify_cluster_url,
+            notes_resolver=notes_resolver,
         )
         logger.info("Upgrade notifier enabled (starts after initial sync)")
     elif config.upgrade_notify_enabled:

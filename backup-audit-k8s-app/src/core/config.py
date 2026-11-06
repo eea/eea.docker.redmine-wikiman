@@ -19,6 +19,10 @@ class Config:
         self.upgrade_notify_webhook_url = os.getenv("UPGRADE_NOTIFY_WEBHOOK_URL", "")
         self.upgrade_notify_cluster = os.getenv("UPGRADE_NOTIFY_CLUSTER", "")
         self.upgrade_notify_cluster_url = os.getenv("UPGRADE_NOTIFY_CLUSTER_URL", "")
+        self.upgrade_notify_release_notes = (
+            os.getenv("UPGRADE_NOTIFY_RELEASE_NOTES", "true").lower() == "true"
+        )
+        self.github_token = os.getenv("GITHUB_TOKEN", "")
         self.upgrade_notify_interval = int(os.getenv("UPGRADE_NOTIFY_INTERVAL", "60"))
 
     def get_excluded_namespaces(self) -> Set[str]:
