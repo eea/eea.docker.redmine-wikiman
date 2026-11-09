@@ -6,6 +6,8 @@ import shutil
 from datetime import datetime, timezone
 from typing import Dict, Any, Set
 
+from core.memory import drop_file_cache
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,6 +92,8 @@ class ArchiveManager:
                     sort_keys=False,
                     indent=2,
                 )
+
+            drop_file_cache(archived_path)
 
             # Remove original file
             if os.path.exists(original_path):

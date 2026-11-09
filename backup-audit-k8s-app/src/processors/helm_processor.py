@@ -4,6 +4,7 @@ import os
 import yaml
 import logging
 from typing import Dict, Any, List, Optional
+from core.memory import drop_file_cache
 from core.models import HelmDeploymentInfo
 
 logger = logging.getLogger(__name__)
@@ -27,25 +28,29 @@ class HelmProcessor:
             
             helm_releases = self.k8s_manager.get_helm_releases(namespace)
             
-            helm_secret = None
-            release_version = None
+            release_entry = None
             for release_info in helm_releases:
                 if not isinstance(release_info, dict):
                     continue
                 
                 release_name = release_info.get("name")
                 if release_name == release:
-                    helm_secret = release_info.get("secret")
-                    release_version = release_info.get("version", "unknown")
+                    release_entry = release_info
                     break
             
-            if helm_secret:
-                # Extract values and deployment info
-                values = self.k8s_manager.extract_helm_values_from_secret(helm_secret)
-                deployment_info = self.k8s_manager.extract_helm_deployment_info(helm_secret, release, namespace)
+            if release_entry and release_entry.get("release"):
+                # Decode the release payload exactly once (#309775): values
+                # and deployment info both come from this single decoded
+                # dict, and the compressed payload is dropped right after.
+                release_data = self.k8s_manager.decode_helm_release(release_entry["release"])
+                values = self.k8s_manager.extract_helm_values(release_data)
+                deployment_info = self.k8s_manager.extract_helm_deployment_info(
+                    release_data, release, namespace,
+                    release_entry.get("release_version_label"),
+                )
                 
                 # Add version information to deployment info
-                deployment_info["helm_release_version"] = release_version
+                deployment_info["helm_release_version"] = release_entry.get("version", "unknown")
                 
                 # FIXED: Ensure complete directory structure exists
                 release_path = os.path.join(self.storage_path, namespace, release)
@@ -63,6 +68,11 @@ class HelmProcessor:
                     deployment_info_path = os.path.join(release_path, "deployment-info.yaml")
                     with open(deployment_info_path, "w") as f:
                         yaml.dump(deployment_info, f, default_flow_style=False, sort_keys=False, indent=2)
+
+                    # git re-reads both files; drop them from the page cache
+                    # instead of holding the container memory limit (#309775).
+                    drop_file_cache(values_path)
+                    drop_file_cache(deployment_info_path)
 
                 if self.storage_lock:
                     with self.storage_lock:
@@ -100,11 +110,16 @@ class HelmProcessor:
                     continue
                 
                 processed_releases.add(release_name)
-                secret = release_info.get("secret")
+                release_b64 = release_info.get("release")
                 
-                if not secret:
-                    logger.warning(f"No secret found for release {release_name} in namespace {namespace}")
+                if not release_b64:
+                    logger.warning(f"No release payload found for release {release_name} in namespace {namespace}")
                     continue
+                
+                # Decode the release payload exactly once (#309775): both the
+                # values and the deployment info come from this single decoded
+                # dict, and the compressed payload is dropped right after.
+                release_data = self.k8s_manager.decode_helm_release(release_b64)
                 
                 # FIXED: Ensure complete directory structure exists
                 release_path = os.path.join(self.storage_path, namespace, release_name)
@@ -112,8 +127,11 @@ class HelmProcessor:
 
                 # Extract values/deployment info before taking the lock -
                 # these hit the k8s API, no need to hold storage_lock for them
-                values = self.k8s_manager.extract_helm_values_from_secret(secret)
-                deployment_info = self.k8s_manager.extract_helm_deployment_info(secret, release_name, namespace)
+                values = self.k8s_manager.extract_helm_values(release_data)
+                deployment_info = self.k8s_manager.extract_helm_deployment_info(
+                    release_data, release_name, namespace,
+                    release_info.get("release_version_label"),
+                )
 
                 def _write():
                     os.makedirs(resources_path, exist_ok=True)

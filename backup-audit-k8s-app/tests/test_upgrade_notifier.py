@@ -374,8 +374,11 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertIn("**App version:** `6.1.4-23` → **`6.1.4-24`**", body)
         self.assertIn("**Chart version:** `2.3.1` (unchanged)", body)
         self.assertIn("[https://01dev.eea.europa.eu](https://01dev.eea.europa.eu)", body)
-        self.assertIn("Release notes:", body)
-        self.assertIn("Bise backend deployed with the new schema.", body)
+        # No resolver -> no Commit line, and (user decision 2026-11-09) the
+        # release notes / NOTES.txt text is no longer shown either.
+        self.assertNotIn("**Commit:**", body)
+        self.assertNotIn("Release notes:", body)
+        self.assertNotIn("Bise backend deployed", body)
 
     def test_message_omits_url_and_notes_when_absent(self):
         p1 = make_release_payload(
@@ -444,7 +447,11 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         body = post.calls[0]["body"]
         self.assertIn("**URL:** [https://aihub-latest.01dev.eea.europa.eu](https://aihub-latest.01dev.eea.europa.eu)", body)
-        self.assertIn("**Release notes:** fix(web): bump Next.js to 16.4.3 ([`66c1a9f`](https://github.com/eea/danswer/commit/66c1a9f))", body)
+        # Separate Commit line with the full link (user decision 2026-11-09:
+        # the release-notes text line itself is dropped for now).
+        self.assertIn("**Commit:** [`66c1a9f`](https://github.com/eea/danswer/commit/66c1a9f)", body)
+        self.assertNotIn("**Release notes:**", body)
+        self.assertNotIn("fix(web): bump Next.js to 16.4.3", body)
         self.assertEqual(len(resolver.calls), 1)
         self.assertEqual(resolver.calls[0][0], "v4.3.9-eea.0.0.120-patch.5")
         self.assertIn("eeacms/danswer:backend-v4.3.9-eea.0.0.120-patch.5",

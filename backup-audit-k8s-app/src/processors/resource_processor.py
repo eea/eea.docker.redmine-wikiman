@@ -4,6 +4,7 @@ import os
 import yaml
 import logging
 from typing import Dict, Any, Optional
+from core.memory import drop_file_cache
 from core.models import ResourceMetadata
 
 logger = logging.getLogger(__name__)
@@ -228,6 +229,10 @@ class ResourceProcessor:
                     sort_keys=False,
                     indent=2,
                 )
+
+            # git will re-read this file (add/commit/push); don't keep it
+            # pinned in the page cache against our memory limit (#309775).
+            drop_file_cache(file_path)
 
             logger.debug(f"Saved resource: {file_path}")
 

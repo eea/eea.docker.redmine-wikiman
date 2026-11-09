@@ -7,6 +7,8 @@ import git
 from datetime import datetime
 from typing import Optional
 
+from core.memory import drop_git_pack_cache
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -322,11 +324,16 @@ class GitManager:
 
     def _record_push_success(self) -> None:
         # Clear the error before setting the new success timestamp (not
-        # after): a concurrent get_health_status() read between these two
+        # after): a concurrent get_readiness_status() read between these two
         # statements should at worst see "no error yet, old success time"
         # rather than "fresh success time, stale error still set".
         self.last_push_error = None
         self.last_push_success = datetime.now()
+
+        # The packs existed to be shipped to the remote; drop them from the
+        # page cache so they stop counting against the container memory
+        # limit (#309775). Best-effort, never fatal.
+        drop_git_pack_cache(self.storage_path)
 
     def _record_push_error(self, error: str) -> None:
         self.last_push_error = error

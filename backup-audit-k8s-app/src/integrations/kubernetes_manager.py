@@ -313,6 +313,18 @@ class KubernetesManager:
                             f"Found Helm release '{release_name}' version {version_num} (secret: {secret_name})"
                         )
 
+                        # Keep the latest version for each release. Only the
+                        # compressed release payload (raw base64, not the k8s
+                        # client's full Secret object) is carried forward:
+                        # those objects hold every data key of every revision
+                        # and the decoded form runs to MBs, so retaining them
+                        # across a whole-namespace sync is pure memory
+                        # pressure (#309775). Callers decode once, reuse, and
+                        # drop the payload after use.
+                        release_b64 = None
+                        if getattr(secret, "data", None):
+                            release_b64 = secret.data.get("release")
+
                         # Keep the latest version for each release
                         if release_name not in helm_releases:
                             logger.debug(
@@ -320,8 +332,9 @@ class KubernetesManager:
                             )
                             helm_releases[release_name] = {
                                 "name": release_name,
-                                "secret": secret,
                                 "version": version_num,
+                                "release": release_b64,
+                                "release_version_label": release_version,
                             }
                         elif version_num > helm_releases[release_name]["version"]:
                             logger.debug(
@@ -329,8 +342,9 @@ class KubernetesManager:
                             )
                             helm_releases[release_name] = {
                                 "name": release_name,
-                                "secret": secret,
                                 "version": version_num,
+                                "release": release_b64,
+                                "release_version_label": release_version,
                             }
                         else:
                             logger.debug(
@@ -381,50 +395,58 @@ class KubernetesManager:
             revs.sort(key=lambda item: item[0], reverse=True)
         return revisions
 
+    def get_kind_resources(self, namespace: str, kind_tuple: tuple) -> List[Dict[str, Any]]:
+        """Get one resource kind in a namespace.
+
+        kind_tuple = (storage_key, api_version, method_name, group_version, kind_name).
+        Callers that process kinds one at a time (sync) can list, save and
+        drop each kind before the next, instead of holding all kinds of the
+        namespace in memory simultaneously (peak memory, #309775)."""
+        kind, api_version, method_name, group_version, kind_name = kind_tuple
+        try:
+            if api_version == "v1":
+                api = self.v1
+            elif api_version == "apps_v1":
+                api = self.apps_v1
+            elif api_version == "batch_v1":
+                api = self.batch_v1
+            elif api_version == "networking_v1":
+                api = self.networking_v1
+            else:
+                logger.warning(f"Unknown API version: {api_version}")
+                return []
+
+            method = getattr(api, method_name)
+            result = method(namespace)
+
+            # Serialize each item the same way the Kubernetes client
+            # serializes objects for the API itself (sanitize_for_
+            # serialization), so whatever fields the kind actually has
+            # (data/stringData for Secrets and ConfigMaps, spec/status
+            # for workloads, etc.) are captured, instead of assuming
+            # every kind has spec/status. List items don't come back
+            # with apiVersion/kind populated on them (a client quirk),
+            # so those are set explicitly from what was requested.
+            resource_list = []
+            for item in result.items:
+                resource_dict = api.api_client.sanitize_for_serialization(item)
+                resource_dict["apiVersion"] = group_version
+                resource_dict["kind"] = kind_name
+                resource_list.append(resource_dict)
+
+            return resource_list
+
+        except Exception as e:
+            logger.error(f"Failed to get {kind} in namespace {namespace}: {e}")
+            return []
+
     def get_namespace_resources(
         self, namespace: str, resource_kinds: List[tuple]
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Get all resources of specified kinds in a namespace"""
         resources = {}
-
-        for kind, api_version, method_name, group_version, kind_name in resource_kinds:
-            try:
-                if api_version == "v1":
-                    api = self.v1
-                elif api_version == "apps_v1":
-                    api = self.apps_v1
-                elif api_version == "batch_v1":
-                    api = self.batch_v1
-                elif api_version == "networking_v1":
-                    api = self.networking_v1
-                else:
-                    logger.warning(f"Unknown API version: {api_version}")
-                    continue
-
-                method = getattr(api, method_name)
-                result = method(namespace)
-
-                # Serialize each item the same way the Kubernetes client
-                # serializes objects for the API itself (sanitize_for_
-                # serialization), so whatever fields the kind actually has
-                # (data/stringData for Secrets and ConfigMaps, spec/status
-                # for workloads, etc.) are captured, instead of assuming
-                # every kind has spec/status. List items don't come back
-                # with apiVersion/kind populated on them (a client quirk),
-                # so those are set explicitly from what was requested.
-                resource_list = []
-                for item in result.items:
-                    resource_dict = api.api_client.sanitize_for_serialization(item)
-                    resource_dict["apiVersion"] = group_version
-                    resource_dict["kind"] = kind_name
-                    resource_list.append(resource_dict)
-
-                resources[kind] = resource_list
-
-            except Exception as e:
-                logger.error(f"Failed to get {kind} in namespace {namespace}: {e}")
-                resources[kind] = []
-
+        for kind_tuple in resource_kinds:
+            resources[kind_tuple[0]] = self.get_kind_resources(namespace, kind_tuple)
         return resources
 
     def _deep_merge_values(self, base: dict, override: dict) -> dict:
@@ -487,13 +509,18 @@ class KubernetesManager:
 
         return values if isinstance(values, dict) else {}
 
-    def extract_helm_values_from_secret(self, secret) -> Dict[str, Any]:
+    def extract_helm_values(self, release_data: dict) -> Dict[str, Any]:
         """Extract the full effective values Helm used to render this
         release: the chart's default values (chart.values) deep-merged with
         the release's override config, override wins - equivalent to
-        `helm get values --all`, not just the override snippet."""
+        `helm get values --all`, not just the override snippet.
+
+        Takes the already-decoded release dict (decode_helm_release's output)
+        so the compressed release payload is decoded exactly once per sync
+        and can be dropped afterwards (#309775)."""
         try:
-            release_data = self.decode_helm_release(secret.data["release"])
+            if not isinstance(release_data, dict):
+                return {}
 
             logger.debug(
                 f"Helm release data keys: {list(release_data.keys()) if isinstance(release_data, dict) else 'Not a dict'}"
@@ -526,22 +553,15 @@ class KubernetesManager:
             return {}
 
     def extract_helm_deployment_info(
-        self, secret, release_name=None, namespace=None
+        self, release_data, release_name=None, namespace=None, release_version=None
     ) -> Dict[str, Any]:
-        """Extract Helm deployment information from a secret"""
+        """Extract Helm deployment information from a decoded release dict
+        (decode_helm_release's output) so the payload is decoded exactly once
+        per sync (#309775). release_version is the secret label
+        helm.sh/release-version (or 'version'), passed in by the caller."""
         try:
-            release_data = self.decode_helm_release(secret.data["release"])
-            # Extract release version from secret labels
-            release_version = None
-            if (
-                hasattr(secret, "metadata")
-                and hasattr(secret.metadata, "labels")
-                and secret.metadata.labels
-            ):
-                # Try both common keys
-                release_version = secret.metadata.labels.get("helm.sh/release-version")
-                if not release_version:
-                    release_version = secret.metadata.labels.get("version")
+            if not isinstance(release_data, dict):
+                release_data = {}
             deployment_info = {
                 "chart_name": "unknown",
                 "chart_version": "unknown",
@@ -695,8 +715,8 @@ class KubernetesManager:
                         f"helm install {chart_name} {chart_name}"
                     )
 
-            # Use the enhanced values extraction
-            deployment_info["values"] = self.extract_helm_values_from_secret(secret)
+            # Use the enhanced values extraction (same decoded dict - no second decode)
+            deployment_info["values"] = self.extract_helm_values(release_data)
 
             return deployment_info
         except Exception as e:

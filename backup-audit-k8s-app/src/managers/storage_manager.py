@@ -4,6 +4,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from core.memory import drop_file_cache
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +27,9 @@ class StorageManager:
             
             with open(change_file, "w") as f:
                 json.dump(change, f, indent=2)
-            
+
+            drop_file_cache(change_file)
+
             logger.info(f"Updated latest changes for namespace {namespace}: {change.get('operation', 'UNKNOWN')} {change.get('resource_kind', 'Unknown')} {change.get('resource_name', 'Unknown')}")
             
         except Exception as e:

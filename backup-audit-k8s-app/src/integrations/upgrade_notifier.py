@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 RELEASE_SECRET_RE = re.compile(r"^sh\.helm\.release\.v\d+\.(.+)\.v(\d+)$")
 IMAGE_RE = re.compile(r"image:\s*[\"']?([^\"'\s]+)[\"']?")
 ACTION_LABEL = {"install": "INSTALL", "upgrade": "UPGRADE", "rollback": "ROLLBACK"}
-NOTES_MAX_CHARS = 400
 
 
 class ReleaseSnapshot:
@@ -271,15 +270,12 @@ class UpgradeNotifier:
                 url += f" (+{len(new.urls) - 1} more)"
             lines.append(f"**URL:** [{url}]({url})")
         if notes_info:
-            sha = f"[`{notes_info['sha']}`]({notes_info['url']})"
-            lines.append(f"**Release notes:** {notes_info['text']} ({sha})")
-        else:
-            notes = " ".join((new.notes or "").split())
-            if notes:
-                if len(notes) > NOTES_MAX_CHARS:
-                    notes = notes[:NOTES_MAX_CHARS].rstrip() + "…"
-                lines.append("**Release notes:**")
-                lines.append(notes)
+            # Separate Commit line with the full link to the upstream commit
+            # the deployed app version was built from. The release-notes
+            # text is deliberately NOT shown for now (user decision,
+            # 2026-11-09) - the resolver still returns it in
+            # notes_info["text"], so re-adding it is one line.
+            lines.append(f"**Commit:** [`{notes_info['sha']}`]({notes_info['url']})")
         # Two trailing spaces per line: hard breaks, since the webhook renders
         # the body with python-markdown without nl2br.
         return "  \n".join(lines)
