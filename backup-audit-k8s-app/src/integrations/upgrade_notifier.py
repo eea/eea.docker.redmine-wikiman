@@ -249,37 +249,36 @@ class UpgradeNotifier:
     @staticmethod
     def _fmt_version(prev, field: str, value: str) -> str:
         old = getattr(prev, field, "") if prev else ""
+        new = value or "?"
         if not old:
-            return value or "?"
+            return f"**`{new}`**"
         if old == value:
-            return f"{value or '?'} (unchanged)"
-        return f"{old} → {value or '?'}"
+            return f"`{new}` (unchanged)"
+        return f"`{old}` → **`{new}`**"
 
     def _render(self, action: str, prev, new: ReleaseSnapshot, notes_info=None) -> str:
         lines = [
-            f"[{ACTION_LABEL.get(action, action.upper())}] {new.release}",
-            f"Cluster: {self.cluster}",
-            f"Namespace: {new.namespace}",
-            f"App version: {self._fmt_version(prev, 'app_version', new.app_version)}",
-            f"Chart version: {self._fmt_version(prev, 'chart_version', new.chart_version)}",
+            f"#### [{ACTION_LABEL.get(action, action.upper())}] **{new.release}**",
+            f"**Cluster:** {self.cluster} · **Namespace:** `{new.namespace}`",
+            f"**App version:** {self._fmt_version(prev, 'app_version', new.app_version)}",
+            f"**Chart version:** {self._fmt_version(prev, 'chart_version', new.chart_version)}",
         ]
         if self.cluster_url:
-            lines.append(f"[{self.cluster_url}]({self.cluster_url})")
+            lines.append(f"**Cluster URL:** [{self.cluster_url}]({self.cluster_url})")
         if new.urls:
             url = "https://" + new.urls[0]
             if len(new.urls) > 1:
                 url += f" (+{len(new.urls) - 1} more)"
-            lines.append(f"URL: {url}")
+            lines.append(f"**URL:** [{url}]({url})")
         if notes_info:
-            lines.append(
-                f"Release notes: {notes_info['text']} ({notes_info['sha']})"
-            )
+            sha = f"[`{notes_info['sha']}`]({notes_info['url']})"
+            lines.append(f"**Release notes:** {notes_info['text']} ({sha})")
         else:
             notes = " ".join((new.notes or "").split())
             if notes:
                 if len(notes) > NOTES_MAX_CHARS:
                     notes = notes[:NOTES_MAX_CHARS].rstrip() + "…"
-                lines.append("Release notes:")
+                lines.append("**Release notes:**")
                 lines.append(notes)
         # Two trailing spaces per line: hard breaks, since the webhook renders
         # the body with python-markdown without nl2br.

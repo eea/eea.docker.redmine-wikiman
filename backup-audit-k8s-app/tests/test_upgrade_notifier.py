@@ -184,11 +184,11 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertEqual(len(post.calls), 1)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 3)
         body = post.calls[0]["body"]
-        self.assertIn("[UPGRADE] onyx", body)
-        self.assertIn("Cluster: 01dev", body)
-        self.assertIn("Namespace: app", body)
-        self.assertIn("App version: 1.1 → 1.2", body)
-        self.assertIn("Chart version: 0.1.0 → 0.2.0", body)
+        self.assertIn("#### [UPGRADE] **onyx**", body)
+        self.assertIn("**Cluster:** 01dev", body)
+        self.assertIn("**Namespace:** `app`", body)
+        self.assertIn("**App version:** `1.1` → **`1.2`**", body)
+        self.assertIn("**Chart version:** `0.1.0` → **`0.2.0`**", body)
 
         # no change: no further posts
         self._run(notifier, post)
@@ -246,8 +246,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
         body = post.calls[0]["body"]
-        self.assertIn("[ROLLBACK] onyx", body)
-        self.assertIn("App version: 1.1 (unchanged)", body)
+        self.assertIn("#### [ROLLBACK] **onyx**", body)
+        self.assertIn("**App version:** `1.1` (unchanged)", body)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 4)
 
     def test_uninstall_drops_baseline_silently(self):
@@ -311,9 +311,9 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
         body = post.calls[0]["body"]
-        self.assertIn("[INSTALL] newapp", body)
-        self.assertIn("App version: 2.0", body)
-        self.assertIn("Chart version: 1.0.0", body)
+        self.assertIn("#### [INSTALL] **newapp**", body)
+        self.assertIn("**App version:** **`2.0`**", body)
+        self.assertIn("**Chart version:** **`1.0.0`**", body)
 
     def test_excluded_namespace_ignored(self):
         p1 = make_release_payload("x", 1, "deployed", "Install complete")
@@ -368,11 +368,11 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("[UPGRADE] bise-backend", body)
-        self.assertIn("Cluster: 01dev", body)
-        self.assertIn("Namespace: bise", body)
-        self.assertIn("App version: 6.1.4-23 → 6.1.4-24", body)
-        self.assertIn("Chart version: 2.3.1 (unchanged)", body)
+        self.assertIn("#### [UPGRADE] **bise-backend**", body)
+        self.assertIn("**Cluster:** 01dev", body)
+        self.assertIn("**Namespace:** `bise`", body)
+        self.assertIn("**App version:** `6.1.4-23` → **`6.1.4-24`**", body)
+        self.assertIn("**Chart version:** `2.3.1` (unchanged)", body)
         self.assertIn("[https://01dev.eea.europa.eu](https://01dev.eea.europa.eu)", body)
         self.assertIn("Release notes:", body)
         self.assertIn("Bise backend deployed with the new schema.", body)
@@ -401,8 +401,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("[UPGRADE] onyx", body)
-        self.assertIn("Chart version: 2.3.1 → 2.3.2", body)
+        self.assertIn("#### [UPGRADE] **onyx**", body)
+        self.assertIn("**Chart version:** `2.3.1` → **`2.3.2`**", body)
         self.assertNotIn("Release notes:", body)
         self.assertNotIn("https://", body)
 
@@ -443,8 +443,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("URL: https://aihub-latest.01dev.eea.europa.eu", body)
-        self.assertIn("Release notes: fix(web): bump Next.js to 16.4.3 (66c1a9f)", body)
+        self.assertIn("**URL:** [https://aihub-latest.01dev.eea.europa.eu](https://aihub-latest.01dev.eea.europa.eu)", body)
+        self.assertIn("**Release notes:** fix(web): bump Next.js to 16.4.3 ([`66c1a9f`](https://github.com/eea/danswer/commit/66c1a9f))", body)
         self.assertEqual(len(resolver.calls), 1)
         self.assertEqual(resolver.calls[0][0], "v4.3.9-eea.0.0.120-patch.5")
         self.assertIn("eeacms/danswer:backend-v4.3.9-eea.0.0.120-patch.5",
