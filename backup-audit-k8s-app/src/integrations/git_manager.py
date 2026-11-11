@@ -81,6 +81,14 @@ class GitManager:
         # call from another thread - both take git_lock too.
         with self.git_lock:
             try:
+                # The storage dir is the app's own data dir: create it if it
+                # isn't there yet. Without this, os.listdir() below raised
+                # and the whole setup failed; the scheduler's later retry
+                # then hit the git.Repo.init() fallback on a now-non-empty
+                # dir and landed on git's default branch (pushes went to
+                # the wrong remote ref).
+                os.makedirs(self.storage_path, exist_ok=True)
+
                 git_path = os.path.join(self.storage_path, ".git")
 
                 if not os.path.exists(git_path):
@@ -99,11 +107,21 @@ class GitManager:
                             logger.info("Successfully cloned repository")
                             self._remote_configured = True
                         except Exception as e:
+                            # Also happens on a brand-new (commit-less)
+                            # remote: "Remote branch <branch> not found in
+                            # upstream origin". Init on GIT_BRANCH (not git's
+                            # default branch) so the initial commit/push
+                            # target the same ref as the configured remote
+                            # branch.
                             logger.warning(f"Failed to clone repository: {e}")
                             logger.info("Falling back to repository initialization")
-                            self.repo = git.Repo.init(self.storage_path)
+                            self.repo = git.Repo.init(
+                                self.storage_path, initial_branch=GIT_BRANCH
+                            )
                     else:
-                        self.repo = git.Repo.init(self.storage_path)
+                        self.repo = git.Repo.init(
+                            self.storage_path, initial_branch=GIT_BRANCH
+                        )
                 else:
                     logger.info("Git repository already exists")
                     self.repo = git.Repo(self.storage_path)

@@ -322,8 +322,15 @@ class GitPackCacheTest(unittest.TestCase):
     """M4: a successful push drops the local pack files' page cache."""
 
     def test_push_success_drops_pack_cache(self):
-        with mock.patch("integrations.git_manager.drop_git_pack_cache") as drop:
-            gm = GitManager.__new__(GitManager)
+        # Import the live module (and use its class): the module-level
+        # import above happened inside a mock.patch.dict(sys.modules, ...)
+        # context, which removed integrations.git_manager from sys.modules
+        # on exit - a patch by dotted path would re-import a *second* module
+        # instance that the bound class no longer references.
+        import integrations.git_manager as g
+
+        with mock.patch.object(g, "drop_git_pack_cache") as drop:
+            gm = g.GitManager.__new__(g.GitManager)
             gm.storage_path = "/app/logs"
             gm._record_push_success()
             drop.assert_called_once_with("/app/logs")
