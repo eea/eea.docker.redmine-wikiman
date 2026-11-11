@@ -440,6 +440,47 @@ class KubernetesManager:
             logger.error(f"Failed to get {kind} in namespace {namespace}: {e}")
             return []
 
+    # kind -> (client attr, list method) for the resource kinds the sync
+    # tracks; used to re-verify a deletion candidate before its audit file
+    # is archived.
+    KIND_LOOKUP = {
+        "pod": ("v1", "list_namespaced_pod"),
+        "service": ("v1", "list_namespaced_service"),
+        "configmap": ("v1", "list_namespaced_config_map"),
+        "secret": ("v1", "list_namespaced_secret"),
+        "persistentvolumeclaim": ("v1", "list_namespaced_persistent_volume_claim"),
+        "deployment": ("apps_v1", "list_namespaced_deployment"),
+        "statefulset": ("apps_v1", "list_namespaced_stateful_set"),
+        "daemonset": ("apps_v1", "list_namespaced_daemon_set"),
+        "replicaset": ("apps_v1", "list_namespaced_replica_set"),
+        "job": ("batch_v1", "list_namespaced_job"),
+        "cronjob": ("batch_v1", "list_namespaced_cron_job"),
+        "ingress": ("networking_v1", "list_namespaced_ingress"),
+        "networkpolicy": ("networking_v1", "list_namespaced_network_policy"),
+    }
+
+    def resource_exists(self, namespace: str, kind: str, name: str) -> bool:
+        """Whether a resource of this kind/name still exists in the cluster.
+
+        Conservative on uncertainty: an unknown kind or a failed lookup
+        counts as "exists", so an audit file is never archived on a
+        transient error."""
+        lookup = self.KIND_LOOKUP.get(kind.lower())
+        if lookup is None:
+            return True
+        client_attr, method_name = lookup
+        try:
+            api = getattr(self, client_attr)
+            if api is None:
+                return True
+            result = getattr(api, method_name)(namespace)
+        except Exception as e:
+            logger.warning(
+                f"Could not verify {kind}/{name} in {namespace}: {e}"
+            )
+            return True
+        return any(item.metadata.name == name for item in result.items)
+
     def get_namespace_resources(
         self, namespace: str, resource_kinds: List[tuple]
     ) -> Dict[str, List[Dict[str, Any]]]:

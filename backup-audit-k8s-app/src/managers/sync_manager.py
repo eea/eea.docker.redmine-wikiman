@@ -1,4 +1,5 @@
 import logging
+import os
 
 from core.memory import memory_summary
 
@@ -23,6 +24,11 @@ class SyncManager:
         self.archive_manager = archive_manager
         self.storage_manager = storage_manager
         self.config = config
+        # namespace -> set of <kind>-<name>.yaml basenames of standalone
+        # resources written by the latest sync pass. Cleanup compares the
+        # storage against this to find resources that were deleted
+        # (archive_missing_standalone_resources).
+        self._active_standalone = {}
 
     def run_sync(self, is_initial: bool = True):
         """Sync active namespaces. Also used for periodic resyncs (is_initial=False)
@@ -70,6 +76,10 @@ class SyncManager:
         """Process all resources in a namespace"""
         if ns_name in self.config.get_excluded_namespaces():
             return
+
+        # Reset before the pass so files of resources that vanished since
+        # the last sync fall out of the set (cleanup then archives them).
+        self._active_standalone[ns_name] = set()
 
         # (storage key, client attr, list method, apiVersion, Kind) - apiVersion
         # and Kind are passed explicitly because list responses don't come
@@ -175,7 +185,9 @@ class SyncManager:
                         else:
                             logger.debug(f"No Helm release found for {resource_kind} {resource_name}")
 
-                    self.resource_processor.save_resource(resource, release)
+                    file_path = self.resource_processor.save_resource(resource, release)
+                    if not release and file_path:
+                        self._active_standalone[ns_name].add(os.path.basename(file_path))
                 except Exception as e:
                     logger.error(f"Error saving {kind} in {ns_name}: {e}")
 
@@ -203,6 +215,9 @@ class SyncManager:
             # Archive missing namespaces and releases using archive_manager
             self.archive_manager.archive_missing_namespaces(k8s_namespaces)
             self.archive_manager.archive_missing_releases(k8s_releases_by_namespace)
+            self.archive_manager.archive_missing_standalone_resources(
+                k8s_namespaces, self._active_standalone
+            )
 
             logger.info(f"Cleanup completed (memory {memory_summary()})")
 

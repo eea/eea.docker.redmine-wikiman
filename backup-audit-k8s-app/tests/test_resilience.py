@@ -16,6 +16,7 @@ import os
 import queue
 import sys
 import tempfile
+import threading
 import time
 import types
 import unittest
@@ -316,6 +317,125 @@ class SyncKindStreamingTest(unittest.TestCase):
         self.assertEqual(k8s.get_kind_resources.call_count, 13)
         self.assertEqual(rp.save_resource.call_count, 13)
         k8s.get_namespace_resources.assert_not_called()
+
+
+class StandaloneArchiveTest(unittest.TestCase):
+    """Cleanup archives audit files of standalone resources that were
+    deleted: a file not written by the latest sync pass is a candidate,
+    it is re-verified against the cluster, and if it is gone it is moved
+    to archived/<ns>/standalone-resources/ (plain rename)."""
+
+    def _setup(self, d):
+        from managers.archive_manager import ArchiveManager
+
+        ns_storage = os.path.join(d, "ns1", "standalone-resources")
+        os.makedirs(ns_storage)
+        for fname in (
+            "configmap-capture-a.yaml",
+            "configmap-still-there.yaml",
+            "pod-noisy.yaml",
+        ):
+            with open(os.path.join(ns_storage, fname), "w") as f:
+                f.write("apiVersion: v1\nkind: ConfigMap\n")
+        k8s = mock.Mock()
+        # capture-a is gone; still-there and noisy still exist.
+        k8s.resource_exists.side_effect = lambda ns, kind, name: (
+            kind,
+            name,
+        ) in {("configmap", "still-there"), ("pod", "noisy")}
+        cfg = mock.Mock()
+        cfg.get_excluded_namespaces.return_value = set()
+        am = ArchiveManager(d, mock.Mock(), threading.Lock(), cfg,
+                            k8s_manager=k8s)
+        return am
+
+    def _paths(self, d):
+        active_dir = os.path.join(d, "ns1", "standalone-resources")
+        archived_dir = os.path.join(
+            d, "archived", "ns1", "standalone-resources"
+        )
+        return active_dir, archived_dir
+
+    def test_deleted_archived_live_kept(self):
+        with tempfile.TemporaryDirectory() as d:
+            am = self._setup(d)
+            am.archive_missing_standalone_resources(
+                {"ns1"},
+                {"ns1": {"configmap-still-there.yaml"}},
+            )
+            active_dir, archived_dir = self._paths(d)
+            # Deleted resource: moved out, content preserved as a rename.
+            self.assertFalse(
+                os.path.exists(
+                    os.path.join(active_dir, "configmap-capture-a.yaml")
+                )
+            )
+            with open(
+                os.path.join(archived_dir, "configmap-capture-a.yaml")
+            ) as f:
+                self.assertEqual(f.read(), "apiVersion: v1\nkind: ConfigMap\n")
+            # Candidate that is still alive in the cluster: untouched.
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(active_dir, "pod-noisy.yaml")
+                )
+            )
+            # Resource written by the latest sync: untouched.
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(active_dir, "configmap-still-there.yaml")
+                )
+            )
+
+    def test_never_synced_namespace_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            am = self._setup(d)
+            am.archive_missing_standalone_resources({"ns1"}, {})
+            active_dir, _ = self._paths(d)
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(active_dir, "configmap-capture-a.yaml")
+                )
+            )
+
+    def test_sync_tracks_active_standalone(self):
+        from managers.sync_manager import SyncManager
+
+        k8s = mock.Mock()
+        k8s.get_kind_resources.side_effect = (
+            lambda ns, kt: [{"kind": kt[4], "metadata": {"name": "x"}}]
+        )
+        rp = mock.Mock()
+        rp.should_skip_resource.return_value = False
+        rp.get_helm_release_name.return_value = ""
+
+        def save(resource, release=""):
+            return os.path.join(
+                "/storage",
+                "ns1",
+                "standalone-resources",
+                f"{resource['kind'].lower()}-{resource['metadata']['name']}.yaml",
+            )
+
+        rp.save_resource.side_effect = save
+        cfg = mock.Mock()
+        cfg.helm_tracking = False
+        cfg.get_excluded_namespaces.return_value = set()
+
+        sm = SyncManager(k8s, rp, mock.Mock(), mock.Mock(), mock.Mock(), cfg)
+        sm.process_namespace_resources("ns1")
+        self.assertEqual(len(sm._active_standalone["ns1"]), 13)
+        self.assertIn("configmap-x.yaml", sm._active_standalone["ns1"])
+        # A new pass with nothing left resets the set to empty (falsy but
+        # present) so every stored file becomes a candidate.
+        rp.save_resource.side_effect = _never
+        k8s.get_kind_resources.side_effect = lambda ns, kt: []
+        sm.process_namespace_resources("ns1")
+        self.assertEqual(sm._active_standalone["ns1"], set())
+
+
+def _never(*args, **kwargs):
+    raise AssertionError("save_resource must not be called")
 
 
 class GitPackCacheTest(unittest.TestCase):

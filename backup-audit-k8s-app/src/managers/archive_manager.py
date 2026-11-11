@@ -14,11 +14,16 @@ logger = logging.getLogger(__name__)
 class ArchiveManager:
     """Handles all archiving operations for resources, namespaces, and releases"""
 
-    def __init__(self, storage_path: str, git_manager, archive_lock, config):
+    def __init__(self, storage_path: str, git_manager, archive_lock, config,
+                 k8s_manager=None):
         self.storage_path = storage_path
         self.git_manager = git_manager
         self.archive_lock = archive_lock
         self.config = config
+        # Used to re-verify deletion candidates against the cluster before
+        # archiving their audit files (None in tests that don't exercise
+        # archive_missing_standalone_resources).
+        self.k8s_manager = k8s_manager
 
     def archive_resource(
         self, resource: Dict[str, Any], release: str = "", user: str = "unknown"
@@ -214,6 +219,69 @@ class ArchiveManager:
 
         except Exception as e:
             logger.error(f"Failed to archive missing releases: {e}")
+
+    def archive_missing_standalone_resources(
+        self, k8s_namespaces, active_standalone
+    ):
+        """Archive audit files of standalone resources that no longer exist.
+
+        active_standalone maps namespace -> set of <kind>-<name>.yaml
+        basenames written by the latest sync pass. A file missing from that
+        set is a deletion candidate; it is re-verified against the cluster
+        before moving (a transient listing failure could have dropped a
+        live resource from the set). Moves are plain renames, so git
+        records them as R100 like release archiving."""
+        try:
+            for ns_name in k8s_namespaces:
+                if ns_name in self.config.get_excluded_namespaces():
+                    continue
+                if ns_name not in active_standalone:
+                    # No sync pass has covered this namespace yet - nothing
+                    # to compare against, skip (conservative). An empty set
+                    # is NOT skipped: it means the last sync saw zero
+                    # standalone resources, so every stored file is a
+                    # candidate.
+                    continue
+                active = active_standalone[ns_name]
+                standalone_path = os.path.join(
+                    self.storage_path, ns_name, "standalone-resources"
+                )
+                if not os.path.isdir(standalone_path):
+                    continue
+
+                for fname in sorted(os.listdir(standalone_path)):
+                    if not fname.endswith(".yaml") or fname in active:
+                        continue
+                    stem = fname[: -len(".yaml")]
+                    kind, _, name = stem.partition("-")
+                    if (
+                        self.k8s_manager is None
+                        or self.k8s_manager.resource_exists(ns_name, kind, name)
+                    ):
+                        continue
+
+                    logger.info(
+                        f"Archiving deleted standalone resource: "
+                        f"{ns_name}/{kind}/{name}"
+                    )
+                    archived_dir = os.path.join(
+                        self.storage_path, "archived", ns_name, "standalone-resources"
+                    )
+                    with self.archive_lock:
+                        os.makedirs(archived_dir, exist_ok=True)
+                        dest = os.path.join(archived_dir, fname)
+                        if os.path.exists(dest):
+                            ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+                            dest = os.path.join(
+                                archived_dir, f"{stem}-{ts}.yaml"
+                            )
+                        shutil.move(os.path.join(standalone_path, fname), dest)
+                        drop_file_cache(dest)
+                        logger.info(f"Moved to archived: {dest}")
+        except Exception as e:
+            logger.error(
+                f"Failed to archive deleted standalone resources: {e}"
+            )
 
     def _move_files(self, source_path: str, dest_path: str):
         """Move directory contents into destination, merging if needed"""

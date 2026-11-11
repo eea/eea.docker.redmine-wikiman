@@ -132,7 +132,9 @@ def initialize_components():
     git_manager = GitManager(storage_path)
     k8s_manager = KubernetesManager()
     storage_manager = StorageManager(storage_path)
-    archive_manager = ArchiveManager(storage_path, git_manager, archive_lock, config)
+    archive_manager = ArchiveManager(
+        storage_path, git_manager, archive_lock, config, k8s_manager
+    )
 
     # Initialize processors. ResourceProcessor shares archive_lock with
     # ArchiveManager so a resource write can't interleave with a concurrent
