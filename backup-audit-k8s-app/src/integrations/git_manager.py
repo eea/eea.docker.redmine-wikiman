@@ -7,6 +7,8 @@ import git
 from datetime import datetime
 from typing import Optional
 
+from core.memory import drop_git_pack_cache
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,14 @@ class GitManager:
         # call from another thread - both take git_lock too.
         with self.git_lock:
             try:
+                # The storage dir is the app's own data dir: create it if it
+                # isn't there yet. Without this, os.listdir() below raised
+                # and the whole setup failed; the scheduler's later retry
+                # then hit the git.Repo.init() fallback on a now-non-empty
+                # dir and landed on git's default branch (pushes went to
+                # the wrong remote ref).
+                os.makedirs(self.storage_path, exist_ok=True)
+
                 git_path = os.path.join(self.storage_path, ".git")
 
                 if not os.path.exists(git_path):
@@ -97,11 +107,21 @@ class GitManager:
                             logger.info("Successfully cloned repository")
                             self._remote_configured = True
                         except Exception as e:
+                            # Also happens on a brand-new (commit-less)
+                            # remote: "Remote branch <branch> not found in
+                            # upstream origin". Init on GIT_BRANCH (not git's
+                            # default branch) so the initial commit/push
+                            # target the same ref as the configured remote
+                            # branch.
                             logger.warning(f"Failed to clone repository: {e}")
                             logger.info("Falling back to repository initialization")
-                            self.repo = git.Repo.init(self.storage_path)
+                            self.repo = git.Repo.init(
+                                self.storage_path, initial_branch=GIT_BRANCH
+                            )
                     else:
-                        self.repo = git.Repo.init(self.storage_path)
+                        self.repo = git.Repo.init(
+                            self.storage_path, initial_branch=GIT_BRANCH
+                        )
                 else:
                     logger.info("Git repository already exists")
                     self.repo = git.Repo(self.storage_path)
@@ -322,11 +342,16 @@ class GitManager:
 
     def _record_push_success(self) -> None:
         # Clear the error before setting the new success timestamp (not
-        # after): a concurrent get_health_status() read between these two
+        # after): a concurrent get_readiness_status() read between these two
         # statements should at worst see "no error yet, old success time"
         # rather than "fresh success time, stale error still set".
         self.last_push_error = None
         self.last_push_success = datetime.now()
+
+        # The packs existed to be shipped to the remote; drop them from the
+        # page cache so they stop counting against the container memory
+        # limit (#309775). Best-effort, never fatal.
+        drop_git_pack_cache(self.storage_path)
 
     def _record_push_error(self, error: str) -> None:
         self.last_push_error = error

@@ -1,5 +1,7 @@
 import logging
+import os
 
+from core.memory import memory_summary
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,11 @@ class SyncManager:
         self.archive_manager = archive_manager
         self.storage_manager = storage_manager
         self.config = config
+        # namespace -> set of <kind>-<name>.yaml basenames of standalone
+        # resources written by the latest sync pass. Cleanup compares the
+        # storage against this to find resources that were deleted
+        # (archive_missing_standalone_resources).
+        self._active_standalone = {}
 
     def run_sync(self, is_initial: bool = True):
         """Sync active namespaces. Also used for periodic resyncs (is_initial=False)
@@ -31,7 +38,10 @@ class SyncManager:
         it with an INITIAL_SYNC marker on every resync cycle would clobber
         that real record even when nothing had changed."""
         try:
-            logger.info("Starting initial sync..." if is_initial else "Starting sync...")
+            logger.info(
+                f"{'Starting initial sync' if is_initial else 'Starting sync'}... "
+                f"(memory {memory_summary()})"
+            )
 
             k8s_namespaces = set(self.k8s_manager.get_namespaces())
             logger.info(f"Found {len(k8s_namespaces)} active namespaces")
@@ -53,7 +63,10 @@ class SyncManager:
                 if is_initial:
                     self.storage_manager.update_namespace_latest_changes(ns_name)
 
-            logger.info("Initial sync completed" if is_initial else "Sync completed")
+            logger.info(
+                f"{'Initial sync completed' if is_initial else 'Sync completed'} "
+                f"(memory {memory_summary()})"
+            )
 
         except Exception as e:
             logger.error(f"Initial sync failed: {e}")
@@ -63,6 +76,10 @@ class SyncManager:
         """Process all resources in a namespace"""
         if ns_name in self.config.get_excluded_namespaces():
             return
+
+        # Reset before the pass so files of resources that vanished since
+        # the last sync fall out of the set (cleanup then archives them).
+        self._active_standalone[ns_name] = set()
 
         # (storage key, client attr, list method, apiVersion, Kind) - apiVersion
         # and Kind are passed explicitly because list responses don't come
@@ -134,10 +151,14 @@ class SyncManager:
             ),
         ]
 
-        resources = self.k8s_manager.get_namespace_resources(ns_name, resource_kinds)
-        logger.info(f"Processing {len(resources)} resource types in namespace {ns_name}")
+        # Stream one kind at a time (M3/#309775): list, save and drop each
+        # kind before listing the next, instead of holding all 13 kinds of
+        # the namespace in memory simultaneously.
+        logger.info(f"Processing {len(resource_kinds)} resource types in namespace {ns_name}")
 
-        for kind, resource_list in resources.items():
+        for kind_tuple in resource_kinds:
+            kind = kind_tuple[0]
+            resource_list = self.k8s_manager.get_kind_resources(ns_name, kind_tuple)
             logger.info(f"Processing {len(resource_list)} {kind} resources in namespace {ns_name}")
             for resource in resource_list:
                 try:
@@ -164,14 +185,16 @@ class SyncManager:
                         else:
                             logger.debug(f"No Helm release found for {resource_kind} {resource_name}")
 
-                    self.resource_processor.save_resource(resource, release)
+                    file_path = self.resource_processor.save_resource(resource, release)
+                    if not release and file_path:
+                        self._active_standalone[ns_name].add(os.path.basename(file_path))
                 except Exception as e:
                     logger.error(f"Error saving {kind} in {ns_name}: {e}")
 
     def run_cleanup(self):
         """Clean up deleted resources"""
         try:
-            logger.info("Starting cleanup...")
+            logger.info(f"Starting cleanup... (memory {memory_summary()})")
 
             # Get current Kubernetes state
             k8s_namespaces = set(self.k8s_manager.get_namespaces())
@@ -192,8 +215,11 @@ class SyncManager:
             # Archive missing namespaces and releases using archive_manager
             self.archive_manager.archive_missing_namespaces(k8s_namespaces)
             self.archive_manager.archive_missing_releases(k8s_releases_by_namespace)
+            self.archive_manager.archive_missing_standalone_resources(
+                k8s_namespaces, self._active_standalone
+            )
 
-            logger.info("Cleanup completed")
+            logger.info(f"Cleanup completed (memory {memory_summary()})")
 
         except Exception as e:
             logger.error(f"Cleanup failed: {e}")
