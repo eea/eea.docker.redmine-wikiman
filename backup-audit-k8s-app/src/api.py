@@ -347,6 +347,19 @@ def startup_sequence():
     try:
         logger.info("Starting startup sequence...")
 
+        # Git repository setup (clone/fetch/align) is network-bound: on a
+        # fresh volume it re-clones the entire backup repo, which can take
+        # minutes. Run it here, in the background, with the HTTP server
+        # already serving /health - a slow GitLab must not hold up the
+        # startup probe (2026-11-13 01dev crash-loop: each restart re-ran
+        # a full clone that outlived the probe window). Each step is capped
+        # by GIT_SETUP_TIMEOUT_SECONDS; the periodic sync job re-runs setup
+        # on its next cycle if this pass is incomplete.
+        git_manager = getattr(scheduler, "git_manager", None)
+        if git_manager:
+            logger.info("Setting up git repository (background)...")
+            git_manager.setup_git_repository()
+
         # Start scheduler and initial sync (this will handle git operations)
         logger.info("Starting audit scheduler...")
         if scheduler:

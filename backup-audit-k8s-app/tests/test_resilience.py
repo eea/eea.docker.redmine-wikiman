@@ -455,3 +455,84 @@ class GitPackCacheTest(unittest.TestCase):
             gm._record_push_success()
             drop.assert_called_once_with("/app/logs")
         self.assertIsNone(gm.last_push_error)
+
+
+class GitSetupTest(unittest.TestCase):
+    """2026-11-13 01dev crash-loop fix: git setup must be cancellable and
+    must not hold up the HTTP server. Covers the network-timeout cap,
+    hollow-repo detection (killed mid-clone), and no-setup-in-constructor."""
+
+    def _gm(self):
+        import integrations.git_manager as g
+
+        gm = g.GitManager.__new__(g.GitManager)
+        gm.storage_path = "/tmp/no-such-dir"
+        gm.git_lock = threading.Lock()
+        gm.repo = None
+        gm._setup_complete = False
+        gm._remote_configured = False
+        gm.last_push_success = None
+        gm.last_push_error = None
+        return gm
+
+    def test_constructor_does_not_setup(self):
+        # __init__ must not run the (network-bound) setup: the server has to
+        # bind and serve /health regardless of GitLab latency.
+        import integrations.git_manager as g
+
+        with tempfile.TemporaryDirectory() as d:
+            g.GitManager(d)
+        self.assertFalse(os.path.exists(os.path.join(d, ".git")))
+
+    def test_run_git_timeout_propagates(self):
+        import integrations.git_manager as g
+        import subprocess as sp
+
+        gm = self._gm()
+        with mock.patch.object(
+            g.subprocess, "run", side_effect=sp.TimeoutExpired("git", 1)
+        ):
+            with self.assertRaises(sp.TimeoutExpired):
+                gm._run_git(["fetch", "origin"], timeout=1)
+
+    def test_clone_timeout_returns_none(self):
+        import integrations.git_manager as g
+        import subprocess as sp
+
+        gm = self._gm()
+        with mock.patch.object(
+            g.subprocess, "run", side_effect=sp.TimeoutExpired("git", 1)
+        ), self.assertLogs("integrations.git_manager", level="WARNING") as logs:
+            self.assertIsNone(gm._clone_repository())
+        # Must be the timeout branch, not the generic-exception branch
+        # (which used to swallow a NameError and mask the cap).
+        self.assertTrue(
+            any("timed out after" in m for m in logs.output),
+            logs.output,
+        )
+
+    def test_hollow_repo_detection(self):
+        gm = self._gm()
+        # repo=None -> not hollow (nothing to inspect)
+        gm.repo = None
+        self.assertFalse(gm._is_hollow_repo())
+
+        # valid HEAD -> not hollow
+        repo = mock.Mock()
+        repo.git.rev_parse.return_value = "0" * 40
+        gm.repo = repo
+        self.assertFalse(gm._is_hollow_repo())
+
+        # dangling HEAD (rev_parse raises) + no branches -> hollow
+        repo = mock.Mock()
+        repo.git.rev_parse.side_effect = Exception("ambiguous argument")
+        repo.git.branch_list.return_value = mock.Mock(stdout="")
+        gm.repo = repo
+        self.assertTrue(gm._is_hollow_repo())
+
+        # dangling HEAD but a branch exists -> not hollow
+        repo = mock.Mock()
+        repo.git.rev_parse.side_effect = Exception("ambiguous argument")
+        repo.git.branch_list.return_value = mock.Mock(stdout="* master\n")
+        gm.repo = repo
+        self.assertFalse(gm._is_hollow_repo())

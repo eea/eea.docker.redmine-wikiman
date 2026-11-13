@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import logging
+import subprocess
 import threading
 import git
 from datetime import datetime
@@ -60,6 +62,13 @@ def get_authenticated_git_url(base_url: str) -> str:
 class GitManager:
     """Handles Git operations for the audit logger"""
 
+    # Wall-clock cap for the network-bound setup steps (clone/fetch/push).
+    # Without it, a slow or unreachable GitLab blocks process startup for
+    # as long as the TCP layer retries: on 2026-11-13 a fresh-volume full
+    # clone outlived the pod's startup probe on 01dev, crash-looping the
+    # app for hours (each restart re-ran the same oversized clone).
+    GIT_SETUP_TIMEOUT_SECONDS = max(5, int(os.getenv("GIT_SETUP_TIMEOUT_SECONDS", "600")))
+
     def __init__(self, storage_path: str) -> None:
         self.storage_path = storage_path
         self.git_lock = threading.Lock()
@@ -68,12 +77,79 @@ class GitManager:
         self._remote_configured = False
         self.last_push_success: Optional[datetime] = None
         self.last_push_error: Optional[str] = None
-        self.setup_git_repository()
+        # NO setup_git_repository() here: the clone/fetch is network-bound
+        # and must not hold up the HTTP server bind (startup probe).
+        # api.startup_sequence() runs it in the background before the
+        # scheduler starts, and the periodic sync job re-runs it until it
+        # completes (each step is capped by GIT_SETUP_TIMEOUT_SECONDS).
+
+    def _run_git(self, args, timeout=GIT_SETUP_TIMEOUT_SECONDS, cwd=None):
+        """Run a git subprocess with a wall-clock cap (see
+        GIT_SETUP_TIMEOUT_SECONDS). The caller treats a failed or timed-out
+        command as "not aligned yet" and retries on the next setup; the
+        server keeps serving /health meanwhile."""
+        cmd = ["git"]
+        if cwd:
+            cmd += ["-C", cwd]
+        cmd += list(args)
+        return subprocess.run(
+            cmd,
+            timeout=timeout,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            capture_output=True,
+            text=True,
+        )
+
+    def _is_hollow_repo(self) -> bool:
+        """No usable refs at all: dangling HEAD and no branches.
+
+        Happens when a clone/fetch is killed mid-write - the .git dir
+        survives but references nothing (e.g. HEAD -> refs/heads/.invalid).
+        Fetching into such a repo advertises zero haves, so the remote
+        streams its entire history on every attempt; wiping and re-cloning
+        is the cheap, clean path."""
+        if self.repo is None:
+            return False
+        try:
+            self.repo.git.rev_parse("--verify", "HEAD")
+            return False
+        except Exception:
+            pass
+        try:
+            return not self.repo.git.branch_list().stdout.strip()
+        except Exception:
+            return True
+
+    def _clone_repository(self):
+        """Clone the remote into the storage dir (capped by
+        GIT_SETUP_TIMEOUT_SECONDS). Returns a Repo, or None on failure."""
+        try:
+            auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
+            logger.info(
+                f"Cloning repository from {GIT_REMOTE_URL} "
+                f"(timeout {self.GIT_SETUP_TIMEOUT_SECONDS}s)"
+            )
+            res = self._run_git(
+                ["clone", "--branch", GIT_BRANCH, auth_url, self.storage_path]
+            )
+            if res.returncode != 0:
+                logger.warning(f"Failed to clone repository: {res.stderr.strip()[:400]}")
+                return None
+            return git.Repo(self.storage_path)
+        except subprocess.TimeoutExpired:
+            logger.warning(
+                f"Failed to clone repository: timed out after "
+                f"{self.GIT_SETUP_TIMEOUT_SECONDS}s - the partial clone is "
+                "recovered (wiped and re-cloned) on the next setup"
+            )
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to clone repository: {e}")
+            return None
 
     def setup_git_repository(self) -> None:
         """Initialize Git repository"""
         if self._setup_complete:
-            logger.debug("Git repository already setup, skipping")
             return
 
         # Held for the whole method (not just the read-only checks) so this
@@ -98,22 +174,17 @@ class GitManager:
 
                     # Try to clone if directory is empty and remote is set
                     if GIT_REMOTE_URL and is_empty:
-                        try:
-                            auth_url = get_authenticated_git_url(GIT_REMOTE_URL)
-                            logger.info(f"Cloning repository from {GIT_REMOTE_URL}")
-                            self.repo = git.Repo.clone_from(
-                                auth_url, self.storage_path, branch=GIT_BRANCH
-                            )
+                        self.repo = self._clone_repository()
+                        if self.repo:
                             logger.info("Successfully cloned repository")
                             self._remote_configured = True
-                        except Exception as e:
+                        else:
                             # Also happens on a brand-new (commit-less)
                             # remote: "Remote branch <branch> not found in
                             # upstream origin". Init on GIT_BRANCH (not git's
                             # default branch) so the initial commit/push
                             # target the same ref as the configured remote
                             # branch.
-                            logger.warning(f"Failed to clone repository: {e}")
                             logger.info("Falling back to repository initialization")
                             self.repo = git.Repo.init(
                                 self.storage_path, initial_branch=GIT_BRANCH
@@ -125,6 +196,22 @@ class GitManager:
                 else:
                     logger.info("Git repository already exists")
                     self.repo = git.Repo(self.storage_path)
+
+                    # A killed clone/fetch leaves a .git that references
+                    # nothing: every fetch into it would re-download the
+                    # whole remote history. Wipe and re-clone instead.
+                    if GIT_REMOTE_URL and self._is_hollow_repo():
+                        logger.warning(
+                            "Existing repository has no usable refs (a "
+                            "clone/fetch was likely killed mid-write) - "
+                            "wiping and re-cloning"
+                        )
+                        shutil.rmtree(self.storage_path, ignore_errors=True)
+                        os.makedirs(self.storage_path, exist_ok=True)
+                        self.repo = self._clone_repository()
+                        if self.repo:
+                            logger.info("Successfully cloned repository")
+                            self._remote_configured = True
 
                 # --- Configure Git user info ---
                 if self.repo:
@@ -163,7 +250,13 @@ class GitManager:
                             # locally again after this fetch, so any "are we
                             # ahead of origin" check must happen after it,
                             # not before.
-                            self.repo.git.fetch("origin")
+                            fetch_res = self._run_git(
+                                ["fetch", "origin"], cwd=self.storage_path
+                            )
+                            if fetch_res.returncode != 0:
+                                raise RuntimeError(
+                                    f"fetch failed: {fetch_res.stderr.strip()[:300]}"
+                                )
 
                             # Warn about (and try to save) any unpushed local
                             # commits before the hard reset below discards
@@ -182,9 +275,14 @@ class GitManager:
                                         f"local commit(s)"
                                     )
                                     try:
-                                        self.repo.git.push(
-                                            "origin", f"HEAD:{GIT_BRANCH}"
+                                        push_res = self._run_git(
+                                            ["push", "origin", f"HEAD:{GIT_BRANCH}"],
+                                            cwd=self.storage_path,
                                         )
+                                        if push_res.returncode != 0:
+                                            raise RuntimeError(
+                                                f"push failed: {push_res.stderr.strip()[:300]}"
+                                            )
                                         logger.info(
                                             "Saved previously unpushed "
                                             "commits to remote before reset"
@@ -216,7 +314,16 @@ class GitManager:
                     except Exception as e:
                         logger.error(f"Failed to configure remote: {e}")
 
-                self._setup_complete = True
+                if self.repo:
+                    self._setup_complete = True
+                else:
+                    # No repo (a hollow re-clone failed/timed out): leave
+                    # setup incomplete so the periodic sync job retries it
+                    # on its next cycle.
+                    logger.warning(
+                        "Git repository setup did not produce a repository - "
+                        "will retry on the next sync cycle"
+                    )
 
             except Exception as e:
                 logger.error(f"Failed to setup Git repository: {e}")
@@ -230,8 +337,15 @@ class GitManager:
                     return
 
                 try:
-                    # Fetch latest changes
-                    self.repo.git.fetch("origin")
+                    # Fetch latest changes (capped: a hung network must not
+                    # stall the sync job for the full TCP timeout)
+                    fetch_res = self._run_git(
+                        ["fetch", "origin"], timeout=60, cwd=self.storage_path
+                    )
+                    if fetch_res.returncode != 0:
+                        raise RuntimeError(
+                            f"fetch failed: {fetch_res.stderr.strip()[:300]}"
+                        )
 
                     # Check if HEAD is valid (has commits)
                     if not self.repo.head.is_valid():
