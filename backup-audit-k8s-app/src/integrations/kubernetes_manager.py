@@ -481,6 +481,28 @@ class KubernetesManager:
             return True
         return any(item.metadata.name == name for item in result.items)
 
+    def list_kind_names(self, namespace: str, kind: str):
+        """Names of the live resources of `kind` in `namespace`, in ONE
+        list call (batch re-verification for archive sweeps).
+
+        Returns a set of names, or None when the list could not be made
+        (unknown kind / API error / client missing) - the caller must
+        treat None as "unverifiable" (conservative: keep everything),
+        never as "nothing exists"."""
+        lookup = self.KIND_LOOKUP.get(kind.lower())
+        if lookup is None:
+            return None
+        client_attr, method_name = lookup
+        try:
+            api = getattr(self, client_attr)
+            if api is None:
+                return None
+            result = getattr(api, method_name)(namespace)
+        except Exception as e:
+            logger.warning(f"Could not list {kind} in {namespace}: {e}")
+            return None
+        return {item.metadata.name for item in result.items}
+
     def get_namespace_resources(
         self, namespace: str, resource_kinds: List[tuple]
     ) -> Dict[str, List[Dict[str, Any]]]:

@@ -227,10 +227,11 @@ class ArchiveManager:
 
         active_standalone maps namespace -> set of <kind>-<name>.yaml
         basenames written by the latest sync pass. A file missing from that
-        set is a deletion candidate; it is re-verified against the cluster
-        before moving (a transient listing failure could have dropped a
-        live resource from the set). Moves are plain renames, so git
-        records them as R100 like release archiving."""
+        set is a deletion candidate; candidates are re-verified against the
+        cluster in ONE list call per (namespace, kind) before moving (a
+        transient listing failure could have dropped live resources from
+        the set; a failed list keeps every candidate). Moves are plain
+        renames, so git records them as R100 like release archiving."""
         try:
             for ns_name in k8s_namespaces:
                 if ns_name in self.config.get_excluded_namespaces():
@@ -249,35 +250,61 @@ class ArchiveManager:
                 if not os.path.isdir(standalone_path):
                     continue
 
+                # Group candidates by kind so each kind is verified with a
+                # single cluster list call, not one call per file (on a
+                # busy namespace a per-file list is an N+1 that took ~90 ms
+                # per file in 2026-11-13 01dev: ~25 k stale files would
+                # have blocked the initial sync for hours).
+                candidates_by_kind = {}
                 for fname in sorted(os.listdir(standalone_path)):
                     if not fname.endswith(".yaml") or fname in active:
                         continue
                     stem = fname[: -len(".yaml")]
                     kind, _, name = stem.partition("-")
-                    if (
-                        self.k8s_manager is None
-                        or self.k8s_manager.resource_exists(ns_name, kind, name)
-                    ):
+                    candidates_by_kind.setdefault(kind, []).append(
+                        (fname, name)
+                    )
+
+                for kind, candidates in candidates_by_kind.items():
+                    if self.k8s_manager is None:
+                        continue
+                    live_names = self.k8s_manager.list_kind_names(
+                        ns_name, kind
+                    )
+                    if live_names is None:
+                        # Unverifiable: keep every candidate (conservative)
+                        logger.warning(
+                            f"Could not list {kind} in {ns_name} - "
+                            f"keeping {len(candidates)} candidate(s) "
+                            "unverified"
+                        )
                         continue
 
-                    logger.info(
-                        f"Archiving deleted standalone resource: "
-                        f"{ns_name}/{kind}/{name}"
-                    )
-                    archived_dir = os.path.join(
-                        self.storage_path, "archived", ns_name, "standalone-resources"
-                    )
-                    with self.archive_lock:
-                        os.makedirs(archived_dir, exist_ok=True)
-                        dest = os.path.join(archived_dir, fname)
-                        if os.path.exists(dest):
-                            ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                            dest = os.path.join(
-                                archived_dir, f"{stem}-{ts}.yaml"
-                            )
-                        shutil.move(os.path.join(standalone_path, fname), dest)
-                        drop_file_cache(dest)
-                        logger.info(f"Moved to archived: {dest}")
+                    for fname, name in candidates:
+                        if name in live_names:
+                            continue
+                        stem = fname[: -len(".yaml")]
+
+                        logger.info(
+                            f"Archiving deleted standalone resource: "
+                            f"{ns_name}/{kind}/{name}"
+                        )
+                        archived_dir = os.path.join(
+                            self.storage_path, "archived", ns_name, "standalone-resources"
+                        )
+                        with self.archive_lock:
+                            os.makedirs(archived_dir, exist_ok=True)
+                            dest = os.path.join(archived_dir, fname)
+                            if os.path.exists(dest):
+                                ts = datetime.now(timezone.utc).strftime(
+                                    "%Y%m%d-%H%M%S"
+                                )
+                                dest = os.path.join(
+                                    archived_dir, f"{stem}-{ts}.yaml"
+                                )
+                            shutil.move(os.path.join(standalone_path, fname), dest)
+                            drop_file_cache(dest)
+                            logger.info(f"Moved to archived: {dest}")
         except Exception as e:
             logger.error(
                 f"Failed to archive deleted standalone resources: {e}"

@@ -338,11 +338,11 @@ class StandaloneArchiveTest(unittest.TestCase):
             with open(os.path.join(ns_storage, fname), "w") as f:
                 f.write("apiVersion: v1\nkind: ConfigMap\n")
         k8s = mock.Mock()
-        # capture-a is gone; still-there and noisy still exist.
-        k8s.resource_exists.side_effect = lambda ns, kind, name: (
-            kind,
-            name,
-        ) in {("configmap", "still-there"), ("pod", "noisy")}
+        # capture-a is gone; still-there and noisy still exist. One list
+        # call per (namespace, kind), as in production.
+        k8s.list_kind_names.side_effect = lambda ns, kind: (
+            {"still-there"} if kind == "configmap" else {"noisy"}
+        )
         cfg = mock.Mock()
         cfg.get_excluded_namespaces.return_value = set()
         am = ArchiveManager(d, mock.Mock(), threading.Lock(), cfg,
@@ -397,6 +397,46 @@ class StandaloneArchiveTest(unittest.TestCase):
                     os.path.join(active_dir, "configmap-capture-a.yaml")
                 )
             )
+
+    def test_unverifiable_kind_kept(self):
+        # A failed cluster list (None) must keep every candidate, not
+        # archive on uncertainty.
+        with tempfile.TemporaryDirectory() as d:
+            am = self._setup(d)
+            am.k8s_manager.list_kind_names.side_effect = lambda ns, kind: None
+            am.archive_missing_standalone_resources(
+                {"ns1"},
+                {"ns1": {"configmap-still-there.yaml"}},
+            )
+            active_dir, _ = self._paths(d)
+            for fname in (
+                "configmap-capture-a.yaml",
+                "pod-noisy.yaml",
+            ):
+                self.assertTrue(
+                    os.path.exists(os.path.join(active_dir, fname)),
+                    fname,
+                )
+
+    def test_one_list_call_per_kind(self):
+        # The whole point of the batch: N candidates of the same kind are
+        # verified with ONE list call, not N.
+        with tempfile.TemporaryDirectory() as d:
+            am = self._setup(d)
+            ns_storage = os.path.join(d, "ns1", "standalone-resources")
+            for i in range(5):
+                with open(
+                    os.path.join(ns_storage, f"configmap-gone-{i}.yaml"), "w"
+                ) as f:
+                    f.write("apiVersion: v1\n")
+            am.archive_missing_standalone_resources(
+                {"ns1"}, {"ns1": set()}
+            )
+            # configmap listed once; pod once (pod-noisy candidate)
+            kinds = [c.args[1] for c in
+                     am.k8s_manager.list_kind_names.call_args_list]
+            self.assertEqual(kinds.count("configmap"), 1)
+            self.assertEqual(kinds.count("pod"), 1)
 
     def test_sync_tracks_active_standalone(self):
         from managers.sync_manager import SyncManager
@@ -536,3 +576,42 @@ class GitSetupTest(unittest.TestCase):
         repo.git.branch_list.return_value = mock.Mock(stdout="* master\n")
         gm.repo = repo
         self.assertFalse(gm._is_hollow_repo())
+
+
+class ListKindNamesTest(unittest.TestCase):
+    """kubernetes_manager.list_kind_names: the one-list-call batch
+    re-verification used by the archive sweep (2026-11-13 01dev: the
+    per-file variant was an N+1 taking ~90 ms per file)."""
+
+    def _km(self):
+        return km_mod.KubernetesManager.__new__(km_mod.KubernetesManager)
+
+    def test_returns_live_names(self):
+        km = self._km()
+        item = mock.Mock()
+        item.metadata.name = "a"
+        item2 = mock.Mock()
+        item2.metadata.name = "b"
+        km.v1 = mock.Mock()
+        km.v1.list_namespaced_config_map.return_value = mock.Mock(
+            items=[item, item2]
+        )
+        self.assertEqual(
+            km.list_kind_names("ns1", "configmap"), {"a", "b"}
+        )
+        km.v1.list_namespaced_config_map.assert_called_once_with("ns1")
+
+    def test_unknown_kind_none(self):
+        km = self._km()
+        self.assertIsNone(km.list_kind_names("ns1", "widget"))
+
+    def test_api_error_none(self):
+        km = self._km()
+        km.v1 = mock.Mock()
+        km.v1.list_namespaced_config_map.side_effect = Exception("403")
+        self.assertIsNone(km.list_kind_names("ns1", "configmap"))
+
+    def test_missing_client_none(self):
+        km = self._km()
+        km.v1 = None
+        self.assertIsNone(km.list_kind_names("ns1", "configmap"))

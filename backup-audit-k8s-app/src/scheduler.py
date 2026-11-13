@@ -73,9 +73,14 @@ class AuditScheduler:
                     logger.info("Writing current Kubernetes state to storage...")
                     self.sync_manager.run_sync()
 
-                    # Step 3: Archive missing namespaces and releases
-                    logger.info("Archiving missing namespaces and releases...")
-                    self.sync_manager.run_cleanup()
+                    # No run_cleanup() here: archiving a stale backlog
+                    # (e.g. months of finished job/pod files on a fresh
+                    # volume) must not gate readiness - on 2026-11-13
+                    # 01dev that sweep ran for an hour inside the initial
+                    # sync and the pod stayed NotReady the whole time.
+                    # The periodic cleanup job (scheduled at startup)
+                    # performs the archiving right after, in its own
+                    # commit/push.
 
                     self.initial_sync_complete = True
                     logger.info("Initial sync completed successfully")
