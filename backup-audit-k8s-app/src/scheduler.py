@@ -95,7 +95,19 @@ class AuditScheduler:
 
                     try:
                         self.git_manager.push_to_remote()
-                        logger.info("Git push completed successfully")
+                        # push_to_remote() swallows its own errors (records
+                        # them in last_push_error), so logging success
+                        # unconditionally was lying: 2026-11-16 01dev showed
+                        # "Git push completed successfully" on every cycle
+                        # while the push was actually rejected (orphaned
+                        # repo after a boot-time network blip).
+                        if self.git_manager.last_push_error:
+                            logger.error(
+                                f"Git push FAILED: "
+                                f"{self.git_manager.last_push_error}"
+                            )
+                        else:
+                            logger.info("Git push completed successfully")
                     except Exception as e:
                         logger.error(f"Git push failed: {e}")
                         # Don't let git push failure crash the application
@@ -139,7 +151,13 @@ class AuditScheduler:
 
                             try:
                                 self.git_manager.push_to_remote()
-                                logger.info("Git push completed successfully")
+                                if self.git_manager.last_push_error:
+                                    logger.error(
+                                        f"Git push FAILED: "
+                                        f"{self.git_manager.last_push_error}"
+                                    )
+                                else:
+                                    logger.info("Git push completed successfully")
                             except Exception as e:
                                 logger.error(f"Git push failed: {e}")
                     except Exception as e:
@@ -195,7 +213,13 @@ class AuditScheduler:
 
                             try:
                                 self.git_manager.push_to_remote()
-                                logger.info("Git push completed successfully")
+                                if self.git_manager.last_push_error:
+                                    logger.error(
+                                        f"Git push FAILED: "
+                                        f"{self.git_manager.last_push_error}"
+                                    )
+                                else:
+                                    logger.info("Git push completed successfully")
                             except Exception as e:
                                 logger.error(f"Git push failed: {e}")
                                 

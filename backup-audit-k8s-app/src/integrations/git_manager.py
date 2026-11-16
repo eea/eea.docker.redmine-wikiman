@@ -77,6 +77,11 @@ class GitManager:
         self._remote_configured = False
         self.last_push_success: Optional[datetime] = None
         self.last_push_error: Optional[str] = None
+        # Set when a push is rejected because the remote has history this
+        # repo lacks (orphaned repo, e.g. startup clone failed on a
+        # transient network drop and fell back to git init): the next
+        # setup_git_repository() wipes and re-clones.
+        self._needs_reclone = False
         # NO setup_git_repository() here: the clone/fetch is network-bound
         # and must not hold up the HTTP server bind (startup probe).
         # api.startup_sequence() runs it in the background before the
@@ -147,9 +152,50 @@ class GitManager:
             logger.warning(f"Failed to clone repository: {e}")
             return None
 
+    @staticmethod
+    def _is_push_rejection(msg: str) -> bool:
+        """True when git rejected the push because the remote has commits
+        we don't have (as opposed to a network/auth failure)."""
+        return (
+            "[rejected]" in msg
+            or "non-fast-forward" in msg
+            or "fetch first" in msg
+        )
+
+    def _rebase_and_retry_push(self) -> bool:
+        """Recover from a non-fast-forward push rejection: fetch the
+        remote branch, rebase our local commits onto it, push once more.
+        Returns True when the retry push succeeded."""
+        try:
+            logger.warning(
+                "Push rejected - the remote has commits this repo lacks. "
+                "Fetching and rebasing before retrying the push"
+            )
+            fetch_res = self._run_git(["fetch", "origin"], cwd=self.storage_path)
+            if fetch_res.returncode != 0:
+                raise RuntimeError(f"fetch failed: {fetch_res.stderr.strip()[:300]}")
+            pull_res = self._run_git(
+                ["pull", "--rebase", "origin", GIT_BRANCH],
+                cwd=self.storage_path,
+            )
+            if pull_res.returncode != 0:
+                raise RuntimeError(f"rebase failed: {pull_res.stderr.strip()[:300]}")
+            push_res = self._run_git(
+                ["push", "origin", f"HEAD:{GIT_BRANCH}"],
+                cwd=self.storage_path,
+            )
+            if push_res.returncode != 0:
+                raise RuntimeError(f"retry push failed: {push_res.stderr.strip()[:300]}")
+            logger.info("Push succeeded after rebase onto remote")
+            self._record_push_success()
+            return True
+        except Exception as e:
+            logger.error(f"Rebase recovery failed: {e}")
+            return False
+
     def setup_git_repository(self) -> None:
         """Initialize Git repository"""
-        if self._setup_complete:
+        if self._setup_complete and not self._needs_reclone:
             return
 
         # Held for the whole method (not just the read-only checks) so this
@@ -164,6 +210,25 @@ class GitManager:
                 # dir and landed on git's default branch (pushes went to
                 # the wrong remote ref).
                 os.makedirs(self.storage_path, exist_ok=True)
+
+                # A push was rejected because the remote has history this
+                # repo lacks (2026-11-16 01dev: startup clone failed on a
+                # transient network drop, the init fallback produced an
+                # orphaned repo, and every later push was rejected with
+                # "fetch first" until the pod was restarted). The only
+                # clean recovery is a fresh clone; the periodic sync job
+                # calls setup every cycle, so this self-heals.
+                if self._needs_reclone:
+                    self._needs_reclone = False
+                    self.repo = None
+                    self._setup_complete = False
+                    self._remote_configured = False
+                    logger.warning(
+                        "Local repo diverged from remote (push rejected "
+                        "as non-fast-forward) - wiping and re-cloning"
+                    )
+                    shutil.rmtree(self.storage_path, ignore_errors=True)
+                    os.makedirs(self.storage_path, exist_ok=True)
 
                 git_path = os.path.join(self.storage_path, ".git")
 
@@ -534,9 +599,19 @@ class GitManager:
                                 )
                                 self._record_push_success()
                             except Exception as e2:
+                                rejected = self._is_push_rejection(str(e2))
+                                if rejected and self._rebase_and_retry_push():
+                                    return
+                                if rejected:
+                                    self._needs_reclone = True
                                 logger.error(f"Failed to push with upstream: {e2}")
                                 self._record_push_error(str(e2))
                         else:
+                            rejected = self._is_push_rejection(str(e))
+                            if rejected and self._rebase_and_retry_push():
+                                return
+                            if rejected:
+                                self._needs_reclone = True
                             logger.error(f"Failed to push to remote: {e}")
                             self._record_push_error(str(e))
                 except Exception as e:

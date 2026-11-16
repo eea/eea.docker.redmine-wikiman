@@ -88,9 +88,18 @@ class EventProcessor:
                 logger.error(f"Failed to get git status: {e}")
 
             self.git_manager.push_to_remote()
-            logger.info(
-                f"Successfully completed git operations for {operation} {resource_kind} {resource_name}"
-            )
+            if self.git_manager.last_push_error:
+                # push_to_remote() records failures without raising;
+                # logging success unconditionally hid a continuously
+                # failing push (2026-11-16 01dev orphaned-repo incident).
+                logger.error(
+                    f"Git push FAILED for {operation} {resource_kind} {resource_name}: "
+                    f"{self.git_manager.last_push_error}"
+                )
+            else:
+                logger.info(
+                    f"Successfully completed git operations for {operation} {resource_kind} {resource_name}"
+                )
 
         except Exception as e:
             logger.error(

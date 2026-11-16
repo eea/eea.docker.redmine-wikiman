@@ -513,6 +513,7 @@ class GitSetupTest(unittest.TestCase):
         gm._remote_configured = False
         gm.last_push_success = None
         gm.last_push_error = None
+        gm._needs_reclone = False
         return gm
 
     def test_constructor_does_not_setup(self):
@@ -576,6 +577,126 @@ class GitSetupTest(unittest.TestCase):
         repo.git.branch_list.return_value = mock.Mock(stdout="* master\n")
         gm.repo = repo
         self.assertFalse(gm._is_hollow_repo())
+
+
+class GitPushRecoveryTest(unittest.TestCase):
+    """2026-11-16 01dev incident: a transient network blip at boot left the
+    pod with an orphaned repo (init fallback, no remote history). Every push
+    was rejected "fetch first", no code path ever re-fetched or re-cloned,
+    and the logs said "Git push completed successfully" the whole time."""
+
+    def _gm(self, storage):
+        import integrations.git_manager as g
+
+        gm = g.GitManager.__new__(g.GitManager)
+        gm.storage_path = storage
+        gm.git_lock = threading.Lock()
+        gm.repo = None
+        gm._setup_complete = False
+        gm._remote_configured = False
+        gm.last_push_success = None
+        gm.last_push_error = None
+        gm._needs_reclone = False
+        return gm
+
+    def test_is_push_rejection(self):
+        import integrations.git_manager as g
+
+        G = g.GitManager
+        self.assertTrue(
+            G._is_push_rejection(
+                "fatal: [rejected] master -> master (fetch first)\n"
+                "! [rejected] master -> master (non-fast-forward)"
+            )
+        )
+        self.assertTrue(G._is_push_rejection("[remote error] non-fast-forward"))
+        # network/auth failures are NOT rejections: rebase retry would be
+        # pointless and must not flag a reclone
+        self.assertFalse(
+            G._is_push_rejection("fatal: unable to access: Could not resolve host")
+        )
+        self.assertFalse(G._is_push_rejection("fatal: Authentication failed"))
+
+    def test_rebase_and_retry_push_success(self):
+        import integrations.git_manager as g
+        import subprocess as sp
+
+        with tempfile.TemporaryDirectory() as d:
+            gm = self._gm(d)
+            calls = []
+
+            def fake_run(args, **_kw):
+                calls.append(args)
+                return sp.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(gm, "_run_git", side_effect=fake_run):
+                self.assertTrue(gm._rebase_and_retry_push())
+            self.assertEqual(
+                [c[0] for c in calls],
+                ["fetch", "pull", "push"],
+            )
+            self.assertIsNone(gm.last_push_error)
+            self.assertIsNotNone(gm.last_push_success)
+
+    def test_rebase_and_retry_push_failure(self):
+        import integrations.git_manager as g
+        import subprocess as sp
+
+        with tempfile.TemporaryDirectory() as d:
+            gm = self._gm(d)
+
+            def fake_run(args, **_kw):
+                return sp.CompletedProcess(
+                    args, 1, stdout="", stderr="fatal: unable to access"
+                )
+
+            with mock.patch.object(gm, "_run_git", side_effect=fake_run):
+                self.assertFalse(gm._rebase_and_retry_push())
+            # a failed fetch must NOT flag a reclone (network blip, not a
+            # diverged repo)
+            self.assertFalse(gm._needs_reclone)
+
+    def test_setup_wipes_and_reclones_when_diverged(self):
+        import integrations.git_manager as g
+
+        with tempfile.TemporaryDirectory() as d:
+            gm = self._gm(d)
+            # simulate the orphaned-repo state: "complete" setup plus a
+            # stale .git tree
+            gm._setup_complete = True
+            gm._needs_reclone = True
+            git_dir = os.path.join(d, ".git")
+            os.makedirs(git_dir)
+            # arbitrary marker of the stale state: neither a mock nor a
+            # real git init recreates this after the wipe
+            marker = os.path.join(git_dir, "stale_orphan_marker")
+            with open(marker, "w") as f:
+                f.write("orphan\n")
+
+            gm.setup_git_repository()
+
+            # stale tree was wiped and a fresh repo initialized in its
+            # place (git may be mocked or real in the test process)
+            self.assertFalse(os.path.exists(marker))
+            self.assertFalse(gm._needs_reclone)
+            self.assertTrue(gm._setup_complete)
+
+    def test_setup_noop_when_complete_and_not_diverged(self):
+        import integrations.git_manager as g
+
+        with tempfile.TemporaryDirectory() as d:
+            gm = self._gm(d)
+            gm._setup_complete = True
+            gm._needs_reclone = False
+            git_dir = os.path.join(d, ".git")
+            os.makedirs(git_dir)
+            with open(os.path.join(git_dir, "HEAD"), "w") as f:
+                f.write("ref: refs/heads/master\n")
+
+            gm.setup_git_repository()
+
+            # no wipe: healthy repo left untouched
+            self.assertTrue(os.path.exists(os.path.join(git_dir, "HEAD")))
 
 
 class ListKindNamesTest(unittest.TestCase):
