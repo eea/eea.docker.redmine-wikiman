@@ -14,8 +14,10 @@ secret, webhook down) are logged and never raised out of the loop.
 """
 
 import logging
+import queue
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import yaml
@@ -100,10 +102,21 @@ class ReleaseSnapshot:
 
 
 class UpgradeNotifier:
-    """Daemon thread that scans Helm releases and posts upgrade notifications."""
+    """Announces successful Helm release changes (install / upgrade /
+    rollback) to a Matrix room. Split into two jobs:
+
+    - the SCAN thread (every `interval` seconds) scans all namespaces in
+      parallel. Revision numbers come free from the secret names, so a
+      steady-state cycle never decodes a manifest - it only detects which
+      releases moved and delegates them to the work queue.
+    - the WORK thread drains the queue and does the heavy lifting
+      (gzip/base64/yaml decode, render, webhook post). A slow or failing
+      webhook therefore can never stall the next scan, and detection
+      latency is bounded by the scan interval, not the post time.
+    """
 
     def __init__(self, k8s_manager, config, webhook_url: str, cluster: str, interval: int = 60,
-                 cluster_url: str = "", notes_resolver=None):
+                  cluster_url: str = "", notes_resolver=None):
         self.k8s_manager = k8s_manager
         self.config = config
         self.webhook_url = webhook_url
@@ -113,12 +126,20 @@ class UpgradeNotifier:
         self.interval = max(10, int(interval))
         # (namespace, release) -> ReleaseSnapshot of the last notified deployed rev
         self.baseline = {}
+        # (namespace, release) keys queued or in flight in the work thread
+        self._work_queue = queue.Queue(maxsize=100)
+        self._pending_keys = set()
         self._stop = threading.Event()
         self._thread = None
+        self._worker_thread = None
 
     def start(self):
         if self._thread and self._thread.is_alive():
             return
+        self._worker_thread = threading.Thread(
+            target=self._work_loop, daemon=True, name="upgrade-notifier-worker"
+        )
+        self._worker_thread.start()
         self._thread = threading.Thread(
             target=self._run, daemon=True, name="upgrade-notifier"
         )
@@ -147,38 +168,117 @@ class UpgradeNotifier:
 
     def _cycle(self, seed: bool = False):
         excluded = self.config.get_excluded_namespaces()
-        for namespace in self.k8s_manager.get_namespaces():
-            if namespace in excluded:
-                continue
+        namespaces = [
+            ns for ns in self.k8s_manager.get_namespaces() if ns not in excluded
+        ]
+        # Namespaces are independent: scan them concurrently. The serial
+        # version took ~63 s per cycle on 01dev (70 namespaces), which
+        # made detection latency up to interval + 63 s even when nothing
+        # changed.
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for namespace in namespaces:
+                pool.submit(self._scan_namespace, namespace, seed)
+
+    def _scan_namespace(self, namespace: str, seed: bool):
+        try:
+            revisions = self.k8s_manager.list_release_revisions(namespace)
+        except Exception as e:
+            # Per-ns isolation: an unreadable namespace must not break the
+            # cycle, and its baseline must be kept (a failed list is not
+            # "the releases are gone").
+            logger.warning(f"Upgrade notifier: cannot list releases in ns {namespace}: {e}")
+            return
+        for release, revs in revisions.items():
             try:
-                revisions = self.k8s_manager.list_release_revisions(namespace)
+                self._check_release(namespace, release, revs, seed)
             except Exception as e:
-                # Per-ns isolation: an unreadable namespace must not break the
-                # cycle, and its baseline must be kept (a failed list is not
-                # "the releases are gone").
-                logger.warning(f"Upgrade notifier: cannot list releases in ns {namespace}: {e}")
-                continue
-            for release, revs in revisions.items():
-                try:
-                    self._check_release(namespace, release, revs, seed)
-                except Exception as e:
-                    logger.error(f"Upgrade notifier: error checking {namespace}/{release}: {e}")
-            # A release that vanished from the namespace entirely (helm
-            # uninstall) is not in `revisions`, so _check_release never sees
-            # it - drop its baseline here instead.
-            if not seed:
-                known = set(revisions.keys())
-                for key in list(self.baseline):
-                    if key[0] == namespace and key[1] not in known:
-                        self.baseline.pop(key)
-                        logger.info(
-                            f"Upgrade notifier: {key[0]}/{key[1]} uninstalled, baseline dropped"
-                        )
+                logger.error(f"Upgrade notifier: error checking {namespace}/{release}: {e}")
+        # A release that vanished from the namespace entirely (helm
+        # uninstall) is not in `revisions`, so _check_release never sees
+        # it - drop its baseline here instead.
+        if not seed:
+            known = set(revisions.keys())
+            for key in list(self.baseline):
+                if key[0] == namespace and key[1] not in known:
+                    self.baseline.pop(key)
+                    logger.info(
+                        f"Upgrade notifier: {key[0]}/{key[1]} uninstalled, baseline dropped"
+                    )
 
     def _check_release(self, namespace: str, release: str, revs: list, seed: bool):
-        new, _ = self._latest_deployed(namespace, revs)
         key = (namespace, release)
 
+        if seed:
+            # Startup snapshot: decode everything and baseline it silently
+            # (a pod restart must never replay notifications).
+            new, _ = self._latest_deployed(namespace, revs)
+            if new is None:
+                return
+            self.baseline[key] = new
+            logger.debug(f"Upgrade notifier: seeded {namespace}/{release} @ rev {new.revision}")
+            return
+
+        # Steady-state scan: revision numbers come from the secret names,
+        # which the per-namespace list already returned for free. Revisions
+        # only ever increase (a new deploy/rollback always creates a higher
+        # one), so if the newest revision is not newer than the last
+        # notified one, no install/upgrade/rollback happened - skip it
+        # without any manifest decode. If it moved, delegate the heavy work
+        # to the work thread instead of doing it here: the scan must stay
+        # cheap, and a slow webhook must not block the next cycle.
+        prev = self.baseline.get(key)
+        if prev is not None and revs and revs[0][0] <= prev.revision:
+            return
+        if key in self._pending_keys:
+            return  # already queued or in flight
+
+        try:
+            self._work_queue.put_nowait((namespace, release))
+            self._pending_keys.add(key)
+        except queue.Full:
+            # Only possible with 100+ stuck changes at once: drop it - the
+            # baseline is unchanged, so the next scan re-detects it.
+            logger.error(
+                f"Upgrade notifier: work queue full, {namespace}/{release} "
+                f"will be retried next cycle"
+            )
+
+    def _work_loop(self):
+        while True:
+            try:
+                namespace, release = self._work_queue.get(timeout=1)
+            except queue.Empty:
+                if self._stop.is_set():
+                    return
+                continue
+            key = (namespace, release)
+            try:
+                self._process_change(namespace, release)
+            except Exception as e:
+                logger.error(
+                    f"Upgrade notifier: work for {namespace}/{release} failed: {e}"
+                )
+            finally:
+                self._work_queue.task_done()
+                # Release the key (on success or failure) so the next scan
+                # can re-detect it if the post did not go through.
+                self._pending_keys.discard(key)
+
+    def _process_change(self, namespace: str, release: str):
+        key = (namespace, release)
+        # Re-read the namespace: the deploy may have moved on again between
+        # detection and now - always act on the latest state.
+        try:
+            revisions = self.k8s_manager.list_release_revisions(namespace)
+        except Exception as e:
+            logger.warning(
+                f"Upgrade notifier: cannot re-list {namespace} for {release}: {e}"
+            )
+            return
+        revs = revisions.get(release) or []
+        new, _ = self._latest_deployed(namespace, revs)
+
+        prev = self.baseline.get(key)
         if new is None:
             # No deployed revision left: release uninstalled (or only failed
             # revisions) -> drop the baseline silently, no notification.
@@ -187,19 +287,14 @@ class UpgradeNotifier:
                 logger.info(f"Upgrade notifier: {namespace}/{release} gone, baseline dropped")
             return
 
-        if seed:
-            self.baseline[key] = new
-            logger.debug(f"Upgrade notifier: seeded {namespace}/{release} @ rev {new.revision}")
-            return
-
-        prev = self.baseline.get(key)
         if prev is None:
             action = "install"
         elif new.revision > prev.revision:
             action = "rollback" if "rollback" in (new.description or "").lower() else "upgrade"
         else:
-            # Same or lower deployed rev: nothing new, or only failed/pending
-            # revisions on top (baseline correctly stays put).
+            # Resolved before we got here (a newer change was already
+            # posted, or the new top revision was not actually deployed):
+            # nothing to do.
             return
 
         if self._post(action, prev, new):

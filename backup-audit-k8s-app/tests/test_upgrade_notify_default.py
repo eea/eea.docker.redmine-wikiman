@@ -151,5 +151,129 @@ class UpgradeNotifyDefaultTest(unittest.TestCase):
         self.assertIs(api.upgrade_notifier, notifier_cls.return_value)
 
 
+class UpgradeNotifierFastPathTest(unittest.TestCase):
+    """Scan-speed fast path: a release whose newest revision did not move
+    since the last cycle must not be re-decoded (gzip/base64/yaml of its
+    manifest took ~0.3-1 s per release, ~63 s per full 01dev cycle)."""
+
+    def _notifier(self):
+        from integrations.upgrade_notifier import UpgradeNotifier
+
+        return UpgradeNotifier(
+            k8s_manager=None, config=None, webhook_url="http://x", cluster="t"
+        )
+
+    def test_unchanged_release_skips_decode(self):
+        n = self._notifier()
+        n.baseline[("ns", "rel")] = mock.Mock(revision=5)
+        revs = [(5, mock.Mock()), (4, mock.Mock())]
+        with mock.patch.object(n, "_latest_deployed") as ld:
+            n._check_release("ns", "rel", revs, seed=False)
+        ld.assert_not_called()
+
+    def test_pruned_history_skips_decode(self):
+        # Helm prunes old revisions: top can be OLDER than the baseline
+        # without any new deploy having happened.
+        n = self._notifier()
+        n.baseline[("ns", "rel")] = mock.Mock(revision=5)
+        revs = [(4, mock.Mock()), (3, mock.Mock())]
+        with mock.patch.object(n, "_latest_deployed") as ld:
+            n._check_release("ns", "rel", revs, seed=False)
+        ld.assert_not_called()
+
+    def test_new_revision_enqueued_then_worker_posts_upgrade(self):
+        n = self._notifier()
+        old = mock.Mock(revision=5)
+        new = mock.Mock(revision=6, description="")
+        n.baseline[("ns", "rel")] = old
+        # The scan must NOT decode - it only sees the revision numbers.
+        with mock.patch.object(n, "_latest_deployed") as ld:
+            n._check_release("ns", "rel", [(6, mock.Mock()), (5, mock.Mock())], seed=False)
+        ld.assert_not_called()
+        self.assertEqual(n._work_queue.get_nowait(), ("ns", "rel"))
+        self.assertIn(("ns", "rel"), n._pending_keys)
+
+        # The work thread re-lists, decodes, and posts.
+        n.k8s_manager = mock.Mock()
+        n.k8s_manager.list_release_revisions.return_value = {"rel": [(6, mock.Mock()), (5, mock.Mock())]}
+        with mock.patch.object(n, "_latest_deployed", return_value=(new, old)) as ld, \
+             mock.patch.object(n, "_post", return_value=True) as post:
+            n._process_change("ns", "rel")
+        ld.assert_called_once()
+        post.assert_called_once_with("upgrade", old, new)
+        self.assertIs(n.baseline[("ns", "rel")], new)
+
+    def test_new_release_worker_posts_install(self):
+        n = self._notifier()
+        n._check_release("ns", "brandnew", [(1, mock.Mock())], seed=False)
+        self.assertEqual(n._work_queue.get_nowait(), ("ns", "brandnew"))
+
+        new = mock.Mock(revision=1, description="")
+        n.k8s_manager = mock.Mock()
+        n.k8s_manager.list_release_revisions.return_value = {"brandnew": [(1, mock.Mock())]}
+        with mock.patch.object(n, "_latest_deployed", return_value=(new, None)), \
+             mock.patch.object(n, "_post", return_value=True) as post:
+            n._process_change("ns", "brandnew")
+        post.assert_called_once_with("install", None, new)
+        self.assertIs(n.baseline[("ns", "brandnew")], new)
+
+    def test_duplicate_enqueues_suppressed_while_pending(self):
+        n = self._notifier()
+        n._check_release("ns", "rel", [(6, mock.Mock())], seed=False)
+        # Still in flight: the next scan must not queue it a second time.
+        n._check_release("ns", "rel", [(6, mock.Mock())], seed=False)
+        self.assertEqual(n._work_queue.qsize(), 1)
+
+    def test_failed_post_retried_on_next_scan(self):
+        n = self._notifier()
+        old = mock.Mock(revision=5)
+        n.baseline[("ns", "rel")] = old
+        n._check_release("ns", "rel", [(6, mock.Mock())], seed=False)
+        n._work_queue.get_nowait()
+
+        n.k8s_manager = mock.Mock()
+        n.k8s_manager.list_release_revisions.return_value = {"rel": [(6, mock.Mock())]}
+        with mock.patch.object(
+            n, "_latest_deployed", return_value=(mock.Mock(revision=6, description=""), old)
+        ), mock.patch.object(n, "_post", return_value=False):
+            n._process_change("ns", "rel")
+        # Post failed: baseline kept, key released (as the work loop does).
+        self.assertIs(n.baseline[("ns", "rel")], old)
+        n._pending_keys.discard(("ns", "rel"))
+
+        # Next scan re-detects and re-queues.
+        n._check_release("ns", "rel", [(6, mock.Mock())], seed=False)
+        self.assertEqual(n._work_queue.qsize(), 1)
+
+    def test_seed_always_decodes(self):
+        n = self._notifier()
+        n.baseline[("ns", "rel")] = mock.Mock(revision=5)
+        revs = [(5, mock.Mock())]
+        with mock.patch.object(
+            n, "_latest_deployed", return_value=(mock.Mock(revision=5), None)
+        ) as ld:
+            n._check_release("ns", "rel", revs, seed=True)
+        ld.assert_called_once()
+
+    def test_cycle_isolates_namespace_failures(self):
+        n = self._notifier()
+        k8s = mock.Mock()
+        k8s.get_namespaces.return_value = ["bad", "good"]
+
+        def list_revs(ns):
+            if ns == "bad":
+                raise RuntimeError("api error")
+            return {}
+
+        k8s.list_release_revisions.side_effect = list_revs
+        cfg = mock.Mock()
+        cfg.get_excluded_namespaces.return_value = set()
+        n.k8s_manager = k8s
+        n.config = cfg
+
+        n._cycle(seed=False)  # must not raise
+        k8s.list_release_revisions.assert_any_call("good")
+
+
 if __name__ == "__main__":
     unittest.main()

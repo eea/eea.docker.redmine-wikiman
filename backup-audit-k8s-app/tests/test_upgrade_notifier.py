@@ -141,6 +141,16 @@ class UpgradeNotifierTest(unittest.TestCase):
     def _run(self, notifier, post, seed=False):
         self.mock_post.side_effect = post
         notifier._cycle(seed=seed)
+        if not seed:
+            # The unit tests do not start the worker thread: drain the work
+            # queue inline, exactly as the work loop would.
+            while not notifier._work_queue.empty():
+                ns, rel = notifier._work_queue.get_nowait()
+                try:
+                    notifier._process_change(ns, rel)
+                finally:
+                    notifier._work_queue.task_done()
+                    notifier._pending_keys.discard((ns, rel))
 
     def test_seed_is_silent(self):
         releases = {"app": {"onyx": [(1, fake_secret("sh.helm.release.v1.onyx.v1",
