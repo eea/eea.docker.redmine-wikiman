@@ -566,6 +566,87 @@ class ImageLinesTest(unittest.TestCase):
         self.assertIn("**(and 2 more images)**", body)
 
 
+class NoChangeCardTest(unittest.TestCase):
+    """Re-deploys with no visible change (values-only) and charts without
+    appVersion must not render 'App version: ?' or a wall of '(unchanged)'."""
+
+    def setUp(self):
+        self._patch = mock.patch("integrations.upgrade_notifier.requests.post")
+        self.mock_post = self._patch.start()
+        self.addCleanup(self._patch.stop)
+
+    def _run(self, notifier, post, seed=False):
+        self.mock_post.side_effect = post
+        notifier._cycle(seed=seed)
+        if not seed:
+            while not notifier._work_queue.empty():
+                ns, rel = notifier._work_queue.get_nowait()
+                try:
+                    notifier._process_change(ns, rel)
+                finally:
+                    notifier._work_queue.task_done()
+                    notifier._pending_keys.discard((ns, rel))
+
+    def test_no_visible_changes_compact_card(self):
+        imgs = ["x/es:8.19.13", "x/kb:8.19.13"]
+        p1 = make_multi_image_payload("sdi", 59, "deployed", "Upgrade complete", imgs,
+                                      app_version="", chart_version="0.14.13")
+        releases = {"ns": {"sdi": [(59, fake_secret("sh.helm.release.v1.sdi.v59", p1))]}}
+        notifier, post = make_notifier(releases, namespaces=("ns",))
+        self._run(notifier, post, seed=True)
+        p2 = make_multi_image_payload("sdi", 61, "deployed", "Upgrade complete", imgs,
+                                      app_version="", chart_version="0.14.13")
+        releases["ns"]["sdi"] = [
+            (61, fake_secret("sh.helm.release.v1.sdi.v61", p2)),
+            (59, fake_secret("sh.helm.release.v1.sdi.v59",
+                             make_multi_image_payload("sdi", 59, "superseded", "Upgrade complete",
+                                                      imgs, app_version="",
+                                                      chart_version="0.14.13"))),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("**No visible changes** — re-deploy / values-only", body)
+        self.assertNotIn("App version", body)
+        self.assertNotIn("?", body)
+
+    def test_app_version_line_omitted_when_unset(self):
+        p1 = make_release_payload("app", 1, "deployed", "Install complete",
+                                  app_version="", chart_version="0.1.0")
+        releases = {"ns": {"app": [(1, fake_secret("sh.helm.release.v1.app.v1", p1))]}}
+        notifier, post = make_notifier(releases, namespaces=("ns",))
+        self._run(notifier, post, seed=True)
+        p2 = make_release_payload("app", 2, "deployed", "Upgrade complete",
+                                  app_version="", chart_version="0.2.0")
+        releases["ns"]["app"] = [
+            (2, fake_secret("sh.helm.release.v1.app.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.app.v1",
+                            make_release_payload("app", 1, "superseded", "Install complete",
+                                                 app_version="", chart_version="0.1.0"))),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertNotIn("App version", body)
+        self.assertIn("**Chart version:** `0.1.0` → **`0.2.0`**", body)
+
+    def test_app_version_removed_shows_not_set(self):
+        p1 = make_release_payload("app", 1, "deployed", "Install complete",
+                                  app_version="1.0", chart_version="0.1.0")
+        releases = {"ns": {"app": [(1, fake_secret("sh.helm.release.v1.app.v1", p1))]}}
+        notifier, post = make_notifier(releases, namespaces=("ns",))
+        self._run(notifier, post, seed=True)
+        p2 = make_release_payload("app", 2, "deployed", "Upgrade complete",
+                                  app_version="", chart_version="0.2.0")
+        releases["ns"]["app"] = [
+            (2, fake_secret("sh.helm.release.v1.app.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.app.v1",
+                            make_release_payload("app", 1, "superseded", "Install complete",
+                                                 app_version="1.0", chart_version="0.1.0"))),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("**App version:** `1.0` → **`(not set)`**", body)
+
+
 class ListReleaseRevisionsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

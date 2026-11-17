@@ -380,21 +380,42 @@ class UpgradeNotifier:
 
     @staticmethod
     def _fmt_version(prev, field: str, value: str) -> str:
-        old = getattr(prev, field, "") if prev else ""
-        new = value or "?"
+        old = getattr(prev, field, "") or "" if prev else ""
+        new = value or "(not set)"
         if not old:
             return f"**`{new}`**"
         if old == value:
             return f"`{new}` (unchanged)"
         return f"`{old}` → **`{new}`**"
 
+    @staticmethod
+    def _visible_change(prev, new: "ReleaseSnapshot") -> bool:
+        """True when appVersion, chart version or container images differ."""
+        if prev is None:
+            return True
+        return (
+            (prev.app_version or "") != (new.app_version or "")
+            or (prev.chart_version or "") != (new.chart_version or "")
+            or (prev.images or []) != (new.images or [])
+        )
+
     def _render(self, action: str, prev, new: ReleaseSnapshot, notes_info=None) -> str:
         lines = [
             f"#### [{ACTION_LABEL.get(action, action.upper())}] **{new.release}**",
             f"**Cluster:** {self.cluster} · **Namespace:** `{new.namespace}`",
-            f"**App version:** {self._fmt_version(prev, 'app_version', new.app_version)}",
-            f"**Chart version:** {self._fmt_version(prev, 'chart_version', new.chart_version)}",
         ]
+        # A rollback must always get the full card, even when it restores the
+        # exact previous images (that is the whole point of a rollback).
+        if action == "upgrade" and prev is not None and not self._visible_change(prev, new):
+            # Re-deploy with no visible change (values-only at most): keep the
+            # ack of the deploy, but say plainly that nothing we can see moved.
+            lines.append("**No visible changes** — re-deploy / values-only")
+            if new.urls:
+                lines.append(f"**URL:** [https://{new.urls[0]}](https://{new.urls[0]})")
+            return "  \n".join(lines)
+        if new.app_version or (prev and prev.app_version):
+            lines.append(f"**App version:** {self._fmt_version(prev, 'app_version', new.app_version)}")
+        lines.append(f"**Chart version:** {self._fmt_version(prev, 'chart_version', new.chart_version)}")
         lines.extend(self._image_lines(prev, new))
         if self.cluster_url:
             lines.append(f"**Cluster URL:** [{self.cluster_url}]({self.cluster_url})")
