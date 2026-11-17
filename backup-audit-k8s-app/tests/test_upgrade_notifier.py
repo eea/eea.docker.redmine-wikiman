@@ -468,6 +468,104 @@ class UpgradeNotifierTest(unittest.TestCase):
                       resolver.calls[0][1])
 
 
+def make_multi_image_payload(name, rev, status, description, images,
+                             app_version="1.0", chart_version="0.1.0"):
+    p = make_release_payload(name, rev, status, description,
+                             app_version=app_version, chart_version=chart_version)
+    p["manifest"] = "".join(f"image: {i}\n" for i in images)
+    return p
+
+
+class ImageLinesTest(unittest.TestCase):
+    """Image tags are the only version info for charts with a stale
+    appVersion (onyx: chart stays v2.2.4, the app ships as image tags)."""
+
+    def setUp(self):
+        self._patch = mock.patch("integrations.upgrade_notifier.requests.post")
+        self.mock_post = self._patch.start()
+        self.addCleanup(self._patch.stop)
+
+    def _run(self, notifier, post, seed=False):
+        self.mock_post.side_effect = post
+        notifier._cycle(seed=seed)
+        if not seed:
+            while not notifier._work_queue.empty():
+                ns, rel = notifier._work_queue.get_nowait()
+                try:
+                    notifier._process_change(ns, rel)
+                finally:
+                    notifier._work_queue.task_done()
+                    notifier._pending_keys.discard((ns, rel))
+
+    def test_image_only_upgrade_shows_old_to_new(self):
+        p1 = make_multi_image_payload("onyx", 1, "deployed", "Install complete",
+                                      ["onyxdotapp/onyx-backend:v5.1.2"],
+                                      app_version="v2.2.4", chart_version="0.4.4")
+        releases = {"app": {"onyx": [(1, fake_secret("sh.helm.release.v1.onyx.v1", p1))]}}
+        notifier, post = make_notifier(releases)
+        self._run(notifier, post, seed=True)
+        p2 = make_multi_image_payload("onyx", 2, "deployed", "Upgrade complete",
+                                      ["onyxdotapp/onyx-backend:v5.1.3"],
+                                      app_version="v2.2.4", chart_version="0.4.4")
+        releases["app"]["onyx"] = [
+            (2, fake_secret("sh.helm.release.v1.onyx.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.onyx.v1",
+                            make_multi_image_payload("onyx", 1, "superseded", "Install complete",
+                                                     ["onyxdotapp/onyx-backend:v5.1.2"],
+                                                     app_version="v2.2.4",
+                                                     chart_version="0.4.4"))),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("**App version:** `v2.2.4` (unchanged)", body)
+        self.assertIn("**Chart version:** `0.4.4` (unchanged)", body)
+        self.assertIn("**Image:** `onyxdotapp/onyx-backend:` `v5.1.2` → **`v5.1.3`**", body)
+
+    def test_unchanged_images_no_image_line(self):
+        p1 = make_multi_image_payload("app", 1, "deployed", "Install complete", ["x/y:1.0"])
+        releases = {"app": {"app": [(1, fake_secret("sh.helm.release.v1.app.v1", p1))]}}
+        notifier, post = make_notifier(releases)
+        self._run(notifier, post, seed=True)
+        p2 = make_multi_image_payload("app", 2, "deployed", "Upgrade complete", ["x/y:1.0"])
+        releases["app"]["app"] = [
+            (2, fake_secret("sh.helm.release.v1.app.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.app.v1",
+                            make_multi_image_payload("app", 1, "superseded", "Install complete", ["x/y:1.0"]))),
+        ]
+        self._run(notifier, post)
+        self.assertNotIn("**Image:**", post.calls[0]["body"])
+
+    def test_install_shows_image_tag(self):
+        notifier, post = make_notifier({"app": {}})
+        self._run(notifier, post, seed=True)
+        p1 = make_multi_image_payload("newapp", 1, "deployed", "Install complete",
+                                      ["x/y:2.0"], app_version="2.0")
+        notifier.k8s_manager.releases_by_ns["app"] = {
+            "newapp": [(1, fake_secret("sh.helm.release.v1.newapp.v1", p1))]
+        }
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertIn("**Image:** **`2.0`**", body)
+
+    def test_many_changed_images_capped(self):
+        old = [f"r/a{i}:1" for i in range(7)]
+        p1 = make_multi_image_payload("big", 1, "deployed", "Install complete", old)
+        releases = {"app": {"big": [(1, fake_secret("sh.helm.release.v1.big.v1", p1))]}}
+        notifier, post = make_notifier(releases)
+        self._run(notifier, post, seed=True)
+        p2 = make_multi_image_payload("big", 2, "deployed", "Upgrade complete",
+                                      [f"r/a{i}:2" for i in range(7)])
+        releases["app"]["big"] = [
+            (2, fake_secret("sh.helm.release.v1.big.v2", p2)),
+            (1, fake_secret("sh.helm.release.v1.big.v1",
+                            make_multi_image_payload("big", 1, "superseded", "Install complete", old))),
+        ]
+        self._run(notifier, post)
+        body = post.calls[0]["body"]
+        self.assertEqual(body.count("**Image:** `r/"), 5)
+        self.assertIn("**(and 2 more images)**", body)
+
+
 class ListReleaseRevisionsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

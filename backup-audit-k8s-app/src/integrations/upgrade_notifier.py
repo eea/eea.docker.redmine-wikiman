@@ -341,6 +341,44 @@ class UpgradeNotifier:
             return None
 
     @staticmethod
+    def _image_parts(image: str):
+        """(repository, display tag). Handles registry:port and @digest."""
+        image = image.split("@", 1)[0]
+        if ":" in image.rsplit("/", 1)[-1]:
+            ref, tag = image.rsplit(":", 1)
+        else:
+            ref, tag = image, "latest"
+        return ref, tag
+
+    def _image_lines(self, prev, new: "ReleaseSnapshot") -> list:
+        """Container-image lines: image tags are the only version info for
+        charts whose appVersion is stale (e.g. onyx: chart appVersion stays
+        v2.2.4 while the app ships as image tags). Changed images are shown
+        old -> new; unchanged ones are omitted. Capped at 5 lines."""
+        if not new.images:
+            return []
+        old_images = prev.images if prev else []
+        old_by_ref = {}
+        for img in old_images:
+            ref, tag = self._image_parts(img)
+            old_by_ref.setdefault(ref, tag)
+        changed = []
+        for img in new.images:
+            if prev is not None and img in old_images:
+                continue
+            ref, tag = self._image_parts(img)
+            if prev is None:
+                changed.append(f"**Image:** **`{tag}`**")
+            elif ref in old_by_ref and old_by_ref[ref] != tag:
+                changed.append(f"**Image:** `{ref}:` `{old_by_ref[ref]}` → **`{tag}`**")
+            else:
+                changed.append(f"**Image:** **`{ref}:{tag}`**")
+        shown = changed[:5]
+        if len(changed) > 5:
+            shown.append(f"**(and {len(changed) - 5} more images)**")
+        return shown
+
+    @staticmethod
     def _fmt_version(prev, field: str, value: str) -> str:
         old = getattr(prev, field, "") if prev else ""
         new = value or "?"
@@ -357,6 +395,7 @@ class UpgradeNotifier:
             f"**App version:** {self._fmt_version(prev, 'app_version', new.app_version)}",
             f"**Chart version:** {self._fmt_version(prev, 'chart_version', new.chart_version)}",
         ]
+        lines.extend(self._image_lines(prev, new))
         if self.cluster_url:
             lines.append(f"**Cluster URL:** [{self.cluster_url}]({self.cluster_url})")
         if new.urls:
