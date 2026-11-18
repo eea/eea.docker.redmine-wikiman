@@ -194,7 +194,7 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertEqual(len(post.calls), 1)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 3)
         body = post.calls[0]["body"]
-        self.assertIn("#### UPGRADE onyx", body)
+        self.assertIn("#### [UPGRADE] onyx", body)
         self.assertIn("Cluster: 01dev", body)
         self.assertIn("Namespace: app", body)
         self.assertIn("App: 1.1 → 1.2", body)
@@ -256,7 +256,7 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
         body = post.calls[0]["body"]
-        self.assertIn("#### ROLLBACK onyx", body)
+        self.assertIn("#### [ROLLBACK] onyx", body)
         self.assertIn("App: 1.1 (unchanged)", body)
         self.assertEqual(notifier.baseline[("app", "onyx")].revision, 4)
 
@@ -321,7 +321,7 @@ class UpgradeNotifierTest(unittest.TestCase):
         self._run(notifier, post)
         self.assertEqual(len(post.calls), 1)
         body = post.calls[0]["body"]
-        self.assertIn("#### INSTALL newapp", body)
+        self.assertIn("#### [INSTALL] newapp", body)
         self.assertIn("App: 2.0", body)
         self.assertIn("Chart: 1.0.0", body)
 
@@ -378,7 +378,7 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("#### UPGRADE bise-backend", body)
+        self.assertIn("#### [UPGRADE] bise-backend", body)
         self.assertIn("Cluster: 01dev", body)
         self.assertIn("Namespace: bise", body)
         self.assertIn("App: 6.1.4-23 → 6.1.4-24", body)
@@ -416,7 +416,7 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("#### UPGRADE onyx", body)
+        self.assertIn("#### [UPGRADE] onyx", body)
         self.assertIn("Chart: 2.3.1 → 2.3.2", body)
         self.assertNotIn("Release notes:", body)
         self.assertNotIn("https://", body)
@@ -458,12 +458,14 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("URL: [aihub-latest.01dev.eea.europa.eu](https://aihub-latest.01dev.eea.europa.eu)", body)
-        # Separate Commit line with the full link (user decision 2026-11-09:
-        # the release-notes text line itself is dropped for now). No real
-        # GitHub Release here (kind "commit") -> no Release line either.
-        self.assertIn("Commit: [66c1a9f](https://github.com/eea/danswer/commit/66c1a9f)", body)
-        self.assertNotIn("Release:", body)
+        # The app name links to the deployed app's own ingress host;
+        # there is no separate URL line.
+        self.assertIn("#### [UPGRADE] [onyx](https://aihub-latest.01dev.eea.europa.eu)", body)
+        self.assertNotIn("URL:", body)
+        # Single upstream link labeled "Release": no real GitHub Release
+        # here (kind "commit"), so it points at the exact commit.
+        self.assertIn("Release: [66c1a9f](https://github.com/eea/danswer/commit/66c1a9f)", body)
+        self.assertNotIn("Commit:", body)
         self.assertNotIn("**Release notes:**", body)
         self.assertNotIn("fix(web): bump Next.js to 16.4.3", body)
         self.assertEqual(len(resolver.calls), 1)
@@ -509,8 +511,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         self.assertIn("Release: [v4.3.9-eea.0.0.120-patch.5]"
                       "(https://github.com/eea/danswer/releases/tag/"
                       "v4.3.9-eea.0.0.120-patch.5)", body)
-        self.assertIn("Commit: [66c1a9f]"
-                      "(https://github.com/eea/danswer/commit/66c1a9f)", body)
+        # The Commit line is gone - "Release:" is the only upstream link.
+        self.assertNotIn("Commit:", body)
 
 
 def make_multi_image_payload(name, rev, status, description, images,
@@ -521,9 +523,11 @@ def make_multi_image_payload(name, rev, status, description, images,
     return p
 
 
-class ImageLinesTest(unittest.TestCase):
-    """Image tags are the only version info for charts with a stale
-    appVersion (onyx: chart stays v2.2.4, the app ships as image tags)."""
+class NoImageLinesTest(unittest.TestCase):
+    """Image lines were removed from the card by user decision (2026-11-18):
+    App and Chart are the version lines, the release link covers the detail.
+    Image diffs still count as a visible change, so image-only upgrades
+    (onyx-style) keep the full card instead of the compact one."""
 
     def setUp(self):
         self._patch = mock.patch("integrations.upgrade_notifier.requests.post")
@@ -542,7 +546,7 @@ class ImageLinesTest(unittest.TestCase):
                     notifier._work_queue.task_done()
                     notifier._pending_keys.discard((ns, rel))
 
-    def test_image_only_upgrade_shows_old_to_new(self):
+    def test_image_only_upgrade_full_card_no_image_line(self):
         p1 = make_multi_image_payload("onyx", 1, "deployed", "Install complete",
                                       ["onyxdotapp/onyx-backend:v5.1.2"],
                                       app_version="v2.2.4", chart_version="0.4.4")
@@ -562,11 +566,14 @@ class ImageLinesTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
+        # Image-only change: full card (NOT "No visible changes"), no Image
+        # line - App and Chart are the only version lines.
         self.assertIn("App: v2.2.4 (unchanged)", body)
         self.assertIn("Chart: 0.4.4 (unchanged)", body)
-        self.assertIn("Image: onyx-backend v5.1.2 → v5.1.3", body)
+        self.assertNotIn("Image:", body)
+        self.assertNotIn("No visible changes", body)
 
-    def test_unchanged_images_no_image_line(self):
+    def test_unchanged_images_compact_card(self):
         p1 = make_multi_image_payload("app", 1, "deployed", "Install complete", ["x/y:1.0"])
         releases = {"app": {"app": [(1, fake_secret("sh.helm.release.v1.app.v1", p1))]}}
         notifier, post = make_notifier(releases)
@@ -578,9 +585,12 @@ class ImageLinesTest(unittest.TestCase):
                             make_multi_image_payload("app", 1, "superseded", "Install complete", ["x/y:1.0"]))),
         ]
         self._run(notifier, post)
-        self.assertNotIn("Image:", post.calls[0]["body"])
+        body = post.calls[0]["body"]
+        # Nothing moved at all -> compact card, still no Image line.
+        self.assertIn("No visible changes", body)
+        self.assertNotIn("Image:", body)
 
-    def test_install_shows_image_tag(self):
+    def test_install_no_image_line(self):
         notifier, post = make_notifier({"app": {}})
         self._run(notifier, post, seed=True)
         p1 = make_multi_image_payload("newapp", 1, "deployed", "Install complete",
@@ -590,9 +600,11 @@ class ImageLinesTest(unittest.TestCase):
         }
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertIn("Image: y 2.0", body)
+        self.assertIn("#### [INSTALL] newapp", body)
+        self.assertIn("App: 2.0", body)
+        self.assertNotIn("Image:", body)
 
-    def test_many_changed_images_capped(self):
+    def test_image_change_counts_as_visible_change(self):
         old = [f"r/a{i}:1" for i in range(7)]
         p1 = make_multi_image_payload("big", 1, "deployed", "Install complete", old)
         releases = {"app": {"big": [(1, fake_secret("sh.helm.release.v1.big.v1", p1))]}}
@@ -607,8 +619,8 @@ class ImageLinesTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        self.assertEqual(body.count("Image: a"), 5)
-        self.assertIn("(and 2 more images)", body)
+        self.assertNotIn("No visible changes", body)
+        self.assertNotIn("Image:", body)
 
 
 class NoChangeCardTest(unittest.TestCase):

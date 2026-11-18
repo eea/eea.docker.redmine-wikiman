@@ -341,46 +341,6 @@ class UpgradeNotifier:
             return None
 
     @staticmethod
-    def _image_parts(image: str):
-        """(repository, display tag). Handles registry:port and @digest."""
-        image = image.split("@", 1)[0]
-        if ":" in image.rsplit("/", 1)[-1]:
-            ref, tag = image.rsplit(":", 1)
-        else:
-            ref, tag = image, "latest"
-        return ref, tag
-
-    def _image_lines(self, prev, new: "ReleaseSnapshot") -> list:
-        """Container-image lines: image tags are the only version info for
-        charts whose appVersion is stale (e.g. onyx: chart appVersion stays
-        v2.2.4 while the app ships as image tags). Changed images are shown
-        old -> new, with the current tag highlighted (light gray box);
-        unchanged ones are omitted. The repository is shown by its short
-        name (last path segment) so the line stays short enough not to wrap
-        on a phone. Capped at 5 lines."""
-        if not new.images:
-            return []
-        old_images = prev.images if prev else []
-        old_by_ref = {}
-        for img in old_images:
-            ref, tag = self._image_parts(img)
-            old_by_ref.setdefault(ref, tag)
-        lines = []
-        for img in new.images:
-            if prev is not None and img in old_images:
-                continue
-            ref, tag = self._image_parts(img)
-            short = ref.rsplit("/", 1)[-1]
-            if prev is not None and ref in old_by_ref and old_by_ref[ref] != tag:
-                lines.append(f"Image: {short} {old_by_ref[ref]} → {tag}")
-            else:
-                lines.append(f"Image: {short} {tag}")
-        shown = lines[:5]
-        if len(lines) > 5:
-            shown.append(f"(and {len(lines) - 5} more images)")
-        return shown
-
-    @staticmethod
     def _fmt_version(prev, field: str, value: str) -> str:
         # Plain text, no highlight: the only background tint the message
         # layer can produce is the code span, and its gray shade is fixed by
@@ -417,40 +377,46 @@ class UpgradeNotifier:
         # short labels and link text keep every line under ~40 chars so
         # nothing wraps on a phone. Fixed order: what/where -> what changed
         # -> where to look. Sections are separated by a blank line.
+        # The release name links to the deployed app itself (its ingress
+        # host), so the card's title doubles as the "open the app" shortcut.
+        if new.urls:
+            name = f"[{new.release}](https://{new.urls[0]})"
+        else:
+            name = new.release
         header = [
-            f"#### {ACTION_LABEL.get(action, action.upper())} {new.release}",
+            f"#### [{ACTION_LABEL.get(action, action.upper())}] {name}",
             f"Namespace: {new.namespace}",
             f"Cluster: {self.cluster}",
         ]
         facts = []
         # A rollback must always get the full card, even when it restores the
-        # exact previous images (that is the whole point of a rollback).
+        # exact previous state (that is the whole point of a rollback).
         if action == "upgrade" and prev is not None and not self._visible_change(prev, new):
             # Re-deploy with no visible change (values-only at most): keep the
             # ack of the deploy, but say plainly that nothing we can see moved.
             facts.append("**No visible changes** — re-deploy / values-only")
         else:
+            # Image lines were dropped from the card by user decision
+            # (2026-11-18) - App and Chart are the version lines; what a
+            # deploy changed lives on the linked release page. Image diffs
+            # still count as a visible change, so image-only upgrades
+            # (onyx-style) keep the full card instead of the compact one.
             if new.app_version or (prev and prev.app_version):
                 facts.append(f"App: {self._fmt_version(prev, 'app_version', new.app_version)}")
             facts.append(f"Chart: {self._fmt_version(prev, 'chart_version', new.chart_version)}")
-            facts.extend(self._image_lines(prev, new))
         links = []
         if self.cluster_url:
             links.append(f"Cluster: [{self.cluster_url}]({self.cluster_url})")
-        if new.urls:
-            host = new.urls[0]
-            extra = f" (+{len(new.urls) - 1} more)" if len(new.urls) > 1 else ""
-            links.append(f"URL: [{host}{extra}](https://{host})")
         if notes_info:
-            # When the resolver found a real GitHub Release, link the
-            # release page (notes + comments) first; the Commit line
-            # always follows, as the exact upstream point the deployed
-            # version was built from. The release-notes text itself is
-            # deliberately NOT shown (user decision 2026-11-09) - the
-            # resolver still returns it in notes_info["text"].
+            # Single upstream link labeled "Release": the release page
+            # (notes + comments) when a real GitHub Release exists,
+            # otherwise the exact commit the version was built from.
+            # The notes text itself is deliberately NOT shown (user
+            # decision 2026-11-09) - notes_info["text"] still carries it.
             if notes_info.get("kind") == "release" and notes_info.get("release_url"):
                 links.append(f"Release: [{notes_info['tag']}]({notes_info['release_url']})")
-            links.append(f"Commit: [{notes_info['sha']}]({notes_info['url']})")
+            else:
+                links.append(f"Release: [{notes_info['sha']}]({notes_info['url']})")
         sections = [header]
         if facts:
             sections.append(facts)
