@@ -440,7 +440,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]}}
         notifier, post = make_notifier(
             releases, namespaces=("gptlab2",), notes_resolver=resolver,
-            rancher_url="https://rancher2develop.eea.europa.eu/c/c-m-9pf4z69b")
+            rancher_url=("https://rancher2develop.eea.europa.eu/dashboard/"
+                         "c/c-m-9pf4z69b"))
         self._run(notifier, post, seed=True)
         p2 = make_release_payload(
             "onyx", 2, "deployed", "Upgrade complete",
@@ -464,8 +465,8 @@ class UpgradeNotifierTest(unittest.TestCase):
         # (catalog.cattle.io App), the ingress URL keeps its own line.
         self.assertIn(
             "#### [UPGRADE] [onyx]"
-            "(https://rancher2develop.eea.europa.eu/c/c-m-9pf4z69b"
-            "/exploration/gptlab2/catalog.cattle.io.apps.onyx)", body)
+            "(https://rancher2develop.eea.europa.eu/dashboard/"
+            "c/c-m-9pf4z69b/apps/catalog.cattle.io.app/gptlab2/onyx)", body)
         self.assertIn("URL: [aihub-latest.01dev.eea.europa.eu]"
                       "(https://aihub-latest.01dev.eea.europa.eu)", body)
         # Single upstream link labeled "Release": no real GitHub Release

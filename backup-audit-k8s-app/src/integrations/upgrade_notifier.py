@@ -122,8 +122,8 @@ class UpgradeNotifier:
         self.webhook_url = webhook_url
         self.cluster = cluster
         self.cluster_url = cluster_url
-        # Rancher base for this cluster (host + /c/<cluster-id>); empty when
-        # the cluster has no Rancher base configured.
+        # Rancher dashboard base for this cluster (host + /dashboard/
+        # c/<cluster-id>); empty when not configured.
         self.rancher_url = (rancher_url or "").rstrip("/")
         self.notes_resolver = notes_resolver
         self.interval = max(10, int(interval))
@@ -385,8 +385,8 @@ class UpgradeNotifier:
         # can be viewed); plain when no Rancher base is configured.
         if self.rancher_url:
             name = (f"[{new.release}]"
-                    f"({self.rancher_url}/exploration/{new.namespace}"
-                    f"/catalog.cattle.io.apps.{new.release})")
+                    f"({self.rancher_url}/apps/catalog.cattle.io.app"
+                    f"/{new.namespace}/{new.release})")
         else:
             name = new.release
         header = [

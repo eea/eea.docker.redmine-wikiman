@@ -19,10 +19,11 @@ class Config:
         self.upgrade_notify_webhook_url = os.getenv("UPGRADE_NOTIFY_WEBHOOK_URL", "")
         self.upgrade_notify_cluster = os.getenv("UPGRADE_NOTIFY_CLUSTER", "")
         self.upgrade_notify_cluster_url = os.getenv("UPGRADE_NOTIFY_CLUSTER_URL", "")
-        # Rancher base for this cluster, e.g.
-        # https://rancher2develop.eea.europa.eu/c/c-m-9pf4z69b - the card
-        # links the app name to the installed helm app (catalog.cattle.io
-        # App) under this base. Empty -> app name renders plain.
+        # Rancher dashboard base for this cluster, e.g.
+        # https://rancher2develop.eea.europa.eu/dashboard/c/c-m-9pf4z69b -
+        # the card links the app name to the installed helm app
+        # (catalog.cattle.io App) at {base}/apps/catalog.cattle.io.app/
+        # {namespace}/{release}. Empty -> app name renders plain.
         self.upgrade_notify_rancher_url = os.getenv("UPGRADE_NOTIFY_RANCHER_URL", "")
         self.upgrade_notify_release_notes = (
             os.getenv("UPGRADE_NOTIFY_RELEASE_NOTES", "true").lower() == "true"
