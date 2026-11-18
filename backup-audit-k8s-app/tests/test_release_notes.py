@@ -91,6 +91,7 @@ class ResolveTest(unittest.TestCase):
         r = ReleaseNotesResolver().resolve("v9", ["eeacms/app:app-v9"], [])
         self.assertEqual(r["text"], "Big feature release.")
         self.assertEqual(r["kind"], "release")
+        self.assertEqual(r["release_url"], "https://github.com/eea/app/releases/tag/v9")
 
     def test_annotated_tag_is_peeled(self):
         self._patched([

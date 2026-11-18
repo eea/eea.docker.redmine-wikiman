@@ -177,6 +177,9 @@ class ReleaseNotesResolver:
             "tag": tag,
             "sha": short,
             "url": f"https://github.com/{repo}/commit/{sha}",
+            # Release page (notes + comments) - the card links it when
+            # kind == "release".
+            "release_url": f"https://github.com/{repo}/releases/tag/{tag}",
             "kind": kind,
             "text": " ".join(text.split())[:400],
         }
