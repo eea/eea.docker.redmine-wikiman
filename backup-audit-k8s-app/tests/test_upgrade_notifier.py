@@ -120,11 +120,12 @@ class FakeNotesResolver:
 
 
 def make_notifier(releases_by_ns, namespaces=("app",), post=None, cluster_url="",
-                  notes_resolver=None):
+                  notes_resolver=None, rancher_url=""):
     k8s = FakeK8s(namespaces, releases_by_ns)
     notifier = UpgradeNotifier(
         k8s, FakeConfig(), "http://webhook.local/?key=k&room_id=!room", "01dev", 60,
-        cluster_url=cluster_url, notes_resolver=notes_resolver
+        cluster_url=cluster_url, notes_resolver=notes_resolver,
+        rancher_url=rancher_url
     )
     if post is None:
         post = FakePost()
@@ -437,8 +438,9 @@ class UpgradeNotifierTest(unittest.TestCase):
         releases = {"gptlab2": {"onyx": [
             (1, fake_secret("sh.helm.release.v1.onyx.v1", p1)),
         ]}}
-        notifier, post = make_notifier(releases, namespaces=("gptlab2",),
-                                       notes_resolver=resolver)
+        notifier, post = make_notifier(
+            releases, namespaces=("gptlab2",), notes_resolver=resolver,
+            rancher_url="https://rancher2develop.eea.europa.eu/c/c-m-9pf4z69b")
         self._run(notifier, post, seed=True)
         p2 = make_release_payload(
             "onyx", 2, "deployed", "Upgrade complete",
@@ -458,10 +460,14 @@ class UpgradeNotifierTest(unittest.TestCase):
         ]
         self._run(notifier, post)
         body = post.calls[0]["body"]
-        # The app name links to the deployed app's own ingress host;
-        # there is no separate URL line.
-        self.assertIn("#### [UPGRADE] [onyx](https://aihub-latest.01dev.eea.europa.eu)", body)
-        self.assertNotIn("URL:", body)
+        # The app name links to the installed helm app in Rancher
+        # (catalog.cattle.io App), the ingress URL keeps its own line.
+        self.assertIn(
+            "#### [UPGRADE] [onyx]"
+            "(https://rancher2develop.eea.europa.eu/c/c-m-9pf4z69b"
+            "/exploration/gptlab2/catalog.cattle.io.apps.onyx)", body)
+        self.assertIn("URL: [aihub-latest.01dev.eea.europa.eu]"
+                      "(https://aihub-latest.01dev.eea.europa.eu)", body)
         # Single upstream link labeled "Release": no real GitHub Release
         # here (kind "commit"), so it points at the exact commit.
         self.assertIn("Release: [66c1a9f](https://github.com/eea/danswer/commit/66c1a9f)", body)

@@ -181,6 +181,7 @@ def initialize_components():
             config.upgrade_notify_interval,
             config.upgrade_notify_cluster_url,
             notes_resolver=notes_resolver,
+            rancher_url=config.upgrade_notify_rancher_url,
         )
         logger.info("Upgrade notifier enabled (starts after initial sync)")
     elif config.upgrade_notify_enabled:

@@ -116,12 +116,15 @@ class UpgradeNotifier:
     """
 
     def __init__(self, k8s_manager, config, webhook_url: str, cluster: str, interval: int = 60,
-                  cluster_url: str = "", notes_resolver=None):
+                  cluster_url: str = "", notes_resolver=None, rancher_url: str = ""):
         self.k8s_manager = k8s_manager
         self.config = config
         self.webhook_url = webhook_url
         self.cluster = cluster
         self.cluster_url = cluster_url
+        # Rancher base for this cluster (host + /c/<cluster-id>); empty when
+        # the cluster has no Rancher base configured.
+        self.rancher_url = (rancher_url or "").rstrip("/")
         self.notes_resolver = notes_resolver
         self.interval = max(10, int(interval))
         # (namespace, release) -> ReleaseSnapshot of the last notified deployed rev
@@ -377,10 +380,13 @@ class UpgradeNotifier:
         # short labels and link text keep every line under ~40 chars so
         # nothing wraps on a phone. Fixed order: what/where -> what changed
         # -> where to look. Sections are separated by a blank line.
-        # The release name links to the deployed app itself (its ingress
-        # host), so the card's title doubles as the "open the app" shortcut.
-        if new.urls:
-            name = f"[{new.release}](https://{new.urls[0]})"
+        # The release name links to the installed helm app in Rancher
+        # (the catalog.cattle.io App of that release, where the deployment
+        # can be viewed); plain when no Rancher base is configured.
+        if self.rancher_url:
+            name = (f"[{new.release}]"
+                    f"({self.rancher_url}/exploration/{new.namespace}"
+                    f"/catalog.cattle.io.apps.{new.release})")
         else:
             name = new.release
         header = [
@@ -407,6 +413,10 @@ class UpgradeNotifier:
         links = []
         if self.cluster_url:
             links.append(f"Cluster: [{self.cluster_url}]({self.cluster_url})")
+        if new.urls:
+            host = new.urls[0]
+            extra = f" (+{len(new.urls) - 1} more)" if len(new.urls) > 1 else ""
+            links.append(f"URL: [{host}{extra}](https://{host})")
         if notes_info:
             # Single upstream link labeled "Release": the release page
             # (notes + comments) when a real GitHub Release exists,
