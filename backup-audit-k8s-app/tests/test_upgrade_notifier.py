@@ -469,10 +469,12 @@ class UpgradeNotifierTest(unittest.TestCase):
             "c/c-m-9pf4z69b/apps/catalog.cattle.io.app/gptlab2/onyx)", body)
         self.assertIn("URL: [aihub-latest.01dev.eea.europa.eu]"
                       "(https://aihub-latest.01dev.eea.europa.eu)", body)
-        # Single upstream link labeled "Release": no real GitHub Release
-        # here (kind "commit"), so it points at the exact commit.
-        self.assertIn("Release: [66c1a9f](https://github.com/eea/danswer/commit/66c1a9f)", body)
+        # No real GitHub Release here (kind "commit"): the commit link was
+        # dropped by user decision, so the card carries no upstream line at
+        # all (the resolver still ran - asserted below).
+        self.assertNotIn("Release:", body)
         self.assertNotIn("Commit:", body)
+        self.assertNotIn("github.com/eea/danswer/commit/", body)
         self.assertNotIn("**Release notes:**", body)
         self.assertNotIn("fix(web): bump Next.js to 16.4.3", body)
         self.assertEqual(len(resolver.calls), 1)

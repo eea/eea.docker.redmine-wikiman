@@ -418,15 +418,14 @@ class UpgradeNotifier:
             extra = f" (+{len(new.urls) - 1} more)" if len(new.urls) > 1 else ""
             links.append(f"URL: [{host}{extra}](https://{host})")
         if notes_info:
-            # Single upstream link labeled "Release": the release page
-            # (notes + comments) when a real GitHub Release exists,
-            # otherwise the exact commit the version was built from.
-            # The notes text itself is deliberately NOT shown (user
-            # decision 2026-11-09) - notes_info["text"] still carries it.
+            # Upstream line only when the resolver found a real GitHub
+            # Release (notes + comments page). Commit-only results render
+            # no line - the commit link was dropped by user decision
+            # (2026-11-18). The notes text itself is deliberately NOT
+            # shown either (user decision 2026-11-09); notes_info["text"]
+            # still carries it.
             if notes_info.get("kind") == "release" and notes_info.get("release_url"):
                 links.append(f"Release: [{notes_info['tag']}]({notes_info['release_url']})")
-            else:
-                links.append(f"Release: [{notes_info['sha']}]({notes_info['url']})")
         sections = [header]
         if facts:
             sections.append(facts)
